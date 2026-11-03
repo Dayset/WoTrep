@@ -46,3 +46,11 @@ Rules: battle time only (clock minus battle start); never show `realName` or ano
 - Pinch zoom/pan on the map page (reuse the player's pointer code), per-player picker beyond "only me".
 - Spawn side and win-rate cards: need aggregates (#111/#112).
 - Real bounds for 101_dday: unverified; the +-600 m screenshot is only a plausibility check (heat follows the roads).
+
+## Competitor notes: map.wotinspector.com Overlord page (observed 2026-11-03 by browsing as a user; nothing scraped or stored)
+Page structure: tabs **stats / heatmaps / top games / specs**, plus an upload box ("processed locally, not uploaded") that plays the user's replay on the map.
+- **specs**: tech name `101_dday`, **size 1000 x 1000 m**, accessible area 0.917 km2, camouflage summer. So the bounds are a 1000 m square; our fixture tracks span x -274..600, so the world origin is not the map centre (probably an offset such as x -400..600). Unverified until we have the arena XML: do not hard-code.
+- **stats** (all-player aggregates, filters region/period/game mode/player name): battles, average duration, average tier, draws, team 1 vs team 2 win rate, class mix, win rate by team, finish reason (extermination/base/timeout), tier distribution, duration distribution, win-score distribution, and a sortable "performance by tank" table (battles, win rate, damage per game, profit). Many controls are locked behind their mod/subscription.
+- **heatmaps**: presets team movements, class movements, experience (locked), assisted damage (A) and (B), tracers, damages, custom. Filters: period, heatmap type, segmentation (by team), tank, game mode, player name ("me"), time range, exp range, player WTR. Spawn markers A (south) and B (north) drawn on the map.
+- Ideas we lack: win rate by spawn (needs aggregates), finish-reason mix, duration/score distributions, tracers (shot lines), assisted-damage layers, per-class movement (needs class data #42), "me" personal heatmaps over many battles (needs the local library #114/#117).
+- Our edge to keep: per-battle coaching linked to the replay, relative metrics, explanations.
