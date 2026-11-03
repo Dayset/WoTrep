@@ -70,3 +70,4 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .seg button[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
 .plot .lbl.mine { font-weight: 700; fill: var(--me); }
 .err-inline { color: var(--enemy); }
+.sortbtn { all: unset; cursor: pointer; font: inherit; color: inherit; white-space: nowrap; } .sortbtn:focus-visible { outline: 2px solid var(--accent); } th[aria-sort="ascending"], th[aria-sort="descending"] { color: var(--text); }

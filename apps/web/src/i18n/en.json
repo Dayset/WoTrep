@@ -80,5 +80,7 @@
   "fb.fail": "Couldn't reach the server; use Copy instead.",
   "col.acc": "Accuracy",
   "col.pen": "Pen rate",
-  "col.life": "Survived"
+  "col.life": "Survived",
+  "err.crash": "Something went wrong showing this page.",
+  "err.retry": "Try again"
 }

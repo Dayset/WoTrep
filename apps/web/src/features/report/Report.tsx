@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
 import { playerMetrics, playerStats, recorderHeuristics } from "@wotrep/analysis";
 import { t } from "../../i18n";
@@ -11,12 +12,20 @@ function Team({ tl, team, title, cls }: { tl: BattleTimeline; team: 1 | 2; title
   const dpm = new Map(playerMetrics(tl).map((p) => [p.vid, p.dpm]));
   const st = new Map(playerStats(tl).map((p) => [p.vid, p]));
   const pc = (x: number | null | undefined) => (x == null ? "—" : `${Math.round(x * 100)}%`);
-  const rows = tl.vehicles.filter((v) => v.team === team).map((v) => ({ v, r: tl.results?.players[v.vid] })).sort((a, b) => (b.r?.damageDealt ?? 0) - (a.r?.damageDealt ?? 0));
+  const [sort, setSort] = useState<{ k: string; dir: 1 | -1 }>({ k: "dmg", dir: -1 });
+  const val: Record<string, (v: VehicleInfo, r?: PlayerResultLike) => number | string> = {
+    name: (v) => v.name.toLowerCase(), tank: (v) => tank(v), dmg: (_, r) => r?.damageDealt ?? -1, dpm: (v, r) => (r ? dpm.get(v.vid) ?? -1 : -1),
+    assist: (_, r) => (r ? r.assistRadio + r.assistTrack + r.assistStun : -1), blocked: (_, r) => r?.blocked ?? -1, kills: (_, r) => r?.kills ?? -1,
+    shots: (_, r) => r?.shots ?? -1, acc: (v) => st.get(v.vid)?.accuracy ?? -1, pen: (v) => st.get(v.vid)?.penRate ?? -1, life: (_, r) => r?.lifeTimeS ?? -1, received: (_, r) => r?.damageReceived ?? -1,
+  };
+  const rows = tl.vehicles.filter((v) => v.team === team).map((v) => ({ v, r: tl.results?.players[v.vid] })).sort((a, b) => {
+    const x = val[sort.k]!(a.v, a.r), y = val[sort.k]!(b.v, b.r); return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
+  });
   return (
     <details open>
       <summary className={cls}>{title}</summary>
       <div className="tablewrap"><table>
-        <thead><tr>{["name", "tank", "dmg", "dpm", "assist", "blocked", "kills", "shots", "acc", "pen", "life", "received"].map((c) => <th key={c}>{t(`col.${c}`)}</th>)}</tr></thead>
+        <thead><tr>{["name", "tank", "dmg", "dpm", "assist", "blocked", "kills", "shots", "acc", "pen", "life", "received"].map((c) => <th key={c} aria-sort={sort.k === c ? (sort.dir === 1 ? "ascending" : "descending") : "none"}><button type="button" className="sortbtn" onClick={() => setSort({ k: c, dir: sort.k === c ? (sort.dir === 1 ? -1 : 1) : c === "name" || c === "tank" ? 1 : -1 })}>{t(`col.${c}`)}{sort.k === c ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button></th>)}</tr></thead>
         <tbody>{rows.map(({ v, r }) => (
           <tr key={v.vid} className={v.isRecorder ? "me" : ""}>
             <td className="nm">{v.name}{v.isRecorder ? ` (${t("report.you")})` : ""}</td><td className="tk">{tank(v)}</td>
@@ -28,6 +37,7 @@ function Team({ tl, team, title, cls }: { tl: BattleTimeline; team: 1 | 2; title
   );
 }
 
+type PlayerResultLike = NonNullable<BattleTimeline["results"]>["players"][number];
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 function Advanced({ tl }: { tl: BattleTimeline }) {
   const h = recorderHeuristics(tl); if (!h) return null;
