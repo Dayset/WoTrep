@@ -1,0 +1,7 @@
+{
+  "stepS": { "value": 5, "why": "initial guess (sampling interval of the strips; fine enough for fights that last 10+ s)", "n": 0, "date": "2026-11-03" },
+  "refWindowS": { "value": 90, "why": "initial guess, recalibrate in E13 (where the enemy was seen in the first seconds defines the attack axis when its spawn was not tracked)", "n": 0, "date": "2026-11-03" },
+  "ghostMaxS": { "value": 20, "why": "initial guess, recalibrate in E13 (an enemy last seen longer ago than this is not counted on any flank)", "n": 0, "date": "2026-11-03" },
+  "even": { "value": 0.1, "why": "initial guess, recalibrate in E13 (own HP share within 50% +- this on a flank counts as an even fight)", "n": 0, "date": "2026-11-03" },
+  "minForce": { "value": 600, "why": "initial guess (below this much total HP on a flank nobody is really there)", "n": 0, "date": "2026-11-03" }
+}

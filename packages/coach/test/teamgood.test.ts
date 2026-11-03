@@ -25,7 +25,21 @@ describe("goodPlaysAll", () => {
   });
   it("alignment counts plays that overlap another teammate's play", () => {
     const a = alignment(goodPlaysAll(tl), tl.recorder.team); expect(a.aligned).toBeLessThanOrEqual(a.plays);
-    const mk = (vid: number, t: number) => ({ vid, team: 1 as const, tStart: t, tEnd: t + 5, dealt: 1, got: 0, wpDelta: 0, absorbedHp: 0, sacrificed: [], enabledShare: 0, enabled: "solo" as const, coverage: 1 });
+    const mk = (vid: number, t: number) => ({ vid, team: 1 as const, tStart: t, tEnd: t + 5, dealt: 1, got: 0, wpDelta: 0, absorbedHp: 0, sacrificed: [], enabledShare: 0, enabled: "solo" as const, coverage: 1, absorbedBy: {} });
     expect(alignment([mk(1, 100), mk(2, 108), mk(3, 300)], 1)).toMatchObject({ plays: 3, aligned: 2 });
+  });
+});
+
+import { ledger } from "../src/index";
+describe("ledger", () => {
+  it("credits helpers once per play and totals match the plays", () => {
+    const plays = goodPlaysAll(tl), rows = ledger(tl, plays);
+    expect(rows.length).toBe(tl.vehicles.length);
+    expect(rows.reduce((s, r) => s + r.plays, 0)).toBe(plays.length);
+    expect(rows.reduce((s, r) => s + r.carried, 0)).toBe(plays.filter((p) => p.enabled === "carried").length);
+    // every helper credit comes from a play of a teammate of that helper
+    const helperCredits = plays.reduce((s, p) => s + new Set([...Object.keys(p.absorbedBy).map(Number), ...p.sacrificed]).size, 0);
+    expect(rows.reduce((s, r) => s + r.madeFor, 0)).toBe(helperCredits);
+    for (const r of rows) { expect(r.diedFor).toBeLessThanOrEqual(r.madeFor); expect(r.carried).toBeLessThanOrEqual(r.plays); }
   });
 });

@@ -7,6 +7,7 @@ import { HeuristicCharts } from "./Charts";
 import { Debug, debugOn } from "./Debug";
 import { Player } from "../player/Player";
 import { MapPage } from "../map/MapPage";
+import { Ledger } from "./Ledger";
 import { FindingsPanel } from "./Findings";
 import { alignment, detectors, goodPlaysAll, rank, runDetectors } from "@wotrep/coach";
 import { Vote, FeedbackExport } from "./Feedback";
@@ -76,6 +77,7 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
     <details open className="adv" data-testid="advanced">
       <summary>{t("adv.title")}<span className="beta">{t("adv.beta")}</span> <span className="muted">· {t("adv.sub")}</span></summary>
       <div className="cards">{cards.map(([k, v, tip, id]) => <div className="card" key={k}><div className="k">{k} <Vote id={`card.${id}`} /></div><div className="v">{v}</div>{tip && <div className="tip">{tip}</div>}<details className="how"><summary>{t("gl.how")} · {t("gl.mean")}</summary><p><b>{t("gl.how")}.</b> {t(`gl.${id}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${id}.mean`)}</p></details></div>)}</div>
+      <Ledger tl={tl} />
     </details>
   );
 }

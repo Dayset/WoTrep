@@ -11,6 +11,8 @@ export type Enabled = "carried" | "shared" | "solo";
 export interface GoodPlay {
   vid: number; team: 1 | 2; tStart: number; tEnd: number; dealt: number; got: number; wpDelta: number;
   absorbedHp: number; sacrificed: number[]; enabledShare: number; enabled: Enabled;
+  /** Which teammates took the enemy fire: vid → HP. */
+  absorbedBy: Record<number, number>;
   /** Share of the player's own damage that the replay reports; plays by players we see less of are less certain. */
   coverage: number;
 }
@@ -29,10 +31,12 @@ export function goodPlaysAll(tl: BattleTimeline): GoodPlay[] {
     for (const g of engagements(tl, cfgv("gapS"), v.vid)) {
       if (!(g.dealt >= cfgv("minDealtShare") * v.maxHealth && g.dealt >= cfgv("minRatio") * Math.max(g.got, 1))) continue;
       const foes = new Set(g.foes), a = g.t0 - LOOKBACK_S, b = g.t1 + 1;
-      const absorbed = tl.events.reduce((s, e) => (e.k === "damage" && e.amount > 0 && e.t >= a && e.t <= b && foes.has(e.attacker) && mates.has(e.target) ? s + e.amount : s), 0);
+      const by: Record<number, number> = {};
+      for (const e of tl.events) if (e.k === "damage" && e.amount > 0 && e.t >= a && e.t <= b && foes.has(e.attacker) && mates.has(e.target)) by[e.target] = (by[e.target] ?? 0) + e.amount;
+      const absorbed = Object.values(by).reduce((x, y) => x + y, 0);
       const sacrificed = [...new Set(tl.events.flatMap((e) => (e.k === "kill" && e.t >= g.t0 - 20 && e.t <= g.t1 + 3 && mates.has(e.victim) && foes.has(e.killer) ? [e.victim] : [])))];
       const share = absorbed / Math.max(1, absorbed + g.got);
-      out.push({ vid: v.vid, team: v.team as 1 | 2, tStart: g.t0, tEnd: g.t1, dealt: g.dealt, got: g.got, wpDelta: g.wp, absorbedHp: absorbed, sacrificed, enabledShare: Math.round(share * 100) / 100, enabled: sacrificed.length > 0 || share >= MIN_ABSORB_SHARE ? "carried" : absorbed > 0 ? "shared" : "solo", coverage: Math.round(coverage * 100) / 100 });
+      out.push({ vid: v.vid, team: v.team as 1 | 2, tStart: g.t0, tEnd: g.t1, dealt: g.dealt, got: g.got, wpDelta: g.wp, absorbedHp: absorbed, sacrificed, enabledShare: Math.round(share * 100) / 100, enabled: sacrificed.length > 0 || share >= MIN_ABSORB_SHARE ? "carried" : absorbed > 0 ? "shared" : "solo", coverage: Math.round(coverage * 100) / 100, absorbedBy: by });
     }
   }
   return out.sort((x, y) => x.tStart - y.tStart);
@@ -43,4 +47,20 @@ export function alignment(plays: GoodPlay[], team: 1 | 2): Alignment {
   const mine = plays.filter((p) => p.team === team);
   const aligned = mine.filter((p) => mine.some((q) => q.vid !== p.vid && q.tStart <= p.tEnd + ALIGN_S && q.tEnd >= p.tStart - ALIGN_S)).length;
   return { team, plays: mine.length, aligned, share: mine.length >= 2 ? Math.round((aligned / mine.length) * 100) / 100 : null };
+}
+
+/** Sacrifice ledger (docs/METRICS.md §3.12): per player, the space they made for teammates' good plays and the plays they cashed in.
+ *  madeFor = teammates' good plays in which this player absorbed fire from the same enemies or was destroyed by them. */
+export interface LedgerRow {
+  vid: number; team: 1 | 2; madeFor: number; absorbedHp: number; diedFor: number;
+  plays: number; carried: number;
+}
+export function ledger(tl: BattleTimeline, plays: GoodPlay[]): LedgerRow[] {
+  const rows = new Map<number, LedgerRow>(tl.vehicles.map((v) => [v.vid, { vid: v.vid, team: v.team as 1 | 2, madeFor: 0, absorbedHp: 0, diedFor: 0, plays: 0, carried: 0 }]));
+  for (const p of plays) {
+    const me = rows.get(p.vid)!; me.plays++; if (p.enabled === "carried") me.carried++;
+    const helpers = new Set([...Object.keys(p.absorbedBy).map(Number), ...p.sacrificed]);
+    for (const h of helpers) { const r = rows.get(h); if (!r) continue; r.madeFor++; r.absorbedHp += p.absorbedBy[h] ?? 0; if (p.sacrificed.includes(h)) r.diedFor++; }
+  }
+  return [...rows.values()];
 }

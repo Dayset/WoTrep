@@ -114,3 +114,8 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 - WG 2.4.1.0 Overlord: 19 plays (6 carried, 13 solo); own team alignment 0% (0/9), enemy 60%; lowest coverage 44%. WG 2.4.0.0 Lakeville: 30 plays (6 carried, 24 solo); lowest coverage 22%, so many of those plays are uncertain.
 - "shared" never occurs yet: when teammates absorb anything, the share is already above 50% because won trades have low damage taken. Candidate refinement: compare absorbed damage with the player's *team-relative* share, or use the focus window (who the enemies were shooting at when the player started).
 - Candidate stat: **sacrifice ledger** per player: how many teammates' deaths/damage preceded each good play by that player, and how often a player's own HP loss enabled a teammate's play (gives the "who creates space" and "who cashes in" view).
+
+## Sacrifice ledger and flank model (2026-11-03)
+- Fixture ledger (own team): top helpers absorbed 748 HP (2 plays), 452 HP (1 died for it), 343 HP; the recorder helped nobody. Own plays enabled: 3/3 for the top helper (a helper who also cashes in).
+- Flank model, own HP share left/centre/right: fixture 34/31/35 (enemy seen 22/29/49), WG Overlord 62/21/17 (enemy seen 49/29/22), Prohorovka 40/21/39 (enemy seen 0/18/82: mostly unseen), Lakeville 70/17/13. The enemy side is a lower bound everywhere.
+- Candidate next: **reinforce score** = after a flank's ratio falls below 40% for 15 s, did any teammate move toward it within 30 s? Per-player credit for the mover, and a team-level "reaction time". Needs lane geometry to be fair on maps with one-sided lanes.

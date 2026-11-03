@@ -269,5 +269,18 @@
   "gl.align.how": "We find every won trade by your teammates (the same rule as your own good plays: enough damage dealt and a good damage ratio). A play counts as aligned when a different teammate made a good play within 10 s of it. Shown as the share of aligned plays and the counts. Needs at least 2 plays.",
   "gl.align.mean": "High means your team's strong moments happen together, which is what coordinated pushes and focus fire look like. Low means good plays were scattered. Small counts are noisy, and we only see the hits the replay reports.",
   "gl.enabled.how": "For each of your good plays we look at the enemies you traded with. If, in the 15 s before and during the play, those enemies hit teammates for at least as much as they hit you, or destroyed a teammate, the play counts as enabled by teammates. Shown as plays enabled ÷ all your good plays.",
-  "gl.enabled.mean": "Enabled means teammates drew the fire that let you win the trade. That is teamplay, not luck. Not enabled means you won it on your own. We cannot separate luck yet because that needs gun data (damage range, penetration)."
+  "gl.enabled.mean": "Enabled means teammates drew the fire that let you win the trade. That is teamplay, not luck. Not enabled means you won it on your own. We cannot separate luck yet because that needs gun data (damage range, penetration).",
+  "led.title": "Sacrifice ledger (your team)",
+  "led.player": "Player",
+  "led.made": "Made space for",
+  "led.made.tip": "Teammates' good plays in which this player absorbed fire from the same enemies or was destroyed by them",
+  "led.hp": "HP absorbed",
+  "led.died": "Destroyed for",
+  "led.cashed": "Own plays enabled",
+  "led.cashed.tip": "This player's own good plays that teammates made possible, out of all their good plays",
+  "gl.ledger.how": "For every good play by a teammate (a won trade), we look at the enemies that teammate traded with. Players who took damage from those enemies in the 15 s before and during the play, or were destroyed by them, are credited with 'made space for'. HP absorbed adds up that damage. 'Own plays enabled' counts this player's own good plays that were carried by teammates (see Your good plays enabled by teammates).",
+  "gl.ledger.mean": "It shows who creates space for others and who cashes in. A player with many 'made space' and few own plays took the hits so others could shoot. Taking hits is not automatically good: it only counts when a teammate then won a trade. Small numbers are noisy and we only see the hits the replay reports.",
+  "curve.flank": "Flanks",
+  "curve.flank.none": "Not enough tracked positions to find the attack axis in this replay.",
+  "curve.flank.how": "The map is split into left, centre and right (looking from your spawn toward the enemy). Each strip shows, every 5 s, who has more HP on that flank among tanks we can see: blue = your team ahead, red = behind, grey = about even, empty = nobody much there. Enemies count only while seen."
 }

@@ -9,3 +9,4 @@ export const configs = { "wp-v0": wpCfg, "boldness-v0": boldCfg, "teamplay-v0": 
 export * from "./series";
 export * from "./heatmap";
 export * from "./teamplay";
+export * from "./flank";
