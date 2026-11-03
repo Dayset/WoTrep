@@ -1,0 +1,18 @@
+{
+  "id": "lesta-1.46.0.0", "realm": "lesta", "version": "1.46.0.0", "confidence": "defs",
+  "note": "Indices identified on the first fixture; see docs/REPLAY_FORMAT.md §5. V = verified against battle results, O = observed, ? = guess.",
+  "avatar": {
+    "showTracer": { "idx": 38, "conf": "O", "args": "u32 shooterVehicleId, u32 shotId, ..." },
+    "stopTracer": { "idx": 30, "conf": "?", "args": "u32 shotId, f32[3] endPoint" },
+    "explodeProjectile": { "idx": 62, "conf": "?", "args": "u32 shotId, ..." },
+    "updateArena": { "idx": 66, "conf": "V", "args": "u8 updateType, bwstring pickle" },
+    "onBattleEvents": { "idx": 60, "conf": "?", "args": "list" }
+  },
+  "vehicle": {
+    "onHealthChanged": { "idx": 3, "conf": "V", "args": "i16 newHealth, i16 oldHealth, u32 attackerId, u8 attackReason" },
+    "showShooting": { "idx": 1, "conf": "O", "args": "u8 burstCount, u8 gunIndex" },
+    "showDamageFromShot": { "idx": 10, "conf": "?", "args": "u32 attackerId, ..." }
+  },
+  "vehicleProperties": { "health": { "idx": 15, "conf": "O" }, "gunAngles": { "idx": 14, "conf": "?" } },
+  "arenaUpdateTypes": { "vehicleList": 4, "period": 3, "vehicleStatus": 5, "vehicleKilled": 6, "avatarReady": 7, "baseInfo": 8 }
+}

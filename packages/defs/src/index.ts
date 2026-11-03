@@ -1,1 +1,1 @@
-export const name = "@wotrep/defs";
+export * from "./manifest";
