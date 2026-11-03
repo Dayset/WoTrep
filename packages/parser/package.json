@@ -1,2 +1,15 @@
-{ "name": "@wotrep/parser", "version": "0.0.0", "private": true, "type": "module", "main": "src/index.ts",
-  "scripts": { "typecheck": "tsc -p .", "test": "vitest run --passWithNoTests", "build": "tsc -p ." } }
+{
+  "name": "@wotrep/parser",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p ."
+  },
+  "dependencies": {
+    "fflate": "0.8.2"
+  }
+}
