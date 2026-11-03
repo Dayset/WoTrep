@@ -99,3 +99,12 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 - 2026-11-03: Player has a "Damage log" toggle (apps/web/src/features/player/DamageLog.tsx): every damaging hit with time, attacker → target (team-coloured), damage, HP left, ☠ on the killing hit; kills without a matching hit (results-derived kills on Wargaming) get their own row. Filter Everyone / Me; click a row to jump 3 s before; the row at the playhead is highlighted and followed.
 - It states its own coverage from the data: log damage ÷ sum of official damageDealt: **89%** on the Lesta fixture, **67%** on the WG 2.4.1.0 dday replay (hits on tanks the recorder could not see are not reported).
 - Compared with wotinspector's log: same idea; ours adds team colours, HP left, coverage, jump-to-moment and the filter. Still missing: per-player filter beyond "me", ammo/penetration result per hit (needs undecoded events).
+
+## Teamplay and force distribution: ideas beyond v0 (2026-11-03)
+- **Local force ratio** at each engagement: living HP of allies vs enemies within ~200 m of the target when the fight began (Lanchester-style). Tells if a fight was started with local superiority; needs visible enemies' positions.
+- **Support timing**: when an ally is hit, how fast did you start shooting at the same enemy? (response latency, 0 if you never joined.)
+- **Pushing from behind / baiting**: you advanced while allies behind you were quiet vs allies leading while you stayed back; use progress rank *change* over time.
+- **Weighted decisions**: when the team's win chance was falling, did the player shift toward the weaker flank (reinforce), or stay? Needs a flank model: split the map along the team's main axis into left/centre/right and compare HP share per flank against enemy HP share per flank (force distribution); a "reinforce score" = move toward the flank with the worst ratio.
+- **Lane balance**: HP share by flank over time vs the enemy's; shown as three strips under the player.
+- **Trade quality in pairs**: after an ally dies, did the nearest ally avenge within 10 s (kill or damage to the killer)?
+- All of the above need calibration data (E13) and, for the enemy side, enough replays; none is implemented.

@@ -1,0 +1,10 @@
+{
+  "focusWindowS": { "value": 4, "why": "initial guess, recalibrate in E13 (two teammates hitting the same target within this many seconds count as focus fire)", "n": 0, "date": "2026-11-03" },
+  "companyM": { "value": 150, "why": "initial guess, recalibrate in E13 (a living teammate this close can support you with fire or cover)", "n": 0, "date": "2026-11-03" },
+  "allyHitWindowS": { "value": 5, "why": "initial guess, recalibrate in E13 (a teammate counts as fighting if they took damage this recently)", "n": 0, "date": "2026-11-03" },
+  "quietWindowS": { "value": 5, "why": "initial guess, recalibrate in E13 (hanging back means no shot of yours within this window either side)", "n": 0, "date": "2026-11-03" },
+  "rearFraction": { "value": 0.34, "why": "initial guess, recalibrate in E13 (the rearmost third of living teammates by progress from spawn)", "n": 0, "date": "2026-11-03" },
+  "minHits": { "value": 3, "why": "initial guess (fewer hits make shares meaningless)", "n": 0, "date": "2026-11-03" },
+  "spawnWindowS": { "value": 10, "why": "initial guess (positions in the first seconds define where a team started)", "n": 0, "date": "2026-11-03" },
+  "maxGapS": { "value": 2, "why": "initial guess (positions older than this are not trusted)", "n": 0, "date": "2026-11-03" }
+}

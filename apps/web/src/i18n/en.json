@@ -240,5 +240,20 @@
   "log.me": "Me",
   "log.empty": "No damage events for this filter.",
   "log.note": "Hits as recorded in the replay; ☠ = destroyed. Click a row to jump 3 s before it.",
-  "log.coverage": "The log holds {p}% of the damage in the official results (the replay only reports hits it could see)."
+  "log.coverage": "The log holds {p}% of the damage in the official results (the replay only reports hits it could see).",
+  "adv.focus": "Focus fire",
+  "adv.company": "Fought with company",
+  "adv.hang": "Hung back",
+  "adv.rank": "Position in the team",
+  "adv.spread": "Team spread",
+  "gl.focus.how": "Of the damage you dealt, the share on targets that a teammate also hit within 4 s before or after. Needs at least 3 hits. Only hits the replay reports are counted.",
+  "gl.focus.mean": "High means you and your team break targets together, so enemies die before they can trade back. Low means you shoot different targets, or alone. A sniper on a far lane can be low and still useful.",
+  "gl.company.how": "Of your damaging hits, the share fired while a living teammate stood within 150 m of you. Needs at least 3 hits.",
+  "gl.company.mean": "High means you fight next to teammates who can cover you or finish the exchange. Low means you were the lone wolf. Low is a risk if you were alone under fire, and fine on a flank that the team agreed to hold.",
+  "gl.hang.how": "We count each second you were alive and in the rearmost third of your living team (by distance travelled from the spawn), while a teammate was taking damage within the last 5 s and you had not fired within 5 s either side. Shown as seconds and as a share of your time alive.",
+  "gl.hang.mean": "Seconds in which teammates were fighting up front while you stayed behind and did nothing. Some of it is right (holding a lane, waiting for the reload), so check each moment before changing your play.",
+  "gl.rank.how": "Every second you are alive we rank you among your living teammates by how far each has moved from the team's spawn point, 0% = last, 100% = furthest forward, then average. Needs the team's spawn positions.",
+  "gl.rank.mean": "Low means you tend to trail the team, high means you lead the push. Neither is a verdict: heavy tanks usually lead and snipers trail. It becomes useful together with Hung back and Fought with company.",
+  "gl.spread.how": "Every 5 s we take your living teammates, find their centre, and average how far each stands from it (metres). The value shown is the average over the battle.",
+  "gl.spread.mean": "Small means the team stayed together, large means it was strung out over the map. A team that fights as one blob wins local fights; a very spread team is easier to pick apart, but some maps need it."
 }

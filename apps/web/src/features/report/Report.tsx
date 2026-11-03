@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
-import { boldnessAll, playerMetrics, playerStats, recorderHeuristics } from "@wotrep/analysis";
+import { boldnessAll, playerMetrics, playerStats, recorderHeuristics, teamShape, teamplayAll } from "@wotrep/analysis";
 import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
 import { HeuristicCharts } from "./Charts";
@@ -47,7 +47,7 @@ type PlayerResultLike = NonNullable<BattleTimeline["results"]>["players"][number
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 function Advanced({ tl }: { tl: BattleTimeline }) {
   const h = recorderHeuristics(tl); if (!h) return null;
-  const bd = boldnessAll(tl).get(tl.recorder.vid);
+  const bd = boldnessAll(tl).get(tl.recorder.vid), tp = teamplayAll(tl).get(tl.recorder.vid), shape = teamShape(tl, tl.recorder.team);
   const sgn = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
   const cards: [string, string, string, string][] = [
     [t("adv.impact"), `${sgn(h.impactPts)} ${t("adv.pts")}`, t("adv.impact.tip"), "impact"],
@@ -60,6 +60,13 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
       [t("adv.paid"), bd.rewardedShare == null ? "—" : `${Math.round(bd.rewardedShare * 100)}% (${bd.rewarded}/${bd.taken})`, "", "paid"],
       [t("adv.costly"), bd.costlyShare == null ? "—" : `${Math.round(bd.costlyShare * 100)}% (${bd.costly}/${bd.taken})`, "", "costly"],
       [t("adv.style"), bd.style ? t(`adv.style.${bd.style}`) : "—", "", "style"],
+    ] as [string, string, string, string][]) : []),
+    ...(tp ? ([
+      [t("adv.focus"), tp.focusShare == null ? "—" : pct(tp.focusShare), "", "focus"],
+      [t("adv.company"), tp.companyShare == null ? "—" : pct(tp.companyShare), "", "company"],
+      [t("adv.hang"), tp.hangS == null ? "—" : `${tp.hangS} s (${pct(tp.hangShare ?? 0)})`, "", "hang"],
+      [t("adv.rank"), tp.frontRank == null ? "—" : pct(tp.frontRank), "", "rank"],
+      [t("adv.spread"), shape.spreadM == null ? "—" : `${shape.spreadM} m`, "", "spread"],
     ] as [string, string, string, string][]) : []),
   ];
   return (

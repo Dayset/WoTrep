@@ -181,3 +181,14 @@ number comes from (results field, event, model, config thresholds). "Mean" says 
 
 ### 3.9 Running curves (player strip)
 Per-second series from `seriesFor` (packages/analysis/src/series.ts): cumulative damage to enemies, damage/min (battle minutes, or life minutes once destroyed), cumulative shots, damaging hits ÷ shots (from the 3rd shot). Observed events only. The UI explains each curve under the chart (`curve.*.how`) and warns when hit coverage < 98%. Win chance reuses WP v0. Survival probability is planned, uncalibrated until E13.
+
+### 3.10 Teamplay v0 (how you fight with the team)
+Code: `packages/analysis/src/teamplay.ts`, thresholds in `config/teamplay-v0.json` (all initial guesses, recalibrate in E13). Computed for every player; shown for the recorder, and for others only when their track covers the team's spawn.
+| value | how | what it tells |
+|---|---|---|
+| Focus fire | share of your damage on targets a teammate also hit within 4 s | breaking targets together vs shooting alone |
+| Fought with company | share of your hits fired with a living teammate within 150 m | lone wolf vs fighting beside help |
+| Hung back (s, share) | seconds alive in the rearmost third of the living team (distance from spawn), a teammate took damage in the last 5 s, and no shot of yours within 5 s either side | not supporting a fight that is happening |
+| Position in the team | average place (0 last .. 100% furthest forward) by distance from spawn among living teammates | leading vs trailing |
+| Team spread | mean distance of living members from their centre, every 5 s, averaged | grouped vs strung out |
+Limits: positions only exist where the replay tracked them; hits only where the replay reported them (coverage differs per replay); "forward" is distance from spawn, not toward the enemy; map lanes are not modelled, so a deliberate flank can look like hanging back. Not yet: weighted decisions (below).
