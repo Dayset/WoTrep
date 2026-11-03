@@ -61,3 +61,19 @@ export function heatGrid(tl: BattleTimeline, layer: HeatLayer, o: HeatOpts): Hea
   let max = 0; for (const v of values) if (v > max) max = v;
   return { cols, rows, cellM: cell, values, total, max, unit: layer === "presence" || layer === "routes" ? "s" : layer === "dmgdealt" || layer === "dmgrecv" ? "hp" : "count" };
 }
+
+export interface Tracer { t: number; shooter: number; team: number; x0: number; z0: number; x1: number; z1: number }
+/** Shot lines: from where the shooter stood when firing to where the projectile ended (docs/MAPPAGE.md "tracers"). Only shots with a known end point and a known shooter position. */
+export function tracerLines(tl: BattleTimeline, o: Pick<HeatOpts, "team" | "t0" | "t1" | "vid">): Tracer[] {
+  const rec = tl.recorder.team, team = new Map(tl.vehicles.map((v) => [v.vid, v.team])), end = new Map<number, { x: number; z: number }>();
+  for (const e of tl.events) if (e.k === "projectileEnd") end.set(e.shotId, { x: e.x, z: e.z });
+  const out: Tracer[] = [];
+  for (const e of tl.events) {
+    if (e.k !== "shot" || e.shotId == null || e.t < (o.t0 ?? 0) || e.t > (o.t1 ?? Infinity)) continue;
+    const tm = team.get(e.shooter); if (tm == null || (o.vid != null && e.shooter !== o.vid)) continue;
+    if ((o.team === "own" && tm !== rec) || (o.team === "enemy" && tm === rec)) continue;
+    const to = end.get(e.shotId), from = posAt(tl.tracks[e.shooter], e.t); if (!to || !from) continue;
+    out.push({ t: e.t, shooter: e.shooter, team: tm, x0: from[0], z0: from[1], x1: to.x, z1: to.z });
+  }
+  return out;
+}

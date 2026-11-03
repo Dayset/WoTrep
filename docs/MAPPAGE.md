@@ -61,3 +61,8 @@ Page structure: tabs **stats / heatmaps / top games / specs**, plus an upload bo
 - A rough pixel estimate from the screenshot (B marker 35% from the left edge) suggested x0 about -200, which contradicts the track extent (-274), so the base marker is probably not the spawn centre. Do not use it.
 - To settle: arena XML from the game files (`boundingBox`), or more replays (extents tighten as more tanks are seen; the spawn corners of both teams pin the map).
 - Placeholder bounds used for screenshots (+-600) were wrong (1200 m). Use x -337..663 / z -500..500 only as a midpoint guess until verified.
+
+## Update 2026-11-03 (later)
+- Tracers: `tracerLines` written + tested, but the fixture has 0 projectileEnd events, so the layer is not exposed (see FINDINGS.md). Blocked on #26/#30.
+- Assisted-damage layers: need the personal/assist events, also undecoded (#26/#30). Not started.
+- Next buildable: zoom/pan on the map page, per-player picker, finish-reason card from `arena.finishReason` for the loaded battle.

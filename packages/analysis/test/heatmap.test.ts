@@ -23,3 +23,15 @@ describe("heatGrid", () => {
   });
   it("ignores positions outside the bounds", () => expect(heatGrid(tl, "presence", { bounds: { x0: 5000, x1: 5100, z0: 5000, z1: 5100 } }).total).toBe(0));
 });
+
+import { tracerLines } from "../src/index";
+describe("tracerLines", () => {
+  it("is empty on the fixture: projectileEnd events are not decoded yet (#26/#30)", () => expect(tracerLines(tl, {}).length).toBe(0));
+  it("builds a line once an end point exists, and respects filters", () => {
+    const shot = tl.events.find((e) => e.k === "shot" && e.shotId != null)!;
+    if (shot.k !== "shot") throw new Error("x");
+    const withEnd = { ...tl, events: [...tl.events, { k: "projectileEnd" as const, t: shot.t + 0.5, shotId: shot.shotId!, x: 10, y: 0, z: 20 }] };
+    const all = tracerLines(withEnd, {}); expect(all).toHaveLength(1); expect(all[0]).toMatchObject({ shooter: shot.shooter, x1: 10, z1: 20 });
+    expect(tracerLines(withEnd, { vid: shot.shooter + 1 })).toHaveLength(0);
+  });
+});

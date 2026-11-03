@@ -75,3 +75,6 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 ## Running curves (player strip)
 - Fixture: recorder's shot events = 61, official shots = 59. Cause unknown (maybe shots not counted by the game, e.g. before the first second). The hit-rate curve uses event shots, so it reads slightly low; never show it as the official accuracy.
 - Running curves (cumulative damage, damage/min, damaging-hit rate) come only from observed events; the player strip notes when a player's hit coverage is under 98%. Survival probability v0 is not built: it needs calibration data (#111/#112, E13).
+
+## Tracers (map page)
+- Fixture: 761 shot events (all with shotId) but **0 projectileEnd events**, so shot lines cannot be drawn truthfully. `tracerLines` (packages/analysis/src/heatmap.ts) is written and tested on a synthetic end point; the UI layer is not exposed until the end-point packet is decoded (#26/#30). Do not fake endpoints from aim direction.
