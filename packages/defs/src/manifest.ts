@@ -1,5 +1,6 @@
 import { z } from "zod";
 import lesta1460 from "../manifests/lesta-1.46.0.0.json";
+import wg2410 from "../manifests/wg-2.4.1.0.json";
 
 const entry = z.object({ idx: z.number().int().nonnegative(), conf: z.enum(["V", "O", "?"]), args: z.string().optional() });
 export const manifestSchema = z.object({
@@ -10,7 +11,7 @@ export const manifestSchema = z.object({
 });
 export type Manifest = z.infer<typeof manifestSchema>;
 
-const BUILT_IN: Manifest[] = [manifestSchema.parse(lesta1460)];
+const BUILT_IN: Manifest[] = [manifestSchema.parse(lesta1460), manifestSchema.parse(wg2410)];
 export type Resolution = { manifest: Manifest; exact: boolean } | { manifest: null; reason: string };
 
 /** Exact match first; then same major.minor of the same realm, flagged `confidence: "fallback"`. Never throws. */

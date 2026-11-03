@@ -8,3 +8,6 @@ __pycache__/
 # never commit game client files
 /client/
 *.pkg
+
+# replays supplied by users stay local (they contain real player names)
+fixtures/local/

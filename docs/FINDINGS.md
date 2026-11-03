@@ -80,8 +80,11 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 - 2026-11-03: **stopTracer (method 30) decoded**: `u32 shotId, f32 x, y, z`. Fixture: 584 end points for 761 shots (77%), all matching a shot id; shot-to-end distance median ~100 m, p90 ~224 m, max ~470 m. The remaining ~23% of shots have no stopTracer in the stream (not an error we can fix). Shot lines now drawn on the map page (`tracerLines`). The fixture timeline JSON was patched with these events (built by the Python probe before); the TS parser produces the same.
 - Still undecoded: assist and personal events (method 60 onBattleEvents), so assisted-damage layers remain blocked (#26/#30).
 
-## Second replay (Wargaming)
-- 2026-11-03: user supplied a Wargaming replay (`.wotreplay`, client 2.3.1.0, NA, map 101_dday, 446 s, 30 vehicles). Our container reader opens it (vehicles, chat) but there is **no manifest for 2.3.1.0**, so no positions, shots or damage. Needs a probe pass for that version (method indices) before it can be analysed. The header names the recording player: never display it.
+## Wargaming replays
+- 2026-11-03: user supplied two Wargaming `.wotreplay` files on 101_dday: client **2.3.1.0** (NA, 446 s; no manifest yet, kept for later per the user) and client **2.4.1.0** (EU, 782 s). Both open in the container reader (vehicles, chat, results, positions). Headers name the recording player: never display that name beyond the normal player list, and never commit these files (they live in the git-ignored `fixtures/local/`).
+- **WG 2.4.1.0 draft manifest** (`packages/defs/manifests/wg-2.4.1.0.json`, confidence `fingerprint`), found by payload shape and checked against results: vehicle method 4 `onHealthChanged` (10 B, same field order as Lesta; recorder damage 6753 = official 6753, all 108 attackers valid), avatar method 37 `showTracer` (50 B; recorder 25 shots = official 25), avatar method 28 `stopTracer` (16 B; 121/121 ends match a shot), avatar method 58 `updateArena` (type 3 period 3 = battle start at clock 31.41).
+- **Not found:** the kill message (results say 27 destroyed, no updateArena type 6 and no obvious avatar method carries victim ids). Without kills, alive counts, team HP and win-probability-based numbers are off on WG replays; the report banner says so. Next probe: look for kills among vehicle methods (vehicle 7/8/10) or derive them from health events reaching 0.
+- WG replays seem to carry fewer events for other players (187 shots in 782 s vs 761 in 328 s on the Lesta fixture): treat coverage per replay, never assume Lesta levels.
 
 ## Comparison with wotinspector's replay viewer (same battle, observed 2026-11-03)
 - Same final result as ours: 15 enemy kills vs 9 losses (24 kills; our parser: 24).

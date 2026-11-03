@@ -1,0 +1,14 @@
+{
+  "id": "wg-2.4.1.0", "realm": "wg", "version": "2.4.1.0", "confidence": "fingerprint",
+  "note": "Draft manifest found by payload fingerprinting on one EU replay (no client defs). V = verified against that replay's battle results, O = observed, ? = guess. Kills (vehicleKilled) were NOT found: this replay has no updateArena kill message, so kills must come from health events until located.",
+  "avatar": {
+    "showTracer": { "idx": 37, "conf": "V", "args": "u32 shooterVehicleId, u32 shotId, ... (50 B); recorder count equals results shots (25)" },
+    "stopTracer": { "idx": 28, "conf": "V", "args": "u32 shotId, f32[3] endPoint (16 B); every end matches a shot id (121/121)" },
+    "updateArena": { "idx": 58, "conf": "V", "args": "u8 updateType, bwstring pickle; type 3 period 3 = battle start" }
+  },
+  "vehicle": {
+    "onHealthChanged": { "idx": 4, "conf": "V", "args": "i16 newHealth, i16 oldHealth, u32 attackerId, u8 reason, u8 flag (10 B); recorder damage sums to results damageDealt (6753)" }
+  },
+  "vehicleProperties": {},
+  "arenaUpdateTypes": { "period": 3 }
+}

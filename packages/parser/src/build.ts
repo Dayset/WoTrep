@@ -48,7 +48,7 @@ export async function parseReplay(bytes: Uint8Array, fileName?: string): Promise
   const tl: BattleTimeline = {
     schema: "wotrep.timeline/1",
     source: { realm, regionCode: b0.regionCode, server: b0.serverName, clientVersion: version,
-      manifest: { id: res.manifest?.id ?? "none", confidence: res.manifest ? (res.exact ? "defs" : "fingerprint") : "none" },
+      manifest: { id: res.manifest?.id ?? "none", confidence: res.manifest ? (res.exact && res.manifest.confidence === "defs" ? "defs" : "fingerprint") : "none" },
       ...(fileName ? { fileName } : {}), hasMods: !!b0.hasMods, sha256: await sha256(bytes) },
     arena: { arenaUniqueId: String(b0.arenaUniqueID), map: b0.mapName, mapDisplayName: b0.mapDisplayName, gameplay: b0.gameplayID, battleType: b0.battleType,
       startedAt: b0.dateTime, durationS: nr?.common.duration ?? null, winnerTeam: nr?.common.winnerTeam ?? null, finishReason: nr?.common.finishReason ?? null, battleStartClock: T0 },
