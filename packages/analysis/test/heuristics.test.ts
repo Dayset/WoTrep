@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { validateTimeline } from "@wotrep/model";
-import { playerMetrics, recorderHeuristics, wpOf, wpSeries } from "../src/index";
+import { playerHeuristics, playerMetrics, recorderHeuristics, wpOf, wpSeries } from "../src/index";
 import { stateAt } from "@wotrep/model";
 
 const r = validateTimeline(JSON.parse(readFileSync(new URL("../../../fixtures/timelines/lesta-1.46-overlord-sbm44.timeline.json", import.meta.url), "utf8")));
@@ -25,6 +25,21 @@ describe("analysis on the fixture", () => {
     expect(h.cleanupShare).toBeGreaterThanOrEqual(0); expect(h.cleanupShare).toBeLessThanOrEqual(1);
     expect(h.shareOnThreats).toBeGreaterThan(0); expect(h.threatWeighted).toBeGreaterThan(0);
     expect(h.best).not.toBeNull();
-    console.log(JSON.stringify(h));
+    expect(h.coverage).toBe(1);
+  });
+  it("any player: hits only land on the other team, per-hit damage never exceeds the official total", () => {
+    const team = new Map(tl.vehicles.map((v) => [v.vid, v.team]));
+    let seen = 0, official = 0;
+    for (const v of tl.vehicles) {
+      const h = playerHeuristics(tl, v.vid)!;
+      expect(h.damage).toBeLessThanOrEqual((tl.results!.players[v.vid]?.damageDealt ?? 0) + 0);
+      expect(h.coverage).toBeGreaterThanOrEqual(0); expect(h.coverage).toBeLessThanOrEqual(1);
+      for (const x of h.hits) expect(team.get(x.target)).not.toBe(v.team);
+      seen += h.damage; official += tl.results!.players[v.vid]?.damageDealt ?? 0;
+    }
+    expect(seen / official).toBeGreaterThan(0.8);
+  });
+  it("Impact of every player on a team, from that team's own win probability, is finite", () => {
+    for (const v of tl.vehicles) expect(Number.isFinite(playerHeuristics(tl, v.vid)!.impactPts)).toBe(true);
   });
 });

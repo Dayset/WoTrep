@@ -64,5 +64,14 @@
   "fb.down": "Not useful / feels wrong",
   "fb.copy": "Copy my feedback",
   "fb.copied": "Copied",
-  "fb.note": "Votes stay in this browser; nothing is uploaded. Copy them to send to us."
+  "fb.note": "Votes stay in this browser; nothing is uploaded. Copy them to send to us.",
+  "viz.cmp": "You vs everyone",
+  "viz.cmp.sub": "the same measure for all players",
+  "viz.cmp.you": "You",
+  "viz.cmp.allies": "Allies",
+  "viz.cmp.enemies": "Enemies",
+  "viz.cmp.seen": "Hits seen",
+  "viz.player": "Player",
+  "viz.cmp.aria": "Bar chart comparing the selected measure across all players",
+  "viz.cmp.note": "Dashed bars with ~ are partial: the replay only records hits that happened where the recorder could see, so we saw under 75% of that player's damage. Win-probability swing for others is measured from their own team's side."
 }

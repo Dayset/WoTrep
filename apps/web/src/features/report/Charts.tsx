@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BattleTimeline, Team } from "@wotrep/model";
-import { recorderHeuristics, wpSeries } from "@wotrep/analysis";
+import { playerHeuristics, recorderHeuristics, wpSeries } from "@wotrep/analysis";
 import { t } from "../../i18n";
 import { Vote } from "./Feedback";
 
@@ -133,6 +133,52 @@ function TargetChart({ tl }: { tl: BattleTimeline }) {
   );
 }
 
+
+type MetricKey = "impact" | "threat" | "onthreats" | "cleanup";
+const METRICS: { key: MetricKey; get: (h: NonNullable<ReturnType<typeof playerHeuristics>>) => number; fmt: (v: number) => string }[] = [
+  { key: "impact", get: (h) => h.impactPts, fmt: (v) => `${sgn(v)} pts` },
+  { key: "threat", get: (h) => h.threatWeighted, fmt: (v) => String(Math.round(v)) },
+  { key: "onthreats", get: (h) => h.shareOnThreats * 100, fmt: (v) => `${v.toFixed(0)}%` },
+  { key: "cleanup", get: (h) => h.cleanupShare * 100, fmt: (v) => `${v.toFixed(0)}%` },
+];
+const PARTIAL = 0.75;
+
+/** Chart 4 — the same numbers for all players, so your result has something to be relative to. */
+function CompareChart({ tl }: { tl: BattleTimeline }) {
+  const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null); const [mk, setMk] = useState<MetricKey>("impact");
+  const all = useMemo(() => tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid) })).filter((r): r is { v: typeof r.v; h: NonNullable<typeof r.h> } => r.h != null && r.h.damage > 0), [tl]);
+  const m = METRICS.find((x) => x.key === mk)!;
+  const rows = all.map((r) => ({ ...r, val: m.get(r.h), mine: r.v.isRecorder, ally: r.v.team === tl.recorder.team })).sort((a, b) => b.val - a.val);
+  if (rows.length < 2) return null;
+  const lo = Math.min(0, ...rows.map((r) => r.val)), hiV = Math.max(1, ...rows.map((r) => r.val));
+  const lab = Math.min(120, Math.floor(W * 0.32)), bh = 13, gap = 7, H = rows.length * (bh + gap) + 4, aw = W - lab - 78;
+  const bx = (v: number) => ((v - lo) / (hiV - lo)) * aw, zero = bx(0);
+  const rank = rows.findIndex((r) => r.mine) + 1, nAlly = rows.filter((r) => r.ally).length, myAllyRank = rows.filter((r) => r.ally).findIndex((r) => r.mine) + 1;
+  const sub = rank ? `${t("viz.cmp.you")} #${rank}/${rows.length} · ${t("viz.cmp.allies")} #${myAllyRank}/${nAlly}` : "";
+  return (
+    <Frame id="chart.compare" title={t("viz.cmp")} sub={sub || t("viz.cmp.sub")}
+      legend={[["--c-you", t("viz.cmp.allies")], ["--c-foe", t("viz.cmp.enemies")]]}
+      table={<table><thead><tr><th>{t("viz.player")}</th><th>{t(`adv.${mk}`)}</th><th>{t("viz.cmp.seen")}</th></tr></thead><tbody>{rows.map((r) => <tr key={r.v.vid} className={r.mine ? "me" : ""}><td className="nm">{r.v.name}</td><td>{m.fmt(r.val)}</td><td>{Math.round(r.h.coverage * 100)}%</td></tr>)}</tbody></table>}>
+      <div className="seg" role="tablist">{METRICS.map((x) => <button key={x.key} role="tab" aria-selected={mk === x.key} onClick={() => setMk(x.key)}>{t(`adv.${x.key}`)}</button>)}</div>
+      <div ref={ref} className="plot" onPointerLeave={() => setHi(null)}>
+        <svg width={W} height={H} role="img" aria-label={t("viz.cmp.aria")}>
+          <line x1={lab + zero} x2={lab + zero} y1={0} y2={H} className="ref" />
+          {rows.map((r, i) => { const yy = 2 + i * (bh + gap), partial = r.h.coverage < PARTIAL, x0 = Math.min(zero, bx(r.val)), wd = Math.max(2, Math.abs(bx(r.val) - zero));
+            const nm = r.v.name.length > 14 ? r.v.name.slice(0, 13) + "…" : r.v.name;
+            return <g key={r.v.vid} opacity={hi == null || hi === i ? 1 : 0.4} onPointerEnter={() => setHi(i)} onPointerDown={() => setHi(i)}>
+              <rect x={0} y={yy - gap / 2} width={W} height={bh + gap} fill="transparent" />
+              <text x={lab - 8} y={yy + bh - 3} className={`ax lbl${r.mine ? " mine" : ""}`} textAnchor="end">{nm}</text>
+              <rect x={lab + x0} y={yy} width={wd} height={bh} rx={4} className={r.ally ? "bup" : "bdn"} opacity={partial ? 0.5 : 1} strokeDasharray={partial ? "3 2" : undefined} stroke={r.mine ? "var(--c-ink)" : partial ? (r.ally ? "var(--c-you)" : "var(--c-foe)") : "none"} strokeWidth={r.mine ? 2 : 1} />
+              <text x={lab + Math.max(bx(r.val), zero) + 6} y={yy + bh - 3} className="ax lbl">{partial ? "~" : ""}{m.fmt(r.val)}</text>
+            </g>; })}
+        </svg>
+        {hi != null && <div className="tip" style={{ right: 0, top: 0 }}><b>{rows[hi]!.v.name}</b>{rows[hi]!.mine ? ` (${t("report.you")})` : ""}<div>{m.fmt(rows[hi]!.val)} · {rows[hi]!.h.damage} dmg</div><div className="muted">{t("viz.cmp.seen")}: {Math.round(rows[hi]!.h.coverage * 100)}%</div></div>}
+      </div>
+      <p className="fbnote muted" style={{ marginTop: 10 }}>{t("viz.cmp.note")}</p>
+    </Frame>
+  );
+}
+
 export function HeuristicCharts({ tl }: { tl: BattleTimeline }) {
-  return <section className="charts" data-testid="charts"><WpChart tl={tl} /><ImpactChart tl={tl} /><TargetChart tl={tl} /></section>;
+  return <section className="charts" data-testid="charts"><WpChart tl={tl} /><ImpactChart tl={tl} /><TargetChart tl={tl} /><CompareChart tl={tl} /></section>;
 }

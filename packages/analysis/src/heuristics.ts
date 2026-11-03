@@ -13,6 +13,8 @@ export interface RecorderHeuristics {
   impactPts: number; impactPerKDamage: number;
   best: { t: number; targetVid: number; dWpPts: number } | null;
   /** every recorder hit with its threat weight and win-probability change; cum = running Impact */
+  /** share of the player's official damage seen as per-hit events (1 = complete) */
+  coverage: number;
   hits: { t: number; target: number; amount: number; threat: number; dWpPts: number; cumPts: number }[];
 }
 
@@ -28,18 +30,20 @@ export function playerMetrics(tl: BattleTimeline): PlayerMetrics[] {
   });
 }
 
-/** Opposition-aware numbers for the recorder. Needs per-hit data, which only the recorder's own hits have in full. */
-export function recorderHeuristics(tl: BattleTimeline): RecorderHeuristics | null {
+/** Opposition-aware numbers for any player. Per-hit data exists for every attacker whose hits happened inside the recorder's
+ *  area of interest, so `coverage` (observed hit damage / results damage) says how much of that player's battle we actually saw. */
+export function playerHeuristics(tl: BattleTimeline, vid: number): RecorderHeuristics | null {
   if (!tl.results) return null;
-  const me = tl.recorder.vid, team = tl.recorder.team;
+  const me = vid, vi = tl.vehicles.find((v) => v.vid === vid); if (!vi) return null;
+  const team = vi.team as Team, foe = (team === 1 ? 2 : 1) as Team;
+  const teamOf = new Map(tl.vehicles.map((v) => [v.vid, v.team]));
   const pm = new Map(playerMetrics(tl).map((p) => [p.vid, p]));
-  const enemyDpm = (tm: Team) => median(tl.vehicles.filter((v) => v.team === tm).map((v) => pm.get(v.vid)!.dpm).filter((x) => x > 0));
-  const med = enemyDpm(team === 1 ? 2 : 1) || 1;
-  const w = (vid: number) => Math.min(cfg.threatMax.value, Math.max(cfg.threatMin.value, (pm.get(vid)?.dpm ?? 0) / med));
+  const med = median(tl.vehicles.filter((v) => v.team === foe).map((v) => pm.get(v.vid)!.dpm).filter((x) => x > 0)) || 1;
+  const w = (v: number) => Math.min(cfg.threatMax.value, Math.max(cfg.threatMin.value, (pm.get(v)?.dpm ?? 0) / med));
   const hits: RecorderHeuristics["hits"] = [];
   let dmg = 0, tw = 0, onThreat = 0, clean = 0, impact = 0; let best: RecorderHeuristics["best"] = null;
   for (const e of tl.events) {
-    if (e.k !== "damage" || e.attacker !== me || e.target === me || e.amount <= 0) continue;
+    if (e.k !== "damage" || e.attacker !== me || teamOf.get(e.target) !== foe || e.amount <= 0) continue;
     const before = wpOf(stateAt(tl, e.t - 0.001), team), after = wpOf(stateAt(tl, e.t), team);
     dmg += e.amount; tw += e.amount * w(e.target); if (w(e.target) >= 1) onThreat += e.amount;
     if (before >= cfg.cleanupWp.value) clean += e.amount;
@@ -47,10 +51,13 @@ export function recorderHeuristics(tl: BattleTimeline): RecorderHeuristics | nul
     hits.push({ t: e.t, target: e.target, amount: e.amount, threat: Math.round(w(e.target) * 100) / 100, dWpPts: Math.round(d * 100) / 100, cumPts: Math.round(impact * 100) / 100 });
     if (!best || d > best.dWpPts) best = { t: e.t, targetVid: e.target, dWpPts: Math.round(d * 100) / 100 };
   }
-  const mine = pm.get(me)!;
+  const mine = pm.get(me)!, official = tl.results.players[me]?.damageDealt ?? 0;
   return {
     damage: dmg, dpm: mine.dpm, teamShare: mine.share, threatWeighted: Math.round(tw), threatWeightedPerDamage: dmg ? tw / dmg : 0,
     shareOnThreats: dmg ? onThreat / dmg : 0, cleanupShare: dmg ? clean / dmg : 0, impactPts: Math.round(impact * 100) / 100,
     impactPerKDamage: dmg ? Math.round((impact / dmg) * 1000 * 100) / 100 : 0, best, hits,
+    coverage: official > 0 ? Math.min(1, dmg / official) : dmg > 0 ? 1 : 0,
   };
 }
+
+export const recorderHeuristics = (tl: BattleTimeline) => playerHeuristics(tl, tl.recorder.vid);
