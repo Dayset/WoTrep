@@ -1,0 +1,331 @@
+{
+ "_about": "Golden values for packages/parser tests. Produced by tools/probe/wotrep_probe.py. Do not hand-edit; regenerate and explain any change in the PR.",
+ "clientVersion": "1.46.0.0",
+ "realm": "RU",
+ "map": "101_dday",
+ "gameplayID": "ctf",
+ "recorder": {
+  "name": "YurOk_Zp",
+  "vehicleId": 13908113,
+  "avatarEntity": 13880579
+ },
+ "packetCount": 120261,
+ "packetTypeCounts": {
+  "0x00": 1,
+  "0x01": 1,
+  "0x02": 1,
+  "0x04": 277,
+  "0x05": 422,
+  "0x06": 1,
+  "0x07": 42420,
+  "0x08": 3046,
+  "0x0a": 55202,
+  "0x0d": 2,
+  "0x0f": 1,
+  "0x11": 1,
+  "0x12": 1,
+  "0x15": 1,
+  "0x16": 4,
+  "0x17": 4,
+  "0x18": 1,
+  "0x1a": 3613,
+  "0x1b": 46,
+  "0x1c": 3085,
+  "0x1d": 2491,
+  "0x1f": 3613,
+  "0x20": 15,
+  "0x22": 1,
+  "0x23": 4,
+  "0x24": 955,
+  "0x26": 3491,
+  "0x28": 2,
+  "0x2b": 4,
+  "0x2d": 1,
+  "0x2e": 48,
+  "0x30": 1,
+  "0x31": 308,
+  "0x32": 427,
+  "0x35": 7,
+  "0x36": 428,
+  "0x37": 333,
+  "0x3d": 1,
+  "0xffffffff": 1
+ },
+ "battleStartClock": 33.2599983215332,
+ "battleDurationResults": 328,
+ "winnerTeam": 2,
+ "kills": [
+  {
+   "clock": 155.96,
+   "victim": 13908129,
+   "killer": 13908111,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 166.66,
+   "victim": 13908127,
+   "killer": 13908110,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 180.26,
+   "victim": 13908112,
+   "killer": 13908128,
+   "equipment": 0,
+   "reason": 2
+  },
+  {
+   "clock": 185.96,
+   "victim": 13908115,
+   "killer": 13908123,
+   "equipment": 0,
+   "reason": 1
+  },
+  {
+   "clock": 186.16,
+   "victim": 13908128,
+   "killer": 13908132,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 193.16,
+   "victim": 13908132,
+   "killer": 13908119,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 198.36,
+   "victim": 13908111,
+   "killer": 13908107,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 214.66,
+   "victim": 13908121,
+   "killer": 13908106,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 233.76,
+   "victim": 13908109,
+   "killer": 13908125,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 235.15,
+   "victim": 13908125,
+   "killer": 13908113,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 236.26,
+   "victim": 13908116,
+   "killer": 13908122,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 244.46,
+   "victim": 13908130,
+   "killer": 13908131,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 248.85,
+   "victim": 13908134,
+   "killer": 13908133,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 256.86,
+   "victim": 13908114,
+   "killer": 13908117,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 278.15,
+   "victim": 13908122,
+   "killer": 13908106,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 279.15,
+   "victim": 13908126,
+   "killer": 13908131,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 287.75,
+   "victim": 13908123,
+   "killer": 13908110,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 293.35,
+   "victim": 13908124,
+   "killer": 13908107,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 324.95,
+   "victim": 13908107,
+   "killer": 13908108,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 326.85,
+   "victim": 13908108,
+   "killer": 13908133,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 332.05,
+   "victim": 13908110,
+   "killer": 13908105,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 346.15,
+   "victim": 13908133,
+   "killer": 13908106,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 353.55,
+   "victim": 13908105,
+   "killer": 13908117,
+   "equipment": 0,
+   "reason": 0
+  },
+  {
+   "clock": 355.45,
+   "victim": 13908118,
+   "killer": 13908119,
+   "equipment": 0,
+   "reason": 0
+  }
+ ],
+ "recorderDamageDealtEvents": 28,
+ "recorderDamageDealtSum": 1362,
+ "recorderDamageReceivedEvents": [
+  {
+   "clock": 157.66,
+   "vehicle": 13908113,
+   "old": 1350,
+   "new": 1298,
+   "attacker": 13908122,
+   "reason": 0
+  },
+  {
+   "clock": 158.36,
+   "vehicle": 13908113,
+   "old": 1298,
+   "new": 1246,
+   "attacker": 13908122,
+   "reason": 0
+  },
+  {
+   "clock": 287.25,
+   "vehicle": 13908113,
+   "old": 1246,
+   "new": 1156,
+   "attacker": 13908133,
+   "reason": 0
+  },
+  {
+   "clock": 287.55,
+   "vehicle": 13908113,
+   "old": 1156,
+   "new": 1076,
+   "attacker": 13908133,
+   "reason": 0
+  },
+  {
+   "clock": 287.85,
+   "vehicle": 13908113,
+   "old": 1076,
+   "new": 998,
+   "attacker": 13908133,
+   "reason": 0
+  },
+  {
+   "clock": 288.15,
+   "vehicle": 13908113,
+   "old": 998,
+   "new": 911,
+   "attacker": 13908133,
+   "reason": 0
+  },
+  {
+   "clock": 288.45,
+   "vehicle": 13908113,
+   "old": 911,
+   "new": 825,
+   "attacker": 13908133,
+   "reason": 0
+  }
+ ],
+ "recorderTracers": 61,
+ "cameraModeChanges": 46,
+ "positionSamplesPerVehicle": {
+  "13908105": 944,
+  "13908106": 3730,
+  "13908107": 1355,
+  "13908108": 3729,
+  "13908109": 2222,
+  "13908110": 1894,
+  "13908111": 2195,
+  "13908112": 631,
+  "13908113": 3733,
+  "13908114": 417,
+  "13908115": 980,
+  "13908116": 2323,
+  "13908117": 1779,
+  "13908118": 365,
+  "13908119": 3352,
+  "13908120": 2215,
+  "13908121": 745,
+  "13908122": 1365,
+  "13908123": 706,
+  "13908124": 2834,
+  "13908125": 1128,
+  "13908126": 666,
+  "13908127": 147,
+  "13908128": 1704,
+  "13908129": 560,
+  "13908130": 1208,
+  "13908131": 2989,
+  "13908132": 917,
+  "13908133": 1607,
+  "13908134": 3029
+ },
+ "resultsCrossCheck": {
+  "damageDealt": 1362,
+  "shots": 59,
+  "directEnemyHits": 46,
+  "piercingEnemyHits": 28,
+  "damageReceived": 525,
+  "kills": 1,
+  "damageAssistedRadio": 56,
+  "damageAssistedTrack": 243
+ }
+}
