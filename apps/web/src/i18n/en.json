@@ -13,7 +13,7 @@
   "report.allies": "Your team",
   "report.enemies": "Enemy team",
   "report.duration": "Duration",
-  "report.partial": "Partially supported version: positions, results, shots and damage are read, but kills are not. Win-chance based numbers (impact, cleanup, initiative, coaching) are less reliable here.",
+  "report.partial": "Partially supported version: positions, shots, damage and results are read. Kills are rebuilt from the results (time within half a second), and hits on tanks the recorder could not see are missing, so some numbers are less reliable here.",
   "col.tank": "Tank",
   "col.name": "Player",
   "col.dmg": "Damage",

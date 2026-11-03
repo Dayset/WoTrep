@@ -52,3 +52,12 @@ describe("stopTracer end points", () => {
     expect(ends.every((e) => e.x > -400 && e.x < 800 && e.z > -600 && e.z < 600)).toBe(true);
   });
 });
+
+import { killsFromResults } from "../src/results";
+describe("killsFromResults", () => {
+  it("reproduces the real kills of the Lesta fixture: same victims, killers and reasons, time within 1 s", () => {
+    const real = (tl.events as any[]).filter((e) => e.k === "kill"), derived = killsFromResults(tl.results!) as any[];
+    expect(derived.length).toBe(real.length);
+    for (const d of derived) { const r = real.find((e) => e.victim === d.victim)!; expect(r).toBeTruthy(); expect(d.killer).toBe(r.killer); expect(d.reason).toBe(r.reason); expect(Math.abs(d.t - r.t)).toBeLessThanOrEqual(1); }
+  });
+});

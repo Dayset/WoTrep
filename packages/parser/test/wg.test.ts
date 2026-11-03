@@ -13,6 +13,8 @@ describe.skipIf(!existsSync(path))("Wargaming 2.4.1.0 draft manifest (local repl
     expect(mine.reduce((s, e) => s + e.amount, 0)).toBe(6753);                         // = results damageDealt
     expect(ev.filter((e) => e.k === "shot" && e.shooter === rec).length).toBe(25);      // = results shots
     const ids = new Set(ev.filter((e) => e.k === "shot").map((e) => e.shotId)), ends = ev.filter((e) => e.k === "projectileEnd");
+    const kills = ev.filter((e) => e.k === "kill"); expect(kills.length).toBe(27);       // results list 27 destroyed tanks
+    expect(kills.every((k) => tl.vehicles.some((v) => v.vid === k.victim))).toBe(true);
     expect(ends.length).toBe(121); expect(ends.every((e) => ids.has(e.shotId))).toBe(true);
   });
 });

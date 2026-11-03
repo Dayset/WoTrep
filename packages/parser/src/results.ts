@@ -1,4 +1,4 @@
-import type { BattleResults, PlayerResult } from "@wotrep/model";
+import type { BattleEvent, BattleResults, PlayerResult } from "@wotrep/model";
 
 /** Normalise block 1 `[battleResults, …]`. Never reads realName. */
 export function normalizeResults(block1: unknown): { results: BattleResults; common: any; accountOf: Record<number, number> } | null {
@@ -22,4 +22,12 @@ export function normalizeResults(block1: unknown): { results: BattleResults; com
     noDamageDirectHitsReceived: pa.noDamageDirectHitsReceived,
   };
   return { results: { players, ...(personal ? { personal } : {}) }, common: r.common, accountOf };
+}
+
+/** Kills rebuilt from results when the client version has no decoded kill message. Victim, killer and reason are exact; time is lifeTime + 0.5 s
+ *  (lifeTime is whole seconds; on the Lesta fixture the real kill time is 0..1 s after it, all 24 killers and reasons match). */
+export function killsFromResults(results: BattleResults): BattleEvent[] {
+  return Object.entries(results.players).filter(([, p]) => p.deathReason != null && p.deathReason >= 0 && p.lifeTimeS != null)
+    .map(([vid, p]): BattleEvent => ({ k: "kill", t: Math.round((p.lifeTimeS + 0.5) * 100) / 100, victim: Number(vid), killer: p.killerVid ?? 0, reason: p.deathReason, equipment: 0 }))
+    .sort((a, b) => a.t - b.t);
 }
