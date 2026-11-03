@@ -28,7 +28,10 @@ export function estimateReload(times: number[]): ReloadEstimate {
   runs.push(run);
   const clip = burstGaps ? mode(runs.filter((r) => r >= mode(runs))) : 1; // full clips are the commonest of the longer runs; partial ones are shorter
   const conf = Math.min(1, long.length / 6) * (burstGaps ? Math.min(1, runs.filter((r) => r === clip).length / 3) : 0.7);
-  return { clipSize: clip, intraMaxS: intraMax, reloadS: long.length ? Math.min(...long) : null, confidence: Math.round(conf * 100) / 100, shots: t.length };
+  const reloadS = long.length ? Math.min(...long) : null;
+  // A "reload" under 1 s means a gun firing continuously without a clear burst structure (rapid-fire / special weapons): the lower bound is meaningless.
+  const capped = reloadS != null && reloadS < 1 ? Math.min(conf, 0.2) : conf;
+  return { clipSize: clip, intraMaxS: intraMax, reloadS, confidence: Math.round(capped * 100) / 100, shots: t.length };
 }
 
 /** State of the gun at time `t` given the shots seen so far. */

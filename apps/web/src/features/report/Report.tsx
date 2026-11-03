@@ -4,6 +4,7 @@ import { boldnessAll, playerMetrics, playerStats, recorderHeuristics } from "@wo
 import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
 import { HeuristicCharts } from "./Charts";
+import { Debug, debugOn } from "./Debug";
 import { Vote, FeedbackExport } from "./Feedback";
 
 const tank = (v: VehicleInfo) => vehicleLabel(v.vehicleType).label;
@@ -81,6 +82,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
       <FeedbackExport />
       <Team tl={tl} team={tl.recorder.team} title={t("report.allies")} cls="ally-h" />
       <Team tl={tl} team={tl.recorder.team === 1 ? 2 : 1} title={t("report.enemies")} cls="enemy-h" />
+      {debugOn() && <Debug tl={tl} />}
     </div>
   );
 }

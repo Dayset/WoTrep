@@ -85,6 +85,7 @@ and still needs the doc updated in the same PR.
 - [ ] No string literals in UI (i18n keys, `en` + `ru`; mark untranslated RU with `"// TODO ru"` in the PR, not in JSON).
 - [ ] Docs updated if behaviour or a number changed (the doc next to the code or in `docs/`).
 - [ ] Any new number shown to players has a glossary entry: how we get it and what it means (`docs/METRICS.md` §3.8, `gl.<key>.how/.mean` in en + ru, `METRIC_KEYS`).
+- [ ] New findings about the data and new stat ideas are logged in `docs/FINDINGS.md`; intermediate values behind a public number are listed in the debug panel (`?debug=1`).
 - [ ] Performance budgets from `docs/DESIGN.md` §4 still hold for your step.
 - [ ] Nothing in `realName`/anonymized account ids leaves the parser worker.
 
