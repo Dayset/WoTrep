@@ -110,3 +110,6 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .pcurve { display: grid; gap: 2px; } .pcurve canvas { height: 64px; }
 .pcurvebar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } .pcurvebar button[aria-pressed="true"] { border-color: var(--accent); }
 .pcurvenote { font-size: 12px; margin: 0; }
+.mappage { display: grid; gap: 8px; } .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .chips button[aria-pressed="true"] { border-color: var(--accent); background: var(--bg); }
+.chips .sep { width: 12px; } .mpwrap { position: relative; } .mpwrap canvas { width: 100%; display: block; border: 1px solid var(--line); touch-action: manipulation; cursor: crosshair; }
+.mplegend { margin: 0; font-size: 12px; } .mappage .how p { margin: 4px 0; }

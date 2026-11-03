@@ -34,9 +34,15 @@ Rules: battle time only (clock minus battle start); never show `realName` or ano
 ## Progress
 | step | state |
 |------|-------|
-| 1 plan doc + issue | done in this commit |
-| 2 `heatGrid` + tests | todo |
-| 3 MapPage with layers/filters | todo |
-| 4 glossary, i18n, FINDINGS notes | todo |
-| 5 screenshot check (phone + desktop) | todo |
-| 6 owner: wotinspector heatmap list, map bounds | waiting on owner |
+| 1 plan doc + issue #126 | done |
+| 2 `heatGrid` + tests (packages/analysis/src/heatmap.ts) | done |
+| 3 MapPage with layers/filters (apps/web/src/features/map/MapPage.tsx, "Map heatmaps" button in the report) | done (v1) |
+| 4 glossary: how/mean text lives in `mp.l.<layer>.how/.mean` (en+ru); FINDINGS notes | done |
+| 5 screenshot check | phone done (with placeholder +-600 m bounds, visual only); desktop todo |
+| 6 owner: wotinspector heatmap list, true map bounds | waiting on owner |
+
+## Not done / next
+- Class filter: needs vehicle class from game data (#42); not in the replay.
+- Pinch zoom/pan on the map page (reuse the player's pointer code), per-player picker beyond "only me".
+- Spawn side and win-rate cards: need aggregates (#111/#112).
+- Real bounds for 101_dday: unverified; the +-600 m screenshot is only a plausibility check (heat follows the roads).

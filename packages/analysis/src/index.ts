@@ -6,3 +6,4 @@ export * from "./reload";
 export * from "./boldness";
 export const configs = { "wp-v0": wpCfg, "boldness-v0": boldCfg };
 export * from "./series";
+export * from "./heatmap";
