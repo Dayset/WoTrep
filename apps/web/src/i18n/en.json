@@ -229,5 +229,9 @@
   "mp.l.routes.mean": "Which lanes each side takes at the start.",
   "mp.l.spots.how": "The first time an enemy was spotted, we add 1 to the cell where it stood.",
   "mp.l.spots.mean": "Where enemies get found. Bright cells on the way to your position are where you are first seen.",
-  "mp.btn": "Map heatmaps"
+  "mp.btn": "Map heatmaps",
+  "mp.l.tracers": "Shot lines",
+  "mp.l.tracers.how": "One line per shot: from where the shooter stood when firing to where the shell ended (hit, ricochet or ground). Blue = your team, red = enemy. We see an end point for about three quarters of shots.",
+  "mp.l.tracers.mean": "Which lanes are shot across, from where, and how far. Many lines crossing your position mean a hot firing lane. Long lines from one spot show a sniping position.",
+  "mp.tracers.legend": "{n} shots with a known end point. Blue = your team, red = enemy."
 }

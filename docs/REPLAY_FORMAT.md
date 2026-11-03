@@ -90,7 +90,7 @@ never interpolate across a gap (the straight red lines in `docs/img/first-replay
 | idx | method | args | conf |
 |---|---|---|---|
 | 38 | showTracer | `u32 shooterVehicleId, u32 shotId, …` (51 B) | O |
-| 30 | stopTracer | `u32 shotId, f32[3] endPoint` (16 B) | ? |
+| 30 | stopTracer | `u32 shotId, f32[3] endPoint` (16 B) | V: 584 of 761 shots on the fixture; every end matches a shot; shot-to-end distance median ~100 m, p90 ~224 m, max ~470 m |
 | 62 | explodeProjectile | `u32 shotId, …` (31 B) | ? |
 | 66 | updateArena | `u8 updateType, BWString pickle` (zlib when it starts with `x`) | V |
 | 60 | onBattleEvents (personal events: damage/spot/assist) | list | ? |

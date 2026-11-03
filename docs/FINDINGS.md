@@ -77,4 +77,14 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 - Running curves (cumulative damage, damage/min, damaging-hit rate) come only from observed events; the player strip notes when a player's hit coverage is under 98%. Survival probability v0 is not built: it needs calibration data (#111/#112, E13).
 
 ## Tracers (map page)
-- Fixture: 761 shot events (all with shotId) but **0 projectileEnd events**, so shot lines cannot be drawn truthfully. `tracerLines` (packages/analysis/src/heatmap.ts) is written and tested on a synthetic end point; the UI layer is not exposed until the end-point packet is decoded (#26/#30). Do not fake endpoints from aim direction.
+- 2026-11-03: **stopTracer (method 30) decoded**: `u32 shotId, f32 x, y, z`. Fixture: 584 end points for 761 shots (77%), all matching a shot id; shot-to-end distance median ~100 m, p90 ~224 m, max ~470 m. The remaining ~23% of shots have no stopTracer in the stream (not an error we can fix). Shot lines now drawn on the map page (`tracerLines`). The fixture timeline JSON was patched with these events (built by the Python probe before); the TS parser produces the same.
+- Still undecoded: assist and personal events (method 60 onBattleEvents), so assisted-damage layers remain blocked (#26/#30).
+
+## Second replay (Wargaming)
+- 2026-11-03: user supplied a Wargaming replay (`.wotreplay`, client 2.3.1.0, NA, map 101_dday, 446 s, 30 vehicles). Our container reader opens it (vehicles, chat) but there is **no manifest for 2.3.1.0**, so no positions, shots or damage. Needs a probe pass for that version (method indices) before it can be analysed. The header names the recording player: never display it.
+
+## Comparison with wotinspector's replay viewer (same battle, observed 2026-11-03)
+- Same final result as ours: 15 enemy kills vs 9 losses (24 kills; our parser: 24).
+- Their viewer: small 2D player, side menu (world, teams, log, clear, display), team HP bars with kill counts, speed/pause, a kill/damage **log** with times, names and per-hit numbers, rosters where several players show "(no data)".
+- We are ahead on: all 30 vehicles named, full positions, per-hit damage for everyone (89% coverage), findings and coaching linked to the map, linked curves, explained metrics.
+- We lag on: a visible damage/kill **log** panel (#54), team HP bars with kill counts at the bar (we show alive count and HP), many-battle aggregate stats and heatmaps (need data), class data (#42).

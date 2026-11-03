@@ -38,6 +38,7 @@ export function decodeEvents(calls: Call[], m: Manifest, t0: number): BattleEven
         ev.push({ k: "damage", t: T(c.clock), target: c.entity, attacker: dv.getUint32(4, true), amount: oh - Math.max(nh, 0), hpBefore: oh, hpAfter: Math.max(nh, 0), reason: c.args[8]! });
       } break;
       case "showTracer": if (c.args.byteLength >= 8) ev.push({ k: "shot", t: T(c.clock), shooter: dv.getUint32(0, true), shotId: dv.getUint32(4, true) }); break;
+      case "stopTracer": if (c.args.byteLength >= 16) ev.push({ k: "projectileEnd", t: T(c.clock), shotId: dv.getUint32(0, true), x: dv.getFloat32(4, true), y: dv.getFloat32(8, true), z: dv.getFloat32(12, true) }); break;
       case "updateArena": {
         const u = updateArena(c.args);
         if (u && u.type === m.arenaUpdateTypes.vehicleKilled && Array.isArray(u.value))

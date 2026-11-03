@@ -26,12 +26,18 @@ describe("heatGrid", () => {
 
 import { tracerLines } from "../src/index";
 describe("tracerLines", () => {
-  it("is empty on the fixture: projectileEnd events are not decoded yet (#26/#30)", () => expect(tracerLines(tl, {}).length).toBe(0));
-  it("builds a line once an end point exists, and respects filters", () => {
+  it("builds shot lines from decoded stopTracer end points, with plausible lengths", () => {
+    const all = tracerLines(tl, {}), mine = tracerLines(tl, { vid: tl.recorder.vid }), own = tracerLines(tl, { team: "own" }), foe = tracerLines(tl, { team: "enemy" });
+    expect(all.length).toBeGreaterThan(500); expect(mine.length).toBeGreaterThan(0); expect(mine.length).toBeLessThan(all.length);
+    expect(own.length + foe.length).toBe(all.length);
+    const len = all.map((l) => Math.hypot(l.x1 - l.x0, l.z1 - l.z0)).sort((a, b) => a - b);
+    expect(len[len.length >> 1]!).toBeGreaterThan(30); expect(len.at(-1)!).toBeLessThan(800);   // real engagement ranges: median ~100 m, max ~470 m
+  });
+  it("respects the time window and a missing end point", () => {
+    expect(tracerLines(tl, { t0: 0, t1: 60 }).length).toBeLessThan(tracerLines(tl, {}).length);
     const shot = tl.events.find((e) => e.k === "shot" && e.shotId != null)!;
     if (shot.k !== "shot") throw new Error("x");
-    const withEnd = { ...tl, events: [...tl.events, { k: "projectileEnd" as const, t: shot.t + 0.5, shotId: shot.shotId!, x: 10, y: 0, z: 20 }] };
-    const all = tracerLines(withEnd, {}); expect(all).toHaveLength(1); expect(all[0]).toMatchObject({ shooter: shot.shooter, x1: 10, z1: 20 });
-    expect(tracerLines(withEnd, { vid: shot.shooter + 1 })).toHaveLength(0);
+    const noEnd = { ...tl, events: tl.events.filter((e) => !(e.k === "projectileEnd" && e.shotId === shot.shotId)) };
+    expect(tracerLines(noEnd, {}).length).toBeLessThan(tracerLines(tl, {}).length);
   });
 });

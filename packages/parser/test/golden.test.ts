@@ -44,3 +44,11 @@ describe("parseReplay golden (TS parser vs Python oracle)", () => {
   });
   it("is fast (< 600 ms)", () => expect(ms).toBeLessThan(600));
 });
+
+describe("stopTracer end points", () => {
+  it("decodes an end point for most shots and every end matches a shot", async () => {
+    const ends = (tl.events as any[]).filter((e) => e.k === "projectileEnd"), ids = new Set((tl.events as any[]).filter((e) => e.k === "shot").map((e) => e.shotId));
+    expect(ends.length).toBe(584); expect(ends.every((e) => ids.has(e.shotId))).toBe(true);
+    expect(ends.every((e) => e.x > -400 && e.x < 800 && e.z > -600 && e.z < 600)).toBe(true);
+  });
+});
