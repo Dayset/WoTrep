@@ -117,5 +117,17 @@
   "adv.style.safe": "Осторожный",
   "adv.style.balanced": "Сбалансированный",
   "adv.style.bold-rewarded": "Смелый, результативный",
-  "adv.style.bold-costly": "Смелый, дорого"
+  "adv.style.bold-costly": "Смелый, дорого",
+  "player.play": "Воспроизвести",
+  "player.pause": "Пауза",
+  "player.back": "Назад к отчёту",
+  "player.follow": "За мной",
+  "player.names": "Имена",
+  "player.trails": "Следы",
+  "player.wp": "Шанс победы",
+  "player.timeline": "Лента времени: кривая шанса победы и уничтожения",
+  "player.aria": "Карта боя сверху",
+  "player.lastseen": "виден {s} с назад",
+  "player.nomap": "Пока только сетка: картинка карты появится с игровыми данными",
+  "report.watch": "▶ Смотреть (2D)"
 }

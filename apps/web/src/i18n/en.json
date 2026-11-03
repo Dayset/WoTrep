@@ -117,5 +117,17 @@
   "adv.style.safe": "Safe",
   "adv.style.balanced": "Balanced",
   "adv.style.bold-rewarded": "Bold, rewarded",
-  "adv.style.bold-costly": "Bold, costly"
+  "adv.style.bold-costly": "Bold, costly",
+  "player.play": "Play",
+  "player.pause": "Pause",
+  "player.back": "Back to report",
+  "player.follow": "Follow me",
+  "player.names": "Names",
+  "player.trails": "Trails",
+  "player.wp": "Win chance",
+  "player.timeline": "Timeline: win chance curve and kills",
+  "player.aria": "Top-down battle map",
+  "player.lastseen": "last seen {s}s ago",
+  "player.nomap": "Grid only: map image arrives with game data",
+  "report.watch": "▶ Watch (2D)"
 }

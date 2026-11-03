@@ -5,6 +5,7 @@ import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
 import { HeuristicCharts } from "./Charts";
 import { Debug, debugOn } from "./Debug";
+import { Player } from "../player/Player";
 import { Vote, FeedbackExport } from "./Feedback";
 
 const tank = (v: VehicleInfo) => vehicleLabel(v.vehicleType).label;
@@ -67,12 +68,14 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
 }
 
 export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void }) {
+  const [watching, setWatching] = useState(false);
   const me = tl.vehicles.find((v) => v.isRecorder)!, w = tl.arena.winnerTeam;
   const res = w == null ? t("report.unfinished") : w === 0 ? t("report.draw") : w === tl.recorder.team ? t("report.win") : t("report.loss");
   const resCls = w == null || w === 0 ? "" : w === tl.recorder.team ? "win" : "loss";
+  if (watching) return <div className="report"><Player tl={tl} onClose={() => setWatching(false)} /></div>;
   return (
     <div className="report" data-testid="report">
-      <button onClick={onBack}>← {t("report.back")}</button>
+      <button onClick={onBack}>← {t("report.back")}</button> <button onClick={() => setWatching(true)} data-testid="watch">{t("report.watch")}</button>
       <h2><span className={resCls}>{res}</span> · {tl.arena.mapDisplayName} · {tank(me)}</h2>
       <div className="sub">{tl.arena.startedAt} · {tl.source.server} · v{tl.source.clientVersion}
         {tl.arena.durationS != null && <> · {t("report.duration")} {mmss(tl.arena.durationS)}</>}</div>

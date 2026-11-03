@@ -20,6 +20,8 @@ Public numbers are defined in `METRICS.md`; this file is where they come from an
 | 2026-11-03 | Coverage is lowest for players who fought mostly out of the recorder's view (0.30-0.52 for 5 of 30); their Impact/threat numbers are shown as partial. Zero-damage players have no per-hit data at all. | `?debug=1` coverage column |
 | 2026-11-03 | Initiative styles on the fixture: 9 bold-rewarded, 5 bold-costly, 6 balanced, 3 safe, 7 unrated (< 3 episodes). Few unrated players are the ones with almost no visible time. | boldness test log |
 | 2026-11-03 | Searched for a public replay corpus. Found replay-sharing sites (wotreplays.eu, wot-record.com: EU/NA/ASIA, RU only as a player filter; no mention of Lesta/.mtreplay), parsers (wotdecoder, wotreplay-parser) and an arXiv chat-analysis paper, but **no open, licensed replay dataset** and no API, bulk download or reuse terms on the two sites. Scraping them without permission is off the table. | web search + site pages, 2026-11-03 |
+| 2026-11-03 | Hull heading in track data is (sin yaw, cos yaw) in (x, z); 141 of 163 checked moves agree, the rest are reversing. Track times start at about -33 s (before battle start); the player clamps to battle time 0..duration. | yaw vs movement on the recorder's track |
+| 2026-11-03 | Map extent on Overlord from positions alone: x -274..600, z -466..500 (so not a symmetric 1000 m square); the player fits bounds from data until map data (#43) gives the real ones. | track min/max |
 
 ## 2. Hidden (debug) values
 
@@ -63,6 +65,6 @@ Feasibility: **now** = data we decode today; **gamedata** = needs #42; **decode*
 | **Player's own replays**: bulk drop (multi-file, #117) into a local library (#114, IndexedDB); behaviour of *this* player over time stays on their device | their own | none leaves the device | M |
 | **Opt-in anonymous aggregates** (#111/#112): after parsing in the browser, send only per-tank/per-map/per-role numbers (no names, ids, positions) to the Worker | explicit checkbox | aggregates only | M |
 | **Replay packs from people we ask** (friends, clan, community, replay-site owners): written permission, stored in `fixtures/` only if the owner agrees | explicit | strip names before commit | S |
-| Scraping replay sites | none | n/a | **not doing** |
+| Scraping replay sites (even gently, aggregates only) | none from the sites; terms unknown | third-party data | **not doing without the site owners' written OK**; ask them first |
 
 Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of *other* players; other players' behaviour is studied only as anonymous aggregates by tank, map and role (PS2 Elite style baselines).
