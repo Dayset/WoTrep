@@ -26,3 +26,15 @@ grades · classic tracker stats next to ours so you can compare · luck separate
 respected · no one is ever called a cheater.
 
 WoTrep is a fan project, not affiliated with Wargaming or Lesta Games.
+
+## Develop
+
+```bash
+pnpm i                 # Node 22, pnpm 9
+pnpm -r typecheck
+pnpm lint              # also enforces the package dependency direction (docs/DESIGN.md §3)
+pnpm -r test
+pnpm dev               # apps/web
+```
+A package may import another only as allowed in `eslint.config.js`; add the workspace dependency
+(`"@wotrep/x": "workspace:*"`) in your own package.json when your task needs it.
