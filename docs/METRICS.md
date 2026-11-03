@@ -192,3 +192,11 @@ Code: `packages/analysis/src/teamplay.ts`, thresholds in `config/teamplay-v0.jso
 | Position in the team | average place (0 last .. 100% furthest forward) by distance from spawn among living teammates | leading vs trailing |
 | Team spread | mean distance of living members from their centre, every 5 s, averaged | grouped vs strung out |
 Limits: positions only exist where the replay tracked them; hits only where the replay reported them (coverage differs per replay); "forward" is distance from spawn, not toward the enemy; map lanes are not modelled, so a deliberate flank can look like hanging back. Not yet: weighted decisions (below).
+
+### 3.11 Good plays for everyone, enabled-by credit, team alignment
+Code: `packages/coach/src/teamgood.ts`, thresholds in `packages/coach/config/team-good.json` (initial guesses, recalibrate in E13).
+- **Good play (any player)** = a won trade by the same rule and thresholds as the `won-trade` detector (`config/won-trade.json`), run for every vehicle. Shown as dots under the player timeline: blue = teammates, red = enemies; faded when we see little of that player's damage (`coverage` = observed damage / official damageDealt).
+- **Enabled by teammates** (`carried` / `shared` / `solo`): for the enemies the player traded with, damage they dealt to teammates in the 15 s before and during the play (`absorbedHp`) and teammates they destroyed (`sacrificed`). carried = a teammate was destroyed by them, or absorbed share >= 50% (absorbed / (absorbed + damage the player took)); shared = some absorbed but less; solo = none.
+- **Team alignment** = share of a team's good plays that overlap (within 10 s) a good play by a different teammate. Needs >= 2 plays.
+- **Luck is not separated.** It needs gun data (damage range, penetration, ricochet angles; #42). `Finding.luck` stays unused until then. "Carried" is evidence of teamplay, not proof; "solo" does not prove skill.
+- Limits: enemies' plays rest on partial data (their damage taken is only partly reported), so they carry a coverage fade; the other team's positions are only known when seen; the absorbed-fire window ignores distance and line of sight.

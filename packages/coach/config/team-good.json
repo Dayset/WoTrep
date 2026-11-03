@@ -1,0 +1,5 @@
+{
+  "lookbackS": { "value": 15, "why": "initial guess, recalibrate in E13 (enemy fire that teammates absorbed this long before a play counts as enabling it)", "n": 0, "date": "2026-11-03" },
+  "alignS": { "value": 10, "why": "initial guess, recalibrate in E13 (good plays by different teammates within this many seconds count as aligned)", "n": 0, "date": "2026-11-03" },
+  "minAbsorbShare": { "value": 0.5, "why": "initial guess, recalibrate in E13 (a play is carried when at least this share of the faced fire went into teammates)", "n": 0, "date": "2026-11-03" }
+}

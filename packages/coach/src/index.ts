@@ -14,3 +14,4 @@ export const detectors = [earlyHpDump, isolatedUnderFire, badTrade, wonTrade, id
 
 /** Every i18n key stem a detector can emit (`<stem>.title` / `.body` / `.fix` must exist in en and ru; a web test checks it). */
 export const MESSAGE_KEYS = ["coach.earlyHpDump", "coach.isolatedUnderFire", "coach.badTrade", "coach.wonTrade", "coach.idleWithTargets", "coach.deathRecap", "coach.survivedUnusedHp"] as const;
+export * from "./teamgood";

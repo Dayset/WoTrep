@@ -8,7 +8,7 @@ import { Debug, debugOn } from "./Debug";
 import { Player } from "../player/Player";
 import { MapPage } from "../map/MapPage";
 import { FindingsPanel } from "./Findings";
-import { detectors, rank, runDetectors } from "@wotrep/coach";
+import { alignment, detectors, goodPlaysAll, rank, runDetectors } from "@wotrep/coach";
 import { Vote, FeedbackExport } from "./Feedback";
 
 const tank = (v: VehicleInfo) => vehicleLabel(v.vehicleType).label;
@@ -47,6 +47,7 @@ type PlayerResultLike = NonNullable<BattleTimeline["results"]>["players"][number
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 function Advanced({ tl }: { tl: BattleTimeline }) {
   const h = recorderHeuristics(tl); if (!h) return null;
+  const plays = goodPlaysAll(tl), al = alignment(plays, tl.recorder.team), mineP = plays.filter((p) => p.vid === tl.recorder.vid), carried = mineP.filter((p) => p.enabled === "carried").length;
   const bd = boldnessAll(tl).get(tl.recorder.vid), tp = teamplayAll(tl).get(tl.recorder.vid), shape = teamShape(tl, tl.recorder.team);
   const sgn = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
   const cards: [string, string, string, string][] = [
@@ -67,6 +68,8 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
       [t("adv.hang"), tp.hangS == null ? "—" : `${tp.hangS} s (${pct(tp.hangShare ?? 0)})`, "", "hang"],
       [t("adv.rank"), tp.frontRank == null ? "—" : pct(tp.frontRank), "", "rank"],
       [t("adv.spread"), shape.spreadM == null ? "—" : `${shape.spreadM} m`, "", "spread"],
+      [t("adv.align"), al.share == null ? "—" : `${pct(al.share)} (${al.aligned}/${al.plays})`, "", "align"],
+      [t("adv.enabled"), mineP.length ? `${carried}/${mineP.length}` : "—", "", "enabled"],
     ] as [string, string, string, string][]) : []),
   ];
   return (

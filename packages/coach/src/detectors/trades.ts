@@ -6,8 +6,8 @@ import { stateAt, type BattleTimeline } from "@wotrep/model";
 import { wpOf } from "@wotrep/analysis";
 
 /** Engagements = the recorder's own damage dealt and received, clustered in time. Per-hit data for the recorder is complete, so these numbers are exact. */
-function engagements(tl: BattleTimeline, gapS: number) {
-  const me = recorder(tl); if (!me) return [];
+export function engagements(tl: BattleTimeline, gapS: number, vid?: number) {
+  const me = vid != null ? tl.vehicles.find((v) => v.vid === vid) : recorder(tl); if (!me) return [];
   const ev = tl.events.flatMap((e) => (e.k === "damage" && e.amount > 0 && e.t >= 0 && (e.attacker === me.vid || e.target === me.vid) && e.attacker !== e.target ? [e] : []));
   return cluster(ev, gapS).map((c) => ({
     me, c, t0: c[0]!.t, t1: c.at(-1)!.t, first: c[0]!.attacker === me.vid ? "me" as const : "them" as const,

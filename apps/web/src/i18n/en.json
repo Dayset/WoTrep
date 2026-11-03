@@ -255,5 +255,19 @@
   "gl.rank.how": "Every second you are alive we rank you among your living teammates by how far each has moved from the team's spawn point, 0% = last, 100% = furthest forward, then average. Needs the team's spawn positions.",
   "gl.rank.mean": "Low means you tend to trail the team, high means you lead the push. Neither is a verdict: heavy tanks usually lead and snipers trail. It becomes useful together with Hung back and Fought with company.",
   "gl.spread.how": "Every 5 s we take your living teammates, find their centre, and average how far each stands from it (metres). The value shown is the average over the battle.",
-  "gl.spread.mean": "Small means the team stayed together, large means it was strung out over the map. A team that fights as one blob wins local fights; a very spread team is easier to pick apart, but some maps need it."
+  "gl.spread.mean": "Small means the team stayed together, large means it was strung out over the map. A team that fights as one blob wins local fights; a very spread team is easier to pick apart, but some maps need it.",
+  "crew.play": "won a trade: dealt {dealt}, took {got}",
+  "crew.carried": "enabled by teammates",
+  "crew.shared": "partly enabled by teammates",
+  "crew.solo": "on their own",
+  "crew.absorbed": "teammates absorbed {hp} HP from the same enemies",
+  "crew.sacrificed": "{n} teammate(s) destroyed by them",
+  "crew.lowcov": "we see only {p}% of this player's damage, so this is less certain",
+  "crew.legend": "Dots under the line: blue = teammates' good plays, red = enemies'. A ring means teammates made it possible. Faded = we see little of that player. Tap a dot to jump to it.",
+  "adv.align": "Team alignment",
+  "adv.enabled": "Your good plays enabled by teammates",
+  "gl.align.how": "We find every won trade by your teammates (the same rule as your own good plays: enough damage dealt and a good damage ratio). A play counts as aligned when a different teammate made a good play within 10 s of it. Shown as the share of aligned plays and the counts. Needs at least 2 plays.",
+  "gl.align.mean": "High means your team's strong moments happen together, which is what coordinated pushes and focus fire look like. Low means good plays were scattered. Small counts are noisy, and we only see the hits the replay reports.",
+  "gl.enabled.how": "For each of your good plays we look at the enemies you traded with. If, in the 15 s before and during the play, those enemies hit teammates for at least as much as they hit you, or destroyed a teammate, the play counts as enabled by teammates. Shown as plays enabled ÷ all your good plays.",
+  "gl.enabled.mean": "Enabled means teammates drew the fire that let you win the trade. That is teamplay, not luck. Not enabled means you won it on your own. We cannot separate luck yet because that needs gun data (damage range, penetration)."
 }

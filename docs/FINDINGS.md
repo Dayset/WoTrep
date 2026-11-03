@@ -108,3 +108,9 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 - **Lane balance**: HP share by flank over time vs the enemy's; shown as three strips under the player.
 - **Trade quality in pairs**: after an ally dies, did the nearest ally avenge within 10 s (kill or damage to the killer)?
 - All of the above need calibration data (E13) and, for the enemy side, enough replays; none is implemented.
+
+## Good plays for all and enabled-by credit (2026-11-03)
+- Fixture (Lesta): 24 good plays across both teams (recorder 2): 14 carried, 0 shared, 10 solo; alignment own team 55% (6/11), enemy 69% (9/13); lowest coverage 59%.
+- WG 2.4.1.0 Overlord: 19 plays (6 carried, 13 solo); own team alignment 0% (0/9), enemy 60%; lowest coverage 44%. WG 2.4.0.0 Lakeville: 30 plays (6 carried, 24 solo); lowest coverage 22%, so many of those plays are uncertain.
+- "shared" never occurs yet: when teammates absorb anything, the share is already above 50% because won trades have low damage taken. Candidate refinement: compare absorbed damage with the player's *team-relative* share, or use the focus window (who the enemies were shooting at when the player started).
+- Candidate stat: **sacrifice ledger** per player: how many teammates' deaths/damage preceded each good play by that player, and how often a player's own HP loss enabled a teammate's play (gives the "who creates space" and "who cashes in" view).
