@@ -1,11 +1,12 @@
 import { useState } from "react";
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
 import { playerMetrics, playerStats, recorderHeuristics } from "@wotrep/analysis";
+import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
 import { HeuristicCharts } from "./Charts";
 import { Vote, FeedbackExport } from "./Feedback";
 
-const tank = (v: VehicleInfo) => v.vehicleType.split(":")[1] ?? v.vehicleType;
+const tank = (v: VehicleInfo) => vehicleLabel(v.vehicleType).label;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
 function Team({ tl, team, title, cls }: { tl: BattleTimeline; team: 1 | 2; title: string; cls: string }) {

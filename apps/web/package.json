@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@wotrep/analysis": "workspace:^",
+    "@wotrep/gamedata": "workspace:^",
     "@wotrep/model": "workspace:^",
     "@wotrep/parser": "workspace:^",
     "react": "18.3.1",
