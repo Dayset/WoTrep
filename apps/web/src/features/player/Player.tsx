@@ -6,6 +6,7 @@ import type { Finding } from "@wotrep/coach";
 import { t } from "../../i18n";
 import { loadMap, type MapBounds } from "../../lib/mapStore";
 import { MapLoader } from "./MapLoader";
+import { seriesFor } from "@wotrep/analysis";
 import { FindingCard } from "../report/Findings";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
@@ -26,6 +27,8 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
   const clock = useRef({ t: Math.max(0, startAt ?? 0), playing: false, speed: 1 }), cam = useRef<Cam | null>(null), opts = useRef({ follow: false, names: true, trails: true, sel: null as number | null });
   const canvas = useRef<HTMLCanvasElement>(null), tline = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
   const maxHp = useMemo(() => { const m = { 1: 0, 2: 0 }; for (const v of tl.vehicles) m[v.team] += v.maxHealth; return m; }, [tl]);
+  const curveKind = useRef<"wp" | "dmg" | "dpm" | "hit">("wp");
+  const [curve, setCurve] = useState<"wp" | "dmg" | "dpm" | "hit">("wp"), curveCv = useRef<HTMLCanvasElement>(null), curveVidRef = useRef(tl.recorder.vid);
   const [mapInfo, setMapInfo] = useState<{ img: HTMLImageElement; b: MapBounds } | null>(null), [mapPanel, setMapPanel] = useState(false), [mapTick, setMapTick] = useState(0);
   useEffect(() => { let url = "", on = true; void loadMap(tl.arena.map).then((m) => { if (!m || !on) return; url = URL.createObjectURL(m.image); const i = new Image(); i.onload = () => { if (on) { cam.current = null; setMapInfo({ img: i, b: m.bounds }); } }; i.src = url; }); return () => { on = false; if (url) URL.revokeObjectURL(url); }; }, [tl.arena.map, mapTick]);
   const trackBounds = useMemo(() => {
@@ -125,6 +128,21 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
       k.font = "bold 11px system-ui"; k.textBaseline = "top"; for (const { f } of coachRef.current.marks) { k.fillStyle = f.kind === "mistake" ? foe : f.kind === "good" ? you : muted; k.fillRect(X(f.tStart) - 6, 1, 12, 13); k.fillStyle = bg; k.fillText(f.kind === "mistake" ? "!" : f.kind === "good" ? "✓" : "i", X(f.tStart) - 2.5, 2); }
       k.strokeStyle = ink; k.lineWidth = 2; k.beginPath(); k.moveTo(X(T), 0); k.lineTo(X(T), th); k.stroke();
     }
+    // linked curve: the chosen running metric for the followed player, same clock, flags from the findings
+    const cc = curveCv.current;
+    if (cc) {
+      const cw = cc.clientWidth, ch = cc.clientHeight; if (cc.width !== Math.round(cw * dpr)) { cc.width = Math.round(cw * dpr); cc.height = Math.round(ch * dpr); }
+      const q = cc.getContext("2d")!; q.setTransform(dpr, 0, 0, dpr, 0, 0); q.fillStyle = bg; q.fillRect(0, 0, cw, ch);
+      const sr = seriesFor(tl, curveVidRef.current), kind = curveKind.current;
+      const ys: (number | null)[] = kind === "wp" ? Array.from({ length: end + 1 }, (_, i) => wp.wp[Math.min(wp.wp.length - 1, i)] ?? null) : kind === "dmg" ? sr.dmg : kind === "dpm" ? sr.dpm : sr.hitRate;
+      const mx = kind === "wp" || kind === "hit" ? 1 : Math.max(1, ...ys.map((v) => v ?? 0)), X2 = (v: number) => (v / Math.max(1, end)) * cw, Y2 = (v: number) => 6 + (1 - v / mx) * (ch - 14);
+      q.strokeStyle = grid; q.lineWidth = 1; q.beginPath(); q.moveTo(0, Y2(mx / 2)); q.lineTo(cw, Y2(mx / 2)); q.stroke();
+      q.strokeStyle = you; q.lineWidth = 2; q.beginPath(); let pen = false; ys.forEach((v, i) => { if (v == null) { pen = false; return; } const x = X2(i), y = Y2(v); if (pen) q.lineTo(x, y); else { q.moveTo(x, y); pen = true; } }); q.stroke();
+      for (const { f } of coachRef.current.marks) { q.strokeStyle = f.kind === "mistake" ? foe : f.kind === "good" ? you : muted; q.setLineDash([3, 3]); q.beginPath(); q.moveTo(X2(f.tStart), 0); q.lineTo(X2(f.tStart), ch); q.stroke(); }
+      q.setLineDash([]); q.strokeStyle = ink; q.lineWidth = 2; q.beginPath(); q.moveTo(X2(T), 0); q.lineTo(X2(T), ch); q.stroke();
+      const i = Math.min(end, Math.floor(T)), cur = ys[i]; q.fillStyle = ink; q.font = "bold 11px system-ui"; q.textBaseline = "top";
+      if (cur != null) q.fillText(kind === "wp" || kind === "hit" ? `${Math.round(cur * 100)}%` : Math.round(cur).toLocaleString(), Math.min(cw - 50, X2(T) + 4), 2);
+    }
   }, [tl, bounds, wp, kills, vehicle, end, fit, mapInfo]);
 
   // ---- clock loop ----
@@ -201,10 +219,13 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
     const xs = us.map((u) => u.x), zs = us.map((u) => u.z), w = Math.max(150, Math.max(...xs) - Math.min(...xs)) * 1.3, h = Math.max(150, Math.max(...zs) - Math.min(...zs)) * 1.3;
     cm.cx = (Math.max(...xs) + Math.min(...xs)) / 2; cm.cz = (Math.max(...zs) + Math.min(...zs)) / 2; cm.s = Math.min(8, Math.min(b.clientWidth / w, b.clientHeight / h)); setFollow(false);
   }, [tl]);
+  const scrubC = (e: React.PointerEvent<HTMLCanvasElement>) => { if (e.type === "pointermove" && e.buttons !== 1) return; const r = e.currentTarget.getBoundingClientRect(); seek(((e.clientX - r.left) / r.width) * end); };
   const scrub = (e: React.PointerEvent<HTMLCanvasElement>) => { if (e.type === "pointermove" && e.buttons !== 1) return; const r = e.currentTarget.getBoundingClientRect(); seek(((e.clientX - r.left) / r.width) * end); };
 
   const active = marks.find((m) => uiT >= m.pt && uiT <= m.f.tEnd + 1.5)?.f;
   const snap = stateAt(tl, uiT), r = tl.recorder.team, o = r === 1 ? 2 : 1;
+  const curveVid = sel ?? tl.recorder.vid; curveVidRef.current = curveVid; curveKind.current = curve;
+  const sr = useMemo(() => seriesFor(tl, curveVid), [tl, curveVid]);
   const wpNow = wp.wp[Math.min(wp.wp.length - 1, Math.round(uiT))] ?? 0.5;
   const su = sel != null ? snap.units.find((u) => u.vid === sel) : null, sv = sel != null ? vehicle.get(sel) : null;
   return (
@@ -223,6 +244,14 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
         {mapPanel && <MapLoader mapName={tl.arena.map} onSaved={() => setMapTick((x) => x + 1)} onClose={() => setMapPanel(false)} />}
       </div>
       <canvas ref={tline} className="ptimeline" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); scrub(e); }} onPointerMove={scrub} aria-label={t("player.timeline")} role="slider" aria-valuemin={0} aria-valuemax={end} aria-valuenow={Math.round(uiT)} />
+      <div className="pcurve">
+        <div className="pcurvebar" onPointerDown={(e) => e.stopPropagation()}>
+          {(["wp", "dmg", "dpm", "hit"] as const).map((k) => <button type="button" key={k} aria-pressed={curve === k} onClick={() => setCurve(k)}>{t(`curve.${k}`)}</button>)}
+          <span className="muted">{sv ? sv.name : tl.recorder.name}</span>
+        </div>
+        <canvas ref={curveCv} className="ptimeline" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); scrubC(e); }} onPointerMove={scrubC} aria-label={t("curve.aria")} />
+        <p className="muted pcurvenote">{t(`curve.${curve}.how`)}{curve !== "wp" && sr.officialDmg != null && sr.officialDmg > 0 && sr.finalDmg < sr.officialDmg * 0.98 ? ` ${t("curve.partial", { p: Math.round((sr.finalDmg / sr.officialDmg) * 100) })}` : ""}</p>
+      </div>
       <div className="pctl">
         <button type="button" onClick={onClose}>← {t("player.back")}</button>
         <button type="button" onClick={toggle} aria-label={playing ? t("player.pause") : t("player.play")}>{playing ? "⏸" : "▶"}</button>

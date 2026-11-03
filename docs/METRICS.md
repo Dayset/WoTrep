@@ -178,3 +178,6 @@ number comes from (results field, event, model, config thresholds). "Mean" says 
 | paid / costly | bold episodes + hits + damage taken + kills | whether the chances you took won or lost the exchange |
 | style | bold, paid, costly thresholds | description of the battle's style, not a grade |
 | acc / pen / life | results: shots, hits, pens, life time | accuracy, penetration rate, share of the battle survived |
+
+### 3.9 Running curves (player strip)
+Per-second series from `seriesFor` (packages/analysis/src/series.ts): cumulative damage to enemies, damage/min (battle minutes, or life minutes once destroyed), cumulative shots, damaging hits ÷ shots (from the 3rd shot). Observed events only. The UI explains each curve under the chart (`curve.*.how`) and warns when hit coverage < 98%. Win chance reuses WP v0. Survival probability is planned, uncalibrated until E13.

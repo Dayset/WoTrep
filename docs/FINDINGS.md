@@ -71,3 +71,7 @@ Feasibility: **now** = data we decode today; **gamedata** = needs #42; **decode*
 | Scraping replay sites (even gently, aggregates only) | none from the sites; terms unknown | third-party data | **not doing without the site owners' written OK**; ask them first |
 
 Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of *other* players; other players' behaviour is studied only as anonymous aggregates by tank, map and role (PS2 Elite style baselines).
+
+## Running curves (player strip)
+- Fixture: recorder's shot events = 61, official shots = 59. Cause unknown (maybe shots not counted by the game, e.g. before the first second). The hit-rate curve uses event shots, so it reads slightly low; never show it as the official accuracy.
+- Running curves (cumulative damage, damage/min, damaging-hit rate) come only from observed events; the player strip notes when a player's hit coverage is under 98%. Survival probability v0 is not built: it needs calibration data (#111/#112, E13).

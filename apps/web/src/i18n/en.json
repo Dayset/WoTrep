@@ -185,5 +185,15 @@
   "map.invalid": "Choose an image and enter valid bounds (x0 < x1, z0 < z1).",
   "map.save": "Save map",
   "map.cancel": "Cancel",
-  "map.savefail": "Could not save in this browser."
+  "map.savefail": "Could not save in this browser.",
+  "curve.wp": "Win chance",
+  "curve.dmg": "Damage",
+  "curve.dpm": "Damage/min",
+  "curve.hit": "Hit rate",
+  "curve.aria": "Running metric over the battle, synced with the replay",
+  "curve.partial": "Hits seen for this player cover {p}% of their official damage, so the curve ends low.",
+  "curve.wp.how": "Team win probability (v0). Rises when your side trades well. Findings are marked with dashed lines.",
+  "curve.dmg.how": "Damage dealt to enemies so far, summed from observed hits. Flat stretches are time without hitting anything.",
+  "curve.dpm.how": "Damage so far ÷ minutes of battle (or of life, once destroyed). Shows if you are ahead of or behind your usual pace now.",
+  "curve.hit.how": "Damaging hits ÷ shots so far (needs 3 shots). Shots that bounce or miss count as not damaging, so this is below the official accuracy. It settles as shots pile up."
 }
