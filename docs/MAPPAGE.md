@@ -54,3 +54,10 @@ Page structure: tabs **stats / heatmaps / top games / specs**, plus an upload bo
 - **heatmaps**: presets team movements, class movements, experience (locked), assisted damage (A) and (B), tracers, damages, custom. Filters: period, heatmap type, segmentation (by team), tank, game mode, player name ("me"), time range, exp range, player WTR. Spawn markers A (south) and B (north) drawn on the map.
 - Ideas we lack: win rate by spawn (needs aggregates), finish-reason mix, duration/score distributions, tracers (shot lines), assisted-damage layers, per-class movement (needs class data #42), "me" personal heatmaps over many battles (needs the local library #114/#117).
 - Our edge to keep: per-battle coaching linked to the replay, relative metrics, explanations.
+
+## Orientation and bounds check (2026-11-03, by eye against wotinspector's screenshot; nothing copied)
+- Fixture: recorder is team 2; its spawn cluster is at x 107..188, z 384..425 (mean x 135, z 401). wotinspector draws spawn B at the TOP of the map, so **image top = +z (north)** holds, and team 2 = "B" side. Team 1 (A, south) is unseen at the start (enemy tracks exist only once spotted), so its spawn is not measured.
+- Size is 1000 x 1000 m (their specs). Track extents with battle time >= 0 are x -274..600, z -466..500, so with a 1000 m square: **x0 is between -400 and -274, z0 between -500 and -466** (z1 = z0 + 1000). Not enough to fix them; ranking by eye: z about -500..500 fits; x unresolved.
+- A rough pixel estimate from the screenshot (B marker 35% from the left edge) suggested x0 about -200, which contradicts the track extent (-274), so the base marker is probably not the spawn centre. Do not use it.
+- To settle: arena XML from the game files (`boundingBox`), or more replays (extents tighten as more tanks are seen; the spawn corners of both teams pin the map).
+- Placeholder bounds used for screenshots (+-600) were wrong (1200 m). Use x -337..663 / z -500..500 only as a midpoint guess until verified.
