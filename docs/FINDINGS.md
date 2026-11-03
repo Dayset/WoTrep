@@ -19,6 +19,7 @@ Public numbers are defined in `METRICS.md`; this file is where they come from an
 | 2026-11-03 | Debug view showed reload "lower bounds" of 0.1 s for guns with 11-162 shots and no burst structure (rapid-fire or special weapons). Meaningless, so confidence is now capped at 0.2 for any estimate under 1 s and it no longer excuses a missed opening in Initiative. | `?debug=1` per-player table |
 | 2026-11-03 | Coverage is lowest for players who fought mostly out of the recorder's view (0.30-0.52 for 5 of 30); their Impact/threat numbers are shown as partial. Zero-damage players have no per-hit data at all. | `?debug=1` coverage column |
 | 2026-11-03 | Initiative styles on the fixture: 9 bold-rewarded, 5 bold-costly, 6 balanced, 3 safe, 7 unrated (< 3 episodes). Few unrated players are the ones with almost no visible time. | boldness test log |
+| 2026-11-03 | Searched for a public replay corpus. Found replay-sharing sites (wotreplays.eu, wot-record.com: EU/NA/ASIA, RU only as a player filter; no mention of Lesta/.mtreplay), parsers (wotdecoder, wotreplay-parser) and an arXiv chat-analysis paper, but **no open, licensed replay dataset** and no API, bulk download or reuse terms on the two sites. Scraping them without permission is off the table. | web search + site pages, 2026-11-03 |
 
 ## 2. Hidden (debug) values
 
@@ -54,3 +55,14 @@ Feasibility: **now** = data we decode today; **gamedata** = needs #42; **decode*
 
 - A finding that changes a number or an assumption also goes into the doc that owns it (`METRICS.md`, `REPLAY_FORMAT.md`).
 - A new public number needs a glossary entry (`METRICS.md` §3.8) and, if it has intermediate values, a line in the debug panel.
+
+## 5. Where training/calibration data can come from (decision needed)
+
+| Source | Consent | Privacy | Effort |
+|---|---|---|---|
+| **Player's own replays**: bulk drop (multi-file, #117) into a local library (#114, IndexedDB); behaviour of *this* player over time stays on their device | their own | none leaves the device | M |
+| **Opt-in anonymous aggregates** (#111/#112): after parsing in the browser, send only per-tank/per-map/per-role numbers (no names, ids, positions) to the Worker | explicit checkbox | aggregates only | M |
+| **Replay packs from people we ask** (friends, clan, community, replay-site owners): written permission, stored in `fixtures/` only if the owner agrees | explicit | strip names before commit | S |
+| Scraping replay sites | none | n/a | **not doing** |
+
+Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of *other* players; other players' behaviour is studied only as anonymous aggregates by tank, map and role (PS2 Elite style baselines).
