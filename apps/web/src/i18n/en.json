@@ -1,0 +1,19 @@
+{
+  "app.tagline": "Replay analyzer for World of Tanks and Mir Tankov",
+  "upload.drop": "Drop a .wotreplay or .mtreplay here, or click to browse",
+  "upload.local": "Parsed on your computer. Nothing is uploaded.",
+  "upload.parsing": "Reading replay…",
+  "upload.error": "Could not read this file ({stage}): {message}",
+  "report.win": "Victory",
+  "report.loss": "Defeat",
+  "report.draw": "Draw",
+  "report.unfinished": "Unfinished replay",
+  "report.back": "Another replay",
+  "report.you": "You",
+  "report.allies": "Your team",
+  "report.enemies": "Enemy team",
+  "report.duration": "Duration",
+  "report.partial": "Partially supported version: positions and results only.",
+  "col.tank": "Tank", "col.name": "Player", "col.dmg": "Damage", "col.assist": "Assist", "col.blocked": "Blocked",
+  "col.kills": "Kills", "col.shots": "Shots / hits / pens", "col.received": "Received"
+}

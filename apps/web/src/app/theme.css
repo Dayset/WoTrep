@@ -1,0 +1,28 @@
+:root { --bg:#14171a; --panel:#1c2024; --line:#2c3238; --text:#e6e9ec; --muted:#8b949e; --ally:#46a758; --enemy:#e5484d; --me:#ffd60a; --accent:#4c9aff; }
+:root[data-theme="light"] { --bg:#f5f6f7; --panel:#fff; --line:#d6dade; --text:#15181b; --muted:#5b646c; --ally:#2b8a3e; --enemy:#c92a2a; --me:#b8860b; --accent:#1c6fd1; }
+* { box-sizing: border-box; border-radius: 0; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; }
+#root { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+header.top { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+header.top h1 { margin: 0; font-size: 20px; letter-spacing: .5px; }
+header.top .tag { color: var(--muted); font-size: 13px; flex: 1; }
+button, .btn { background: var(--panel); color: var(--text); border: 1px solid var(--line); padding: 6px 12px; font: inherit; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+.drop { margin: 28px 0 8px; border: 2px dashed var(--line); padding: 56px 16px; text-align: center; cursor: pointer; background: var(--panel); }
+.drop.over { border-color: var(--accent); }
+.drop small { display: block; margin-top: 8px; color: var(--muted); }
+.err { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--enemy); color: var(--enemy); }
+.banner { margin: 12px 0; padding: 8px 12px; border: 1px solid var(--line); color: var(--muted); }
+.report h2 { margin: 18px 0 4px; font-size: 22px; }
+.report .sub { color: var(--muted); margin-bottom: 8px; }
+.win { color: var(--ally); } .loss { color: var(--enemy); }
+.tablewrap { overflow-x: auto; margin: 10px 0 22px; border: 1px solid var(--line); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; white-space: nowrap; }
+th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line); }
+th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-weight: 600; }
+th:first-child, td:first-child { position: sticky; left: 0; background: var(--panel); text-align: left; }
+td:nth-child(2), th:nth-child(2) { text-align: left; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--panel) 92%, var(--text)); }
+tr.me td { color: var(--me); font-weight: 600; }
+details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+.ally-h { color: var(--ally); } .enemy-h { color: var(--enemy); }

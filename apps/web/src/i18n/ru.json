@@ -1,0 +1,19 @@
+{
+  "app.tagline": "Анализатор реплеев для World of Tanks и Мира танков",
+  "upload.drop": "Перетащите сюда .wotreplay или .mtreplay или нажмите для выбора",
+  "upload.local": "Файл обрабатывается на вашем компьютере. Ничего не загружается.",
+  "upload.parsing": "Читаю реплей…",
+  "upload.error": "Не удалось прочитать файл ({stage}): {message}",
+  "report.win": "Победа",
+  "report.loss": "Поражение",
+  "report.draw": "Ничья",
+  "report.unfinished": "Незавершённый реплей",
+  "report.back": "Другой реплей",
+  "report.you": "Вы",
+  "report.allies": "Ваша команда",
+  "report.enemies": "Команда противника",
+  "report.duration": "Длительность",
+  "report.partial": "Версия поддерживается частично: только позиции и результаты.",
+  "col.tank": "Танк", "col.name": "Игрок", "col.dmg": "Урон", "col.assist": "Помощь", "col.blocked": "Заблокировано",
+  "col.kills": "Фраги", "col.shots": "Выстрелы / попад. / пробит.", "col.received": "Получено"
+}
