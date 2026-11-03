@@ -6,6 +6,7 @@ import type { Finding } from "@wotrep/coach";
 import { t } from "../../i18n";
 import { loadMap, type MapBounds } from "../../lib/mapStore";
 import { MapLoader } from "./MapLoader";
+import { DamageLog } from "./DamageLog";
 import { seriesFor } from "@wotrep/analysis";
 import { FindingCard } from "../report/Findings";
 
@@ -23,7 +24,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
   const end = Math.floor(tl.arena.durationS ?? tl.events.at(-1)?.t ?? 0);
   const [playing, setPlaying] = useState(false), [speed, setSpeed] = useState(1), [uiT, setUiT] = useState(Math.max(0, startAt ?? 0));
   const [coach, setCoach] = useState(false), [seenIds, setSeenIds] = useState<string[]>([]);
-  const [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [sel, setSel] = useState<number | null>(null);
+  const [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [logOn, setLogOn] = useState(false), [sel, setSel] = useState<number | null>(null);
   const clock = useRef({ t: Math.max(0, startAt ?? 0), playing: false, speed: 1 }), cam = useRef<Cam | null>(null), opts = useRef({ follow: false, names: true, trails: true, sel: null as number | null });
   const canvas = useRef<HTMLCanvasElement>(null), tline = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
   const maxHp = useMemo(() => { const m = { 1: 0, 2: 0 }; for (const v of tl.vehicles) m[v.team] += v.maxHealth; return m; }, [tl]);
@@ -252,6 +253,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
         <canvas ref={curveCv} className="ptimeline" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); scrubC(e); }} onPointerMove={scrubC} aria-label={t("curve.aria")} />
         <p className="muted pcurvenote">{t(`curve.${curve}.how`)}{curve !== "wp" && sr.officialDmg != null && sr.officialDmg > 0 && sr.finalDmg < sr.officialDmg * 0.98 ? ` ${t("curve.partial", { p: Math.round((sr.finalDmg / sr.officialDmg) * 100) })}` : ""}</p>
       </div>
+      {logOn && <DamageLog tl={tl} now={uiT} onSeek={seek} />}
       <div className="pctl">
         <button type="button" onClick={onClose}>← {t("player.back")}</button>
         <button type="button" onClick={toggle} aria-label={playing ? t("player.pause") : t("player.play")}>{playing ? "⏸" : "▶"}</button>
@@ -261,6 +263,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
         <button type="button" onClick={() => jump(-1)} aria-label={t("coach.prev")} title={t("coach.prev")}>⏮</button><button type="button" onClick={() => jump(1)} aria-label={t("coach.next")} title={t("coach.next")}>⏭</button>
         <label><input type="checkbox" checked={coach} onChange={(e) => setCoach(e.target.checked)} /> {t("coach.mode")}</label>
         <label><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> {t("player.follow")}</label>
+        <label><input type="checkbox" checked={logOn} onChange={(e) => setLogOn(e.target.checked)} /> {t("log.toggle")}</label>
         <label><input type="checkbox" checked={names} onChange={(e) => setNames(e.target.checked)} /> {t("player.names")}</label>
         <label><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} /> {t("player.trails")}</label>
       </div>

@@ -113,3 +113,9 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .mappage { display: grid; gap: 8px; } .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .chips button[aria-pressed="true"] { border-color: var(--accent); background: var(--bg); }
 .chips .sep { width: 12px; } .mpwrap { position: relative; } .mpwrap canvas { width: 100%; display: block; border: 1px solid var(--line); touch-action: manipulation; cursor: crosshair; }
 .mplegend { margin: 0; font-size: 12px; } .mappage .how p { margin: 4px 0; }
+.dlog { border: 1px solid var(--line); background: var(--panel); display: grid; }
+.dlogbar { display: flex; gap: 6px; align-items: center; padding: 4px 8px; border-bottom: 1px solid var(--line); } .dlogbar button[aria-pressed="true"] { border-color: var(--accent); }
+.dlogrows { max-height: 220px; overflow-y: auto; }
+.dlogrow { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; width: 100%; border: 0; border-bottom: 1px solid var(--line); text-align: left; padding: 3px 8px; font-size: 13px; background: transparent; }
+.dlogrow.future { opacity: 0.45; } .dlogrow.cur { background: var(--bg); outline: 1px solid var(--accent); } .dlogrow.mine .dwho { font-weight: 600; } .dlogrow .ally { color: var(--ally); } .dlogrow .enemy { color: var(--enemy); } .dlogrow .dn { color: var(--muted); font-variant-numeric: tabular-nums; }
+.dlognote { margin: 0; padding: 4px 8px; font-size: 12px; }

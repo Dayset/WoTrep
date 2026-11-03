@@ -233,5 +233,12 @@
   "mp.l.tracers": "Shot lines",
   "mp.l.tracers.how": "One line per shot: from where the shooter stood when firing to where the shell ended (hit, ricochet or ground). Blue = your team, red = enemy. We see an end point for about three quarters of shots.",
   "mp.l.tracers.mean": "Which lanes are shot across, from where, and how far. Many lines crossing your position mean a hot firing lane. Long lines from one spot show a sniping position.",
-  "mp.tracers.legend": "{n} shots with a known end point. Blue = your team, red = enemy."
+  "mp.tracers.legend": "{n} shots with a known end point. Blue = your team, red = enemy.",
+  "log.toggle": "Damage log",
+  "log.title": "Damage log",
+  "log.all": "Everyone",
+  "log.me": "Me",
+  "log.empty": "No damage events for this filter.",
+  "log.note": "Hits as recorded in the replay; ☠ = destroyed. Click a row to jump 3 s before it.",
+  "log.coverage": "The log holds {p}% of the damage in the official results (the replay only reports hits it could see)."
 }

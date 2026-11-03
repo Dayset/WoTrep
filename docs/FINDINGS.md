@@ -94,3 +94,8 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 - Their viewer: small 2D player, side menu (world, teams, log, clear, display), team HP bars with kill counts, speed/pause, a kill/damage **log** with times, names and per-hit numbers, rosters where several players show "(no data)".
 - We are ahead on: all 30 vehicles named, full positions, per-hit damage for everyone (89% coverage), findings and coaching linked to the map, linked curves, explained metrics.
 - We lag on: a visible damage/kill **log** panel (#54), team HP bars with kill counts at the bar (we show alive count and HP), many-battle aggregate stats and heatmaps (need data), class data (#42).
+
+## Damage log (#54)
+- 2026-11-03: Player has a "Damage log" toggle (apps/web/src/features/player/DamageLog.tsx): every damaging hit with time, attacker → target (team-coloured), damage, HP left, ☠ on the killing hit; kills without a matching hit (results-derived kills on Wargaming) get their own row. Filter Everyone / Me; click a row to jump 3 s before; the row at the playhead is highlighted and followed.
+- It states its own coverage from the data: log damage ÷ sum of official damageDealt: **89%** on the Lesta fixture, **67%** on the WG 2.4.1.0 dday replay (hits on tanks the recorder could not see are not reported).
+- Compared with wotinspector's log: same idea; ours adds team colours, HP left, coverage, jump-to-moment and the filter. Still missing: per-player filter beyond "me", ammo/penetration result per hit (needs undecoded events).
