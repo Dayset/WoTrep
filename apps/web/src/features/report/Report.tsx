@@ -1,6 +1,7 @@
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
 import { playerMetrics, recorderHeuristics } from "@wotrep/analysis";
 import { t } from "../../i18n";
+import { HeuristicCharts } from "./Charts";
 
 const tank = (v: VehicleInfo) => v.vehicleType.split(":")[1] ?? v.vehicleType;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
@@ -55,6 +56,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
         {tl.arena.durationS != null && <> · {t("report.duration")} {mmss(tl.arena.durationS)}</>}</div>
       {tl.source.manifest.confidence !== "defs" && <div className="banner">{t("report.partial")}</div>}
       <Advanced tl={tl} />
+      <HeuristicCharts tl={tl} />
       <Team tl={tl} team={tl.recorder.team} title={t("report.allies")} cls="ally-h" />
       <Team tl={tl} team={tl.recorder.team === 1 ? 2 : 1} title={t("report.enemies")} cls="enemy-h" />
     </div>

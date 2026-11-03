@@ -12,6 +12,8 @@ export interface RecorderHeuristics {
   /** sum of win-probability change credited to the recorder's damage, in percentage points */
   impactPts: number; impactPerKDamage: number;
   best: { t: number; targetVid: number; dWpPts: number } | null;
+  /** every recorder hit with its threat weight and win-probability change; cum = running Impact */
+  hits: { t: number; target: number; amount: number; threat: number; dWpPts: number; cumPts: number }[];
 }
 
 const median = (a: number[]) => { const s = [...a].sort((x, y) => x - y); return s.length ? (s[(s.length - 1) >> 1]! + s[s.length >> 1]!) / 2 : 0; };
@@ -34,6 +36,7 @@ export function recorderHeuristics(tl: BattleTimeline): RecorderHeuristics | nul
   const enemyDpm = (tm: Team) => median(tl.vehicles.filter((v) => v.team === tm).map((v) => pm.get(v.vid)!.dpm).filter((x) => x > 0));
   const med = enemyDpm(team === 1 ? 2 : 1) || 1;
   const w = (vid: number) => Math.min(cfg.threatMax.value, Math.max(cfg.threatMin.value, (pm.get(vid)?.dpm ?? 0) / med));
+  const hits: RecorderHeuristics["hits"] = [];
   let dmg = 0, tw = 0, onThreat = 0, clean = 0, impact = 0; let best: RecorderHeuristics["best"] = null;
   for (const e of tl.events) {
     if (e.k !== "damage" || e.attacker !== me || e.target === me || e.amount <= 0) continue;
@@ -41,12 +44,13 @@ export function recorderHeuristics(tl: BattleTimeline): RecorderHeuristics | nul
     dmg += e.amount; tw += e.amount * w(e.target); if (w(e.target) >= 1) onThreat += e.amount;
     if (before >= cfg.cleanupWp.value) clean += e.amount;
     const d = (after - before) * 100; impact += d;
+    hits.push({ t: e.t, target: e.target, amount: e.amount, threat: Math.round(w(e.target) * 100) / 100, dWpPts: Math.round(d * 100) / 100, cumPts: Math.round(impact * 100) / 100 });
     if (!best || d > best.dWpPts) best = { t: e.t, targetVid: e.target, dWpPts: Math.round(d * 100) / 100 };
   }
   const mine = pm.get(me)!;
   return {
     damage: dmg, dpm: mine.dpm, teamShare: mine.share, threatWeighted: Math.round(tw), threatWeightedPerDamage: dmg ? tw / dmg : 0,
     shareOnThreats: dmg ? onThreat / dmg : 0, cleanupShare: dmg ? clean / dmg : 0, impactPts: Math.round(impact * 100) / 100,
-    impactPerKDamage: dmg ? Math.round((impact / dmg) * 1000 * 100) / 100 : 0, best,
+    impactPerKDamage: dmg ? Math.round((impact / dmg) * 1000 * 100) / 100 : 0, best, hits,
   };
 }
