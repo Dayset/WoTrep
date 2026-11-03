@@ -29,5 +29,7 @@ export default tseslint.config(
         rules: Object.entries(allow).map(([from, to]) => ({ from, allow: [...to, from] })),
       }],
     },
-  },
+  },,
+  // Raw replay JSON/pickles are untyped by nature; the parser's OUTPUT is typed and validated by @wotrep/model's zod schema.
+  { files: ["packages/parser/src/**"], rules: { "@typescript-eslint/no-explicit-any": "off" } },
 );

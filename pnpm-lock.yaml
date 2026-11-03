@@ -38,6 +38,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@wotrep/model':
+        specifier: workspace:^
+        version: link:../../packages/model
+      '@wotrep/parser':
+        specifier: workspace:^
+        version: link:../../packages/parser
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -80,6 +86,12 @@ importers:
 
   packages/parser:
     dependencies:
+      '@wotrep/defs':
+        specifier: workspace:^
+        version: link:../defs
+      '@wotrep/model':
+        specifier: workspace:^
+        version: link:../model
       fflate:
         specifier: 0.8.2
         version: 0.8.2
