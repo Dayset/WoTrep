@@ -1,1 +1,2 @@
-export const name = "@wotrep/analysis";
+export * from "./wp";
+export * from "./heuristics";

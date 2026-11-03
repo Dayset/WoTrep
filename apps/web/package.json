@@ -10,6 +10,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@wotrep/analysis": "workspace:^",
     "@wotrep/model": "workspace:^",
     "@wotrep/parser": "workspace:^",
     "react": "18.3.1",

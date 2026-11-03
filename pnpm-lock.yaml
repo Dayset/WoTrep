@@ -38,6 +38,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@wotrep/analysis':
+        specifier: workspace:^
+        version: link:../../packages/analysis
       '@wotrep/model':
         specifier: workspace:^
         version: link:../../packages/model
@@ -64,7 +67,11 @@ importers:
         specifier: 6.0.6
         version: 6.0.6(@types/node@22.10.2)
 
-  packages/analysis: {}
+  packages/analysis:
+    dependencies:
+      '@wotrep/model':
+        specifier: workspace:^
+        version: link:../model
 
   packages/coach: {}
 

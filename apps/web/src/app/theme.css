@@ -22,7 +22,18 @@ th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--li
 th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-weight: 600; }
 th:first-child, td:first-child { position: sticky; left: 0; background: var(--panel); text-align: left; }
 td:nth-child(2), th:nth-child(2) { text-align: left; }
+td.nm { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+td.tk { max-width: 130px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+th:first-child, td:first-child { z-index: 1; border-right: 1px solid var(--line); }
+@media (max-width: 600px) { header.top .tag { display: none; } header.top h1 { flex: 1; } .cards { grid-template-columns: 1fr 1fr; } .card .v { font-size: 18px; } .card .tip { display: none; } table { font-size: 12.5px; } th, td { padding: 5px 7px; } td.nm { max-width: 34vw; } td.tk { max-width: 90px; } .report h2 { font-size: 18px; } }
 tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--panel) 92%, var(--text)); }
 tr.me td { color: var(--me); font-weight: 600; }
 details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .ally-h { color: var(--ally); } .enemy-h { color: var(--enemy); }
+
+.muted { color: var(--muted); font-weight: 400; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 6px 0 18px; }
+.card { border: 1px solid var(--line); background: var(--panel); padding: 10px 12px; }
+.card .k { color: var(--muted); font-size: 12.5px; } .card .v { font-size: 22px; font-weight: 700; margin: 2px 0 4px; }
+.card .tip { color: var(--muted); font-size: 12px; line-height: 1.35; }
+.beta { font-size: 11px; border: 1px solid var(--accent); color: var(--accent); padding: 0 5px; margin-left: 6px; vertical-align: middle; font-weight: 600; }
