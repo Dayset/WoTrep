@@ -76,7 +76,17 @@ importers:
         specifier: workspace:^
         version: link:../model
 
-  packages/coach: {}
+  packages/coach:
+    dependencies:
+      '@wotrep/analysis':
+        specifier: workspace:^
+        version: link:../analysis
+      '@wotrep/model':
+        specifier: workspace:^
+        version: link:../model
+      zod:
+        specifier: 3.24.1
+        version: 3.24.1
 
   packages/commander: {}
 
@@ -86,7 +96,11 @@ importers:
         specifier: 3.24.1
         version: 3.24.1
 
-  packages/gamedata: {}
+  packages/gamedata:
+    dependencies:
+      zod:
+        specifier: 3.24.1
+        version: 3.24.1
 
   packages/model:
     dependencies:

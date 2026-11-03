@@ -1,0 +1,19 @@
+name: gamedata-refresh
+on: workflow_dispatch
+permissions: { contents: write }
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Fetch Lesta vehicles (needs secret LESTA_APP_ID)
+        env: { LESTA_APP_ID: "${{ secrets.LESTA_APP_ID }}" }
+        run: |
+          if [ -z "$LESTA_APP_ID" ]; then echo "::error::Add the repository secret LESTA_APP_ID (free key from developers.lesta.ru)"; exit 1; fi
+          node tools/gamedata/fetch-lesta.mjs
+      - name: Commit data
+        run: |
+          git config user.name "wotrep-bot"; git config user.email "bot@users.noreply.github.com"
+          git add packages/gamedata/data && git commit -m "gamedata: refresh Lesta vehicles" && git push || echo "no change"

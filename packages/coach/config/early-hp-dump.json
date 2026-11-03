@@ -1,0 +1,4 @@
+{
+  "hpShare": { "value": 0.5, "why": "initial guess, recalibrate in E13 (COACHING.md wave 1: lost >= 50% HP early)", "n": 0, "date": "2026-11-03" },
+  "beforeS": { "value": 120, "why": "initial guess, recalibrate in E13 (COACHING.md wave 1: before 2:00 battle time)", "n": 0, "date": "2026-11-03" }
+}

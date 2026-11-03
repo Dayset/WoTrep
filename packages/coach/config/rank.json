@@ -1,0 +1,6 @@
+{
+  "maxMistakes": { "value": 5, "why": "COACHING.md principle 6: few and sharp", "date": "2026-11-03" },
+  "maxGood": { "value": 3, "why": "COACHING.md principle 6: few and sharp", "date": "2026-11-03" },
+  "minConfidence": { "value": 0.5, "why": "findings.md: the UI hides < 0.5 unless 'show uncertain' is on", "date": "2026-11-03" },
+  "hpPerWpPoint": { "value": 15, "why": "initial guess, recalibrate in E13 (puts HP, missed damage and win probability on one scale for ordering only)", "n": 0, "date": "2026-11-03" }
+}
