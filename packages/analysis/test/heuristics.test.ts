@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { validateTimeline } from "@wotrep/model";
-import { playerHeuristics, playerMetrics, playerStats, recorderHeuristics, wpOf, wpSeries } from "../src/index";
+import { estimateReload, reloadStateAt, shotTimes, playerHeuristics, playerMetrics, playerStats, recorderHeuristics, wpOf, wpSeries } from "../src/index";
 import { stateAt } from "@wotrep/model";
 
 const r = validateTimeline(JSON.parse(readFileSync(new URL("../../../fixtures/timelines/lesta-1.46-overlord-sbm44.timeline.json", import.meta.url), "utf8")));
@@ -46,5 +46,20 @@ describe("analysis on the fixture", () => {
     const me = playerStats(tl).find((p) => p.vid === tl.recorder.vid)!, r = tl.results!.players[tl.recorder.vid]!;
     expect(me.accuracy).toBeCloseTo(r.hits / r.shots, 10); expect(me.penRate).toBeCloseTo(r.pens / r.hits, 10);
     for (const p of playerStats(tl)) for (const x of [p.accuracy, p.penRate, p.lifeShare]) if (x != null) { expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThanOrEqual(1); }
+  });
+  it("reload estimator learns the recorder's clip from observed shots and its state is consistent", () => {
+    const ts = shotTimes(tl, tl.recorder.vid), est = estimateReload(ts);
+    expect(est.clipSize).toBe(10); expect(est.intraMaxS).toBeGreaterThan(0.5); expect(est.reloadS).toBeGreaterThan(est.intraMaxS); expect(est.confidence).toBeGreaterThan(0.3);
+    // end of the first full burst: a shot of a 10-shot run followed by a long gap
+    let run = 1, end = -1;
+    for (let i = 1; i < ts.length && end < 0; i++) { if (ts[i]! - ts[i - 1]! <= est.intraMaxS) run++; else { if (run === est.clipSize) end = i - 1; run = 1; } }
+    expect(end).toBeGreaterThan(0);
+    expect(reloadStateAt(ts, est, ts[0]! - 1).state).toBe("unknown");
+    const r = reloadStateAt(ts, est, ts[end]! + 0.5); expect(r.state).toBe("reloading"); expect(r.secondsLeft).toBeGreaterThan(0);
+    expect(reloadStateAt(ts, est, ts[end]! + est.reloadS! + 0.5).state).toBe("ready");
+  });
+  it("single-shot and empty inputs degrade safely", () => {
+    expect(estimateReload([]).confidence).toBe(0); expect(estimateReload([5]).clipSize).toBe(1);
+    const e = estimateReload([0, 8, 16.2, 24.1, 32.5, 41, 49.2]); expect(e.clipSize).toBe(1); expect(e.reloadS).toBeCloseTo(7.9, 1);
   });
 });

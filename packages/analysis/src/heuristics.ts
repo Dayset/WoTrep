@@ -15,6 +15,8 @@ export interface RecorderHeuristics {
   /** every recorder hit with its threat weight and win-probability change; cum = running Impact */
   /** share of the player's official damage seen as per-hit events (1 = complete) */
   coverage: number;
+  /** Impact points per minute alive (for comparing players with different life times) */
+  impactPerMin: number;
   hits: { t: number; target: number; amount: number; threat: number; dWpPts: number; cumPts: number }[];
 }
 
@@ -56,6 +58,7 @@ export function playerHeuristics(tl: BattleTimeline, vid: number): RecorderHeuri
     damage: dmg, dpm: mine.dpm, teamShare: mine.share, threatWeighted: Math.round(tw), threatWeightedPerDamage: dmg ? tw / dmg : 0,
     shareOnThreats: dmg ? onThreat / dmg : 0, cleanupShare: dmg ? clean / dmg : 0, impactPts: Math.round(impact * 100) / 100,
     impactPerKDamage: dmg ? Math.round((impact / dmg) * 1000 * 100) / 100 : 0, best, hits,
+    impactPerMin: Math.round((impact / mine.lifeMin) * 100) / 100,
     coverage: official > 0 ? Math.min(1, dmg / official) : dmg > 0 ? 1 : 0,
   };
 }
