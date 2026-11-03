@@ -1,0 +1,20 @@
+{
+  "gapS": {
+    "value": 8,
+    "why": "initial guess, recalibrate in E13 (hits closer than this belong to one engagement)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "maxRatio": {
+    "value": 0.5,
+    "why": "initial guess, recalibrate in E13 (dealt/received below this is a bad trade)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "minLossShare": {
+    "value": 0.25,
+    "why": "initial guess, recalibrate in E13 (received at least this share of max HP; replaces the alpha-based rule until gun data lands)",
+    "n": 0,
+    "date": "2026-11-03"
+  }
+}

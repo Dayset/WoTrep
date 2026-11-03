@@ -27,3 +27,10 @@ describe("glossary", () => {
     for (const k of METRIC_KEYS) for (const part of ["how", "mean"]) for (const d of [en, ru] as Record<string, string>[]) expect((d[`gl.${k}.${part}`] ?? "").length, `${k}.${part}`).toBeGreaterThan(30);
   });
 });
+
+import { MESSAGE_KEYS } from "@wotrep/coach";
+describe("coach messages", () => {
+  it("every detector message has title, body and fix in en and ru", () => {
+    for (const k of MESSAGE_KEYS) for (const part of ["title", "body", "fix"]) for (const d of [en, ru] as Record<string, string>[]) expect((d[`${k}.${part}`] ?? "").length, `${k}.${part}`).toBeGreaterThan(5);
+  });
+});

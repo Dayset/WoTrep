@@ -41,6 +41,9 @@ importers:
       '@wotrep/analysis':
         specifier: workspace:^
         version: link:../../packages/analysis
+      '@wotrep/coach':
+        specifier: workspace:^
+        version: link:../../packages/coach
       '@wotrep/gamedata':
         specifier: workspace:^
         version: link:../../packages/gamedata

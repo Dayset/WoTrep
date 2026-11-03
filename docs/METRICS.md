@@ -139,7 +139,7 @@ Question: *how often did a player have a chance to improve the team's odds and t
 this is the opportunity-based counterpart and does not need long histories, one battle is enough.)
 
 - **Opening** (per second, per player): the player is alive and visible, an enemy is visible within `engageRangeM` (220 m), the player's team win probability
-  is < `maxWp` (0.9, outcome still open), and the gun is not *known* to be reloading (reload estimator, confidence ≥ 0.3).
+  is < `maxWp` (0.9, outcome still open), and the gun is probably ready (not within the player's own fastest observed shot cycle; reload estimator, confidence ≥ 0.3; an approximation until gun data lands).
 - **Episode**: consecutive openings (gap ≤ 2 s). **Taken**: the player fired within `windowS` (5 s) of the episode.
 - **Initiative = taken / episodes**, shown only with ≥ 3 episodes; otherwise "—". Same definition for all 30 players (each only judged in seconds we can see them).
 - Config: `packages/analysis/config/boldness-v0.json`, every value "initial guess, recalibrate in E13".

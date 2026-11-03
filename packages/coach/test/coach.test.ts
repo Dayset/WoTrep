@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { validateTimeline, type BattleTimeline } from "@wotrep/model";
-import { defineDetector, detectors, earlyHpDump, loadConfig, rank, runDetectors, costScore, type Finding } from "../src/index";
+import { MESSAGE_KEYS, defineDetector, detectors, earlyHpDump, loadConfig, rank, runDetectors, costScore, type Finding } from "../src/index";
 
 const FIX = new URL("../../../fixtures/", import.meta.url).pathname;
 const load = (f: string): BattleTimeline => { const r = validateTimeline(JSON.parse(readFileSync(join(FIX, "timelines", f), "utf8"))); if (!r.ok) throw new Error(f); return r.value; };
@@ -64,6 +64,6 @@ describe("fixture harness", () => {
     const dir = join(FIX, "expected", "findings"), file = join(dir, f.replace(".timeline.json", ".findings.json"));
     if (process.env.UPDATE_SNAPSHOTS === "1" || !existsSync(file)) { mkdirSync(dir, { recursive: true }); writeFileSync(file, JSON.stringify(out, null, 2) + "\n"); }
     expect(out).toEqual(JSON.parse(readFileSync(file, "utf8")));
-    for (const x of out) { expect(x.confidence).toBeGreaterThanOrEqual(0); expect(x.confidence).toBeLessThanOrEqual(1); if (x.kind === "mistake") expect(Object.keys(x.cost).length).toBeGreaterThan(0); }
+    for (const x of out) { expect(MESSAGE_KEYS as readonly string[]).toContain(x.messageKey); expect(x.confidence).toBeGreaterThanOrEqual(0); expect(x.confidence).toBeLessThanOrEqual(1); if (x.kind === "mistake") expect(Object.keys(x.cost).length).toBeGreaterThan(0); }
   });
 });

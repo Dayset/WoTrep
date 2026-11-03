@@ -1,0 +1,14 @@
+{
+  "hpShare": {
+    "value": 0.6,
+    "why": "initial guess, recalibrate in E13 (survived with at least this share of max HP)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "dealtShare": {
+    "value": 1,
+    "why": "initial guess, recalibrate in E13 (dealt less than this multiple of own max HP)",
+    "n": 0,
+    "date": "2026-11-03"
+  }
+}

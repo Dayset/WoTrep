@@ -1,0 +1,20 @@
+{
+  "idleS": {
+    "value": 60,
+    "why": "initial guess, recalibrate in E13 (COACHING.md wave 1: this long without a shot)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "moveM": {
+    "value": 20,
+    "why": "initial guess, recalibrate in E13 (moved less than this)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "viewM": {
+    "value": 400,
+    "why": "initial guess, recalibrate in E13 (an enemy visible within this distance)",
+    "n": 0,
+    "date": "2026-11-03"
+  }
+}

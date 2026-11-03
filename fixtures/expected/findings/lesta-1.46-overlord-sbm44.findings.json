@@ -1,1 +1,82 @@
-[]
+[
+  {
+    "vid": 13908113,
+    "kind": "good",
+    "tStart": 123.2,
+    "tEnd": 125.3,
+    "leadS": 3,
+    "cost": {
+      "winProbDelta": 0.026
+    },
+    "confidence": 0.6,
+    "evidence": [
+      {
+        "k": "unit",
+        "vid": 13908122,
+        "t": 123.2
+      },
+      {
+        "k": "number",
+        "label": "dealt",
+        "value": 342,
+        "unit": "hp"
+      },
+      {
+        "k": "number",
+        "label": "received",
+        "value": 104,
+        "unit": "hp"
+      }
+    ],
+    "messageKey": "coach.wonTrade",
+    "params": {
+      "dealt": 342,
+      "got": 104
+    },
+    "guide": "trading-hp",
+    "schema": "wotrep.finding/1",
+    "detector": "won-trade",
+    "detectorVersion": 1,
+    "id": "won-trade:13908113:123.2"
+  },
+  {
+    "vid": 13908113,
+    "kind": "good",
+    "tStart": 175.4,
+    "tEnd": 178.8,
+    "leadS": 3,
+    "cost": {
+      "winProbDelta": 0.018
+    },
+    "confidence": 0.6,
+    "evidence": [
+      {
+        "k": "unit",
+        "vid": 13908121,
+        "t": 175.4
+      },
+      {
+        "k": "number",
+        "label": "dealt",
+        "value": 493,
+        "unit": "hp"
+      },
+      {
+        "k": "number",
+        "label": "received",
+        "value": 0,
+        "unit": "hp"
+      }
+    ],
+    "messageKey": "coach.wonTrade",
+    "params": {
+      "dealt": 493,
+      "got": 0
+    },
+    "guide": "trading-hp",
+    "schema": "wotrep.finding/1",
+    "detector": "won-trade",
+    "detectorVersion": 1,
+    "id": "won-trade:13908113:175.4"
+  }
+]

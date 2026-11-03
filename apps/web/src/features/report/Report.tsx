@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
 import { boldnessAll, playerMetrics, playerStats, recorderHeuristics } from "@wotrep/analysis";
 import { vehicleLabel } from "@wotrep/gamedata";
@@ -6,6 +6,8 @@ import { t } from "../../i18n";
 import { HeuristicCharts } from "./Charts";
 import { Debug, debugOn } from "./Debug";
 import { Player } from "../player/Player";
+import { FindingsPanel } from "./Findings";
+import { detectors, rank, runDetectors } from "@wotrep/coach";
 import { Vote, FeedbackExport } from "./Feedback";
 
 const tank = (v: VehicleInfo) => vehicleLabel(v.vehicleType).label;
@@ -68,19 +70,21 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
 }
 
 export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void }) {
-  const [watching, setWatching] = useState(false);
+  const [watching, setWatching] = useState<number | null>(null);
+  const findings = useMemo(() => rank(runDetectors(tl, detectors)), [tl]);
   const me = tl.vehicles.find((v) => v.isRecorder)!, w = tl.arena.winnerTeam;
   const res = w == null ? t("report.unfinished") : w === 0 ? t("report.draw") : w === tl.recorder.team ? t("report.win") : t("report.loss");
   const resCls = w == null || w === 0 ? "" : w === tl.recorder.team ? "win" : "loss";
-  if (watching) return <div className="report"><Player tl={tl} onClose={() => setWatching(false)} /></div>;
+  if (watching != null) return <div className="report"><Player tl={tl} findings={findings} startAt={watching} onClose={() => setWatching(null)} /></div>;
   return (
     <div className="report" data-testid="report">
-      <button onClick={onBack}>← {t("report.back")}</button> <button onClick={() => setWatching(true)} data-testid="watch">{t("report.watch")}</button>
+      <button onClick={onBack}>← {t("report.back")}</button> <button onClick={() => setWatching(0)} data-testid="watch">{t("report.watch")}</button>
       <h2><span className={resCls}>{res}</span> · {tl.arena.mapDisplayName} · {tank(me)}</h2>
       <div className="sub">{tl.arena.startedAt} · {tl.source.server} · v{tl.source.clientVersion}
         {tl.arena.durationS != null && <> · {t("report.duration")} {mmss(tl.arena.durationS)}</>}</div>
       {tl.source.manifest.confidence !== "defs" && <div className="banner">{t("report.partial")}</div>}
       <Advanced tl={tl} />
+      <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => setWatching(Math.max(0, f.tStart - f.leadS))} />
       <HeuristicCharts tl={tl} />
       <FeedbackExport />
       <Team tl={tl} team={tl.recorder.team} title={t("report.allies")} cls="ally-h" />

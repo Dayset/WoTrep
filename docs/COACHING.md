@@ -20,6 +20,12 @@ A detector finds a **moment**, measures what it **cost**, and shows the **fix**.
 Data needs: **P** positions · **H** health events · **T** tracers/shots · **C** camera/aim · **R** reload model (gamedata)
 · **Z** map zones · **W** win-probability model.
 
+### Status (2026-11-03)
+Shipped (all data we decode today, no gun data): `early-hp-dump`, `isolated-under-fire`, `bad-trade`, `won-trade` (good), `idle-with-targets`, `death-recap` (info), `survived-unused-hp` (info).
+Blocked on real gun data (#42), because reload timing cannot be proven from shots alone (the estimate is an upper bound, FINDINGS.md): `peek-into-loaded-autoloader`, `punished-reload`, `exposed-while-reloading`, `low-yield-clip`.
+Not started: `shooting-on-the-move`, `sniper-tunnel-vision`, `killshot-missed` (need aim/camera decoding #26/#30 or alpha from gun data).
+The player shows findings as flags on the timeline, a card when you reach one, Coach mode (slows 6 s before, pauses `leadS` before, Continue), N / Shift+N to jump.
+
 ### Wave 1 — data we decode today (M3 "Coach v1")
 | id | kind | trigger (initial thresholds = guesses, recalibrate) | needs | guide |
 |---|---|---|---|---|

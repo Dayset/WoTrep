@@ -1,12 +1,13 @@
 import type { BattleTimeline } from "@wotrep/model";
 
 /** Reload estimate learned from a vehicle's own observed shots (no game data needed). METRICS.md / issue #38.
- *  Shots are only visible while the shooter is in the recorder's area of interest, so everything here is a lower bound
- *  and carries a confidence. When gun data lands (#42) it should replace `reloadS`/`clipSize`, not this interface. */
+ *  Shots are only visible while the shooter is in the recorder's area of interest, so everything here is approximate
+ *  and carries a confidence. It is an estimate, not proof that a gun is still reloading: detectors that blame or praise a player for
+ *  a reload window must wait for real gun data (#42). When gun data lands (#42) it should replace `reloadS`/`clipSize`, not this interface. */
 export interface ReloadEstimate {
   clipSize: number;        // shots per burst (1 = single-shot gun)
   intraMaxS: number;       // gaps at or below this belong to one burst
-  reloadS: number | null;  // shortest gap between bursts = lower bound on a full reload (null if never saw one)
+  reloadS: number | null;  // shortest gap between bursts we saw. A player cannot fire before the gun is ready, so this is an UPPER bound on the true reload (skilled players fire the moment it is ready, so it is usually close). null if never seen
   confidence: number;      // 0..1
   shots: number;
 }
@@ -29,7 +30,7 @@ export function estimateReload(times: number[]): ReloadEstimate {
   const clip = burstGaps ? mode(runs.filter((r) => r >= mode(runs))) : 1; // full clips are the commonest of the longer runs; partial ones are shorter
   const conf = Math.min(1, long.length / 6) * (burstGaps ? Math.min(1, runs.filter((r) => r === clip).length / 3) : 0.7);
   const reloadS = long.length ? Math.min(...long) : null;
-  // A "reload" under 1 s means a gun firing continuously without a clear burst structure (rapid-fire / special weapons): the lower bound is meaningless.
+  // A "reload" under 1 s means a gun firing continuously without a clear burst structure (rapid-fire / special weapons): the estimate is meaningless.
   const capped = reloadS != null && reloadS < 1 ? Math.min(conf, 0.2) : conf;
   return { clipSize: clip, intraMaxS: intraMax, reloadS, confidence: Math.round(capped * 100) / 100, shots: t.length };
 }

@@ -1,0 +1,26 @@
+{
+  "allyDistM": {
+    "value": 120,
+    "why": "initial guess, recalibrate in E13 (COACHING.md wave 1: nearest living ally farther than this)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "enemyRangeM": {
+    "value": 300,
+    "why": "initial guess, recalibrate in E13 (visible enemies within this distance)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "minEnemies": {
+    "value": 3,
+    "why": "initial guess, recalibrate in E13 (at least this many visible enemies near)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "mergeS": {
+    "value": 10,
+    "why": "initial guess, recalibrate in E13 (hits closer together than this form one finding)",
+    "n": 0,
+    "date": "2026-11-03"
+  }
+}

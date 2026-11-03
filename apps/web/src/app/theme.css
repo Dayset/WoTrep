@@ -93,3 +93,14 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .pctl .ptime { font-variant-numeric: tabular-nums; min-width: 84px; } .pctl .pspeed { display: inline-flex; gap: 2px; }
 .pctl .pspeed button { padding: 3px 7px; font-size: 12px; } .pctl .pspeed button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 @media (max-width: 600px) { .pbars { grid-template-columns: 1fr 1fr; } .pwp { grid-column: 1 / -1; order: -1; text-align: center; } .pmap { height: 52vh; } }
+.pzoom { position: absolute; right: 8px; top: 8px; display: grid; gap: 4px; }
+.pzoom button { width: 40px; height: 40px; padding: 0; font-size: 18px; background: var(--bg); }
+
+/* coach findings */
+.coach { margin: 14px 0 22px; } .coach h3 { margin: 0 0 8px; font-size: 16px; }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.finding { border: 1px solid var(--line); border-left: 4px solid var(--muted); background: var(--panel); padding: 8px 12px; font-size: 13.5px; }
+.finding.mistake { border-left-color: var(--c-foe); } .finding.good { border-left-color: var(--c-you); }
+.finding header { font-size: 12.5px; } .finding .ftag { font-weight: 700; } .finding h4 { margin: 4px 0; font-size: 15px; } .finding p { margin: 4px 0; } .finding .cost { font-weight: 600; } .finding .fix { color: var(--muted); }
+.factions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.pcard { position: absolute; left: 8px; right: 8px; bottom: 8px; max-width: 420px; z-index: 3; box-shadow: 0 2px 10px #0008; } .pcard .finding { background: var(--bg); }
