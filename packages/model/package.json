@@ -1,2 +1,15 @@
-{ "name": "@wotrep/model", "version": "0.0.0", "private": true, "type": "module", "main": "src/index.ts",
-  "scripts": { "typecheck": "tsc -p .", "test": "vitest run --passWithNoTests", "build": "tsc -p ." } }
+{
+  "name": "@wotrep/model",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p ."
+  },
+  "dependencies": {
+    "zod": "3.24.1"
+  }
+}

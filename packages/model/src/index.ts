@@ -1,1 +1,3 @@
-export const name = "@wotrep/model";
+export * from "./timeline";
+export * from "./schema";
+export * from "./reasons";
