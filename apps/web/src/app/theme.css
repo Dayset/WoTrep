@@ -69,3 +69,4 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .seg button { padding: 3px 9px; font-size: 12.5px; }
 .seg button[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
 .plot .lbl.mine { font-weight: 700; fill: var(--me); }
+.err-inline { color: var(--enemy); }

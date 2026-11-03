@@ -1,0 +1,20 @@
+name = "wotrep-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[vars]
+# Origins allowed to call the API from a browser. Add custom domains here.
+ALLOWED_ORIGINS = "https://dayset.github.io,http://localhost:5173,http://localhost:4173"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wotrep"
+# OWNER: run `npx wrangler d1 create wotrep` and paste the printed id here (see services/api/README.md).
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[unsafe.bindings]]
+name = "LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 20, period = 60 }

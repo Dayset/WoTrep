@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { cloudAvailable, sendFeedback } from "../../lib/cloud";
 import { t } from "../../i18n";
 
 const KEY = "wotrep.feedback.v1";
@@ -20,10 +21,17 @@ export function Vote({ id }: { id: string }) {
 }
 
 export function FeedbackExport() {
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState(false), [cloud, setCloud] = useState(false), [sent, setSent] = useState<"" | "ok" | "fail">("");
+  useEffect(() => { let on = true; void cloudAvailable().then((x) => on && setCloud(x)); return () => { on = false; }; }, []);
   const copy = async () => {
     const payload = JSON.stringify({ app: "wotrep", v: 1, votes: load() }, null, 2);
     try { await navigator.clipboard.writeText(payload); setDone(true); setTimeout(() => setDone(false), 2000); } catch { window.prompt(t("fb.copy"), payload); }
   };
-  return <p className="fbnote muted">{t("fb.note")} <button type="button" onClick={copy}>{done ? t("fb.copied") : t("fb.copy")}</button></p>;
+  const send = async () => setSent((await sendFeedback(load())) ? "ok" : "fail");
+  return (
+    <p className="fbnote muted">{cloud ? t("fb.note.cloud") : t("fb.note")}{" "}
+      {cloud && <button type="button" onClick={send} disabled={sent === "ok"}>{sent === "ok" ? t("fb.sent") : t("fb.send")}</button>}{" "}
+      <button type="button" onClick={copy}>{done ? t("fb.copied") : t("fb.copy")}</button>
+      {sent === "fail" && <span className="err-inline"> {t("fb.fail")}</span>}</p>
+  );
 }

@@ -15,6 +15,8 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @wotrep/web build
+        env:
+          VITE_API_URL: ${{ vars.WOTREP_API_URL }}
       - run: cp apps/web/dist/index.html apps/web/dist/404.html
       - uses: actions/upload-pages-artifact@v3
         with: { path: apps/web/dist }

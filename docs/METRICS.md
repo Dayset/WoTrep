@@ -115,3 +115,20 @@ Impact as bottom tier vs as top tier (matchmaking position from block 0 tiers). 
 - **Thresholds are measured**, stored with `n`, date and percentile in config, re-measured when the corpus grows.
 - **Wording:** impossible numbers → "flagged: impossible stats". `hasMods: true` → "client mods: yes" (neutral; most mods
   are allowed). Never "cheater".
+
+## Relative metrics: what we can know about other players (verified on the fixture)
+
+Two sources, different completeness:
+
+1. **Battle results, all 30 players, exact:** damage, assist (radio/track/stun), blocked, kills, spotted, shots/hits/pens,
+   damage received, life time, death reason, killer id, mileage, xp. Derived for everyone: DPM, accuracy (hits/shots),
+   pen rate (pens/hits), survival time, blocked per damage received, spots per minute, metres per minute.
+2. **Per-hit events for other players, partial:** the replay delivers `onHealthChanged` (attacker id, amount) for every
+   vehicle inside the recorder's area of interest. On the fixture 429 events cover 27 attackers and **89%** of all official damage
+   (41 932); the recorder's own 28 hits are 100%. Per player, `coverage = observed hit damage / results damage`
+   (`playerHeuristics`, `packages/analysis`). Impact, threat-weighted damage, cleanup share are therefore computed for everyone;
+   values with coverage < 75% are shown as partial (`~`, dashed) and never silently ranked as complete.
+
+Not recoverable for others: their aim, reload state, shots that missed or hit nothing outside our view, positions of unspotted enemies
+(fog gaps stay gaps), their own damage-received detail. Win-probability swing for a player uses that player's team's win probability.
+Open question: whether a larger corpus shows coverage patterns by role (heavies at the front are seen more than flankers).

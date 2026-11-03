@@ -73,5 +73,9 @@
   "viz.cmp.seen": "Hits seen",
   "viz.player": "Player",
   "viz.cmp.aria": "Bar chart comparing the selected measure across all players",
-  "viz.cmp.note": "Dashed bars with ~ are partial: the replay only records hits that happened where the recorder could see, so we saw under 75% of that player's damage. Win-probability swing for others is measured from their own team's side."
+  "viz.cmp.note": "Dashed bars with ~ are partial: the replay only records hits that happened where the recorder could see, so we saw under 75% of that player's damage. Win-probability swing for others is measured from their own team's side.",
+  "fb.note.cloud": "Votes are anonymous: only the metric ids and 👍/👎 are sent, never your replay or names.",
+  "fb.send": "Send my feedback",
+  "fb.sent": "Sent, thanks",
+  "fb.fail": "Couldn't reach the server; use Copy instead."
 }
