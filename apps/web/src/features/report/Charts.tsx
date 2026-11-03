@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BattleTimeline, Team } from "@wotrep/model";
 import { recorderHeuristics, wpSeries } from "@wotrep/analysis";
 import { t } from "../../i18n";
+import { Vote } from "./Feedback";
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const sgn = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
@@ -18,10 +19,10 @@ function useWidth() {
   return [ref, w] as const;
 }
 
-function Frame({ title, sub, legend, children, table }: { title: string; sub: string; legend?: [string, string][]; children: React.ReactNode; table: React.ReactNode }) {
+function Frame({ id, title, sub, legend, children, table }: { id: string; title: string; sub: string; legend?: [string, string][]; children: React.ReactNode; table: React.ReactNode }) {
   return (
     <figure className="chart">
-      <figcaption><b>{title}</b><span className="muted"> · {sub}</span></figcaption>
+      <figcaption><b>{title}</b><span className="muted"> · {sub}</span> <Vote id={id} /></figcaption>
       {legend && <div className="legend">{legend.map(([c, l]) => <span key={l}><i style={{ background: `var(${c})` }} />{l}</span>)}</div>}
       {children}
       <details className="tv"><summary>{t("viz.table")}</summary><div className="tablewrap">{table}</div></details>
@@ -50,7 +51,7 @@ function WpChart({ tl }: { tl: BattleTimeline }) {
   const nm = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
   const rows = kills.map((k) => ({ t: k.t, text: `${nm(k.killer)} → ${nm(k.victim)}`, wp: wpAt(k.t) }));
   return (
-    <Frame title={t("viz.wp")} sub={t("viz.wp.sub")} legend={[["--c-you", t("viz.wp.you")], ["--c-foe", t("viz.kill.foe")], ["--c-mine", t("viz.hit")]]}
+    <Frame id="chart.wp" title={t("viz.wp")} sub={t("viz.wp.sub")} legend={[["--c-you", t("viz.wp.you")], ["--c-foe", t("viz.kill.foe")], ["--c-mine", t("viz.hit")]]}
       table={<table><thead><tr><th>{t("viz.time")}</th><th>{t("viz.event")}</th><th>WP</th></tr></thead><tbody>{rows.map((r) => <tr key={r.t}><td>{mmss(r.t)}</td><td>{r.text}</td><td>{(r.wp * 100).toFixed(0)}%</td></tr>)}</tbody></table>}>
       <div ref={ref} className="plot">
         <svg width={W} height={H} role="img" aria-label={t("viz.wp.aria")} onPointerMove={move} onPointerLeave={() => setHi(null)} style={{ touchAction: "pan-y" }}>
@@ -84,7 +85,7 @@ function ImpactChart({ tl }: { tl: BattleTimeline }) {
   const nm = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
   const hh = hi == null ? null : h.hits[hi]!;
   return (
-    <Frame title={t("viz.impact")} sub={t("viz.impact.sub")} legend={[["--c-you", t("viz.impact.up")], ["--c-foe", t("viz.impact.down")], ["--c-ink", t("viz.impact.total")]]}
+    <Frame id="chart.impact" title={t("viz.impact")} sub={t("viz.impact.sub")} legend={[["--c-you", t("viz.impact.up")], ["--c-foe", t("viz.impact.down")], ["--c-ink", t("viz.impact.total")]]}
       table={<table><thead><tr><th>{t("viz.time")}</th><th>{t("viz.target")}</th><th>dmg</th><th>×</th><th>Δ WP</th><th>Σ</th></tr></thead><tbody>{h.hits.map((d, i) => <tr key={i}><td>{mmss(d.t)}</td><td>{nm(d.target)}</td><td>{d.amount}</td><td>{d.threat}</td><td>{sgn(d.dWpPts)}</td><td>{sgn(d.cumPts)}</td></tr>)}</tbody></table>}>
       <div ref={ref} className="plot" onPointerLeave={() => setHi(null)}>
         <svg width={W} height={H} role="img" aria-label={t("viz.impact.aria")}>
@@ -113,7 +114,7 @@ function TargetChart({ tl }: { tl: BattleTimeline }) {
   const mx = Math.max(...rows.map((r) => Math.max(r.dmg, r.tw))), lab = Math.min(120, Math.floor(W * 0.32)), bh = 14, gap = 12, H = rows.length * (bh + gap) + 6;
   const bx = (v: number) => (v / mx) * (W - lab - 110);
   return (
-    <Frame title={t("viz.targets")} sub={t("viz.targets.sub")} legend={[["--c-you", t("viz.targets.raw")], ["--c-ink", t("viz.targets.weighted")]]}
+    <Frame id="chart.targets" title={t("viz.targets")} sub={t("viz.targets.sub")} legend={[["--c-you", t("viz.targets.raw")], ["--c-ink", t("viz.targets.weighted")]]}
       table={<table><thead><tr><th>{t("viz.target")}</th><th>dmg</th><th>×</th><th>{t("viz.targets.weighted")}</th></tr></thead><tbody>{rows.map((r) => <tr key={r.vid}><td className="nm">{r.name}</td><td>{r.dmg}</td><td>{r.w}</td><td>{r.tw}</td></tr>)}</tbody></table>}>
       <div ref={ref} className="plot" onPointerLeave={() => setHi(null)}>
         <svg width={W} height={H} role="img" aria-label={t("viz.targets.aria")}>

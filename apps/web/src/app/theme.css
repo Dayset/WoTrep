@@ -61,3 +61,7 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .chart .tv summary { cursor: pointer; color: var(--muted); font-size: 12.5px; margin-top: 6px; }
 .chart .tv .tablewrap { max-height: 260px; overflow: auto; }
 .muted { color: var(--muted); }
+.vote { display: inline-flex; gap: 2px; margin-left: 6px; vertical-align: middle; }
+.vote button { padding: 0 5px; font-size: 13px; line-height: 20px; background: transparent; border-color: transparent; opacity: .55; }
+.vote button:hover, .vote button[aria-pressed="true"] { opacity: 1; border-color: var(--accent); }
+.fbnote { font-size: 12.5px; margin: -8px 0 18px; } .fbnote button { padding: 2px 8px; font-size: 12.5px; }

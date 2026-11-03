@@ -58,5 +58,11 @@
   "viz.targets.raw": "Raw damage",
   "viz.targets.weighted": "Threat-weighted",
   "viz.targets.aria": "Bar chart of damage by target",
-  "viz.impact.total": "Running total"
+  "viz.impact.total": "Running total",
+  "fb.q": "Is this useful?",
+  "fb.up": "Useful / feels right",
+  "fb.down": "Not useful / feels wrong",
+  "fb.copy": "Copy my feedback",
+  "fb.copied": "Copied",
+  "fb.note": "Votes stay in this browser; nothing is uploaded. Copy them to send to us."
 }

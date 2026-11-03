@@ -2,6 +2,7 @@ import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
 import { playerMetrics, recorderHeuristics } from "@wotrep/analysis";
 import { t } from "../../i18n";
 import { HeuristicCharts } from "./Charts";
+import { Vote, FeedbackExport } from "./Feedback";
 
 const tank = (v: VehicleInfo) => v.vehicleType.split(":")[1] ?? v.vehicleType;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
@@ -29,17 +30,17 @@ const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 function Advanced({ tl }: { tl: BattleTimeline }) {
   const h = recorderHeuristics(tl); if (!h) return null;
   const sgn = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
-  const cards: [string, string, string][] = [
-    [t("adv.impact"), `${sgn(h.impactPts)} ${t("adv.pts")}`, t("adv.impact.tip")],
-    [t("adv.threat"), `${h.threatWeighted} (×${h.threatWeightedPerDamage.toFixed(2)})`, t("adv.threat.tip")],
-    [t("adv.onthreats"), pct(h.shareOnThreats), t("adv.onthreats.tip")],
-    [t("adv.cleanup"), pct(h.cleanupShare), t("adv.cleanup.tip")],
-    [t("adv.dpm"), String(h.dpm), t("adv.dpm.tip")],
+  const cards: [string, string, string, string][] = [
+    [t("adv.impact"), `${sgn(h.impactPts)} ${t("adv.pts")}`, t("adv.impact.tip"), "impact"],
+    [t("adv.threat"), `${h.threatWeighted} (×${h.threatWeightedPerDamage.toFixed(2)})`, t("adv.threat.tip"), "threat"],
+    [t("adv.onthreats"), pct(h.shareOnThreats), t("adv.onthreats.tip"), "onthreats"],
+    [t("adv.cleanup"), pct(h.cleanupShare), t("adv.cleanup.tip"), "cleanup"],
+    [t("adv.dpm"), String(h.dpm), t("adv.dpm.tip"), "dpm"],
   ];
   return (
     <details open className="adv" data-testid="advanced">
       <summary>{t("adv.title")}<span className="beta">{t("adv.beta")}</span> <span className="muted">· {t("adv.sub")}</span></summary>
-      <div className="cards">{cards.map(([k, v, tip]) => <div className="card" key={k} title={tip}><div className="k">{k}</div><div className="v">{v}</div><div className="tip">{tip}</div></div>)}</div>
+      <div className="cards">{cards.map(([k, v, tip, id]) => <div className="card" key={k} title={tip}><div className="k">{k} <Vote id={`card.${id}`} /></div><div className="v">{v}</div><div className="tip">{tip}</div></div>)}</div>
     </details>
   );
 }
@@ -57,6 +58,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
       {tl.source.manifest.confidence !== "defs" && <div className="banner">{t("report.partial")}</div>}
       <Advanced tl={tl} />
       <HeuristicCharts tl={tl} />
+      <FeedbackExport />
       <Team tl={tl} team={tl.recorder.team} title={t("report.allies")} cls="ally-h" />
       <Team tl={tl} team={tl.recorder.team === 1 ? 2 : 1} title={t("report.enemies")} cls="enemy-h" />
     </div>
