@@ -174,5 +174,16 @@
   "coach.survivedUnusedHp.fix": "When the game is slipping, trade HP for damage earlier: unused HP wins nothing.",
   "coach.note": "Takeaway",
   "coach.ev.nearestAlly": "nearest ally",
-  "coach.ev.you": "you"
+  "coach.ev.you": "you",
+  "map.open": "Load map image",
+  "map.title": "Map image for {name}",
+  "map.help": "Optional. Use the minimap picture and the arena XML from your own game files. They stay on this device and are never uploaded.",
+  "map.image": "Image (PNG/JPG/WebP)",
+  "map.xml": "Arena XML (for the bounds)",
+  "map.parsed": "Bounds read from the XML.",
+  "map.noxml": "No boundingBox found in that file; type the four numbers (metres).",
+  "map.invalid": "Choose an image and enter valid bounds (x0 < x1, z0 < z1).",
+  "map.save": "Save map",
+  "map.cancel": "Cancel",
+  "map.savefail": "Could not save in this browser."
 }

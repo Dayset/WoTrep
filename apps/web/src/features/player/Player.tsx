@@ -4,6 +4,8 @@ import { vehicleLabel } from "@wotrep/gamedata";
 import { wpSeries } from "@wotrep/analysis";
 import type { Finding } from "@wotrep/coach";
 import { t } from "../../i18n";
+import { loadMap, type MapBounds } from "../../lib/mapStore";
+import { MapLoader } from "./MapLoader";
 import { FindingCard } from "../report/Findings";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
@@ -24,11 +26,14 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
   const clock = useRef({ t: Math.max(0, startAt ?? 0), playing: false, speed: 1 }), cam = useRef<Cam | null>(null), opts = useRef({ follow: false, names: true, trails: true, sel: null as number | null });
   const canvas = useRef<HTMLCanvasElement>(null), tline = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
   const maxHp = useMemo(() => { const m = { 1: 0, 2: 0 }; for (const v of tl.vehicles) m[v.team] += v.maxHealth; return m; }, [tl]);
-  const bounds = useMemo(() => {
+  const [mapInfo, setMapInfo] = useState<{ img: HTMLImageElement; b: MapBounds } | null>(null), [mapPanel, setMapPanel] = useState(false), [mapTick, setMapTick] = useState(0);
+  useEffect(() => { let url = "", on = true; void loadMap(tl.arena.map).then((m) => { if (!m || !on) return; url = URL.createObjectURL(m.image); const i = new Image(); i.onload = () => { if (on) { cam.current = null; setMapInfo({ img: i, b: m.bounds }); } }; i.src = url; }); return () => { on = false; if (url) URL.revokeObjectURL(url); }; }, [tl.arena.map, mapTick]);
+  const trackBounds = useMemo(() => {
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     for (const tr of Object.values(tl.tracks)) for (let i = 0; i < tr.x.length; i++) { x0 = Math.min(x0, tr.x[i]!); x1 = Math.max(x1, tr.x[i]!); z0 = Math.min(z0, tr.z[i]!); z1 = Math.max(z1, tr.z[i]!); }
     return { x0: x0 - 40, x1: x1 + 40, z0: z0 - 40, z1: z1 + 40 };
   }, [tl]);
+  const bounds = mapInfo?.b ?? trackBounds;
   const wp = useMemo(() => wpSeries(tl, tl.recorder.team, 1), [tl]);
   const kills = useMemo(() => tl.events.flatMap((e) => (e.k === "kill" && e.t >= 0 ? [e] : [])), [tl]);
   const vehicle = useMemo(() => new Map(tl.vehicles.map((v) => [v.vid, v])), [tl]);
@@ -56,6 +61,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
     if (o.follow) { const r = by.get(tl.recorder.vid); if (r && r.known !== "never") { cm.cx = r.x; cm.cz = r.z; } }
     const sx = (x: number) => W / 2 + (x - cm.cx) * cm.s, sy = (z: number) => H / 2 - (z - cm.cz) * cm.s;
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    if (mapInfo) { g.globalAlpha = 0.9; g.drawImage(mapInfo.img, sx(mapInfo.b.x0), sy(mapInfo.b.z1), (mapInfo.b.x1 - mapInfo.b.x0) * cm.s, (mapInfo.b.z1 - mapInfo.b.z0) * cm.s); g.globalAlpha = 1; }
     // grid every 100 m, labels A.. / 1.. like the in-game minimap squares
     g.lineWidth = 1; g.strokeStyle = grid; g.font = "10px system-ui"; g.fillStyle = muted; g.textBaseline = "top";
     const gx0 = Math.floor(bounds.x0 / GRID_M) * GRID_M, gz0 = Math.floor(bounds.z0 / GRID_M) * GRID_M;
@@ -119,7 +125,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
       k.font = "bold 11px system-ui"; k.textBaseline = "top"; for (const { f } of coachRef.current.marks) { k.fillStyle = f.kind === "mistake" ? foe : f.kind === "good" ? you : muted; k.fillRect(X(f.tStart) - 6, 1, 12, 13); k.fillStyle = bg; k.fillText(f.kind === "mistake" ? "!" : f.kind === "good" ? "✓" : "i", X(f.tStart) - 2.5, 2); }
       k.strokeStyle = ink; k.lineWidth = 2; k.beginPath(); k.moveTo(X(T), 0); k.lineTo(X(T), th); k.stroke();
     }
-  }, [tl, bounds, wp, kills, vehicle, end, fit]);
+  }, [tl, bounds, wp, kills, vehicle, end, fit, mapInfo]);
 
   // ---- clock loop ----
   useEffect(() => {
@@ -211,9 +217,10 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
       <div className="pmap" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} onDoubleClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); setFollow(false); }}>
         <canvas ref={canvas} aria-label={t("player.aria")} role="img" />
         {sv && su && <div className="pinfo"><b>{sv.name}</b> · {vehicleLabel(sv.vehicleType).label}<div>{su.alive ? `${Math.round(su.hp)} / ${sv.maxHealth} HP` : "✕"}{su.known === "ghost" ? ` · ${t("player.lastseen", { s: Math.round(su.ageS ?? 0) })}` : ""}</div></div>}
-        <div className="pzoom" onPointerDown={(e) => e.stopPropagation()}><button type="button" onClick={() => zoomBtn(1.4)} aria-label={t("player.zoomin")}>+</button><button type="button" onClick={() => zoomBtn(1 / 1.4)} aria-label={t("player.zoomout")}>−</button><button type="button" onClick={fitUnits} aria-label={t("player.fitunits")} title={t("player.fitunits")}>◎</button><button type="button" onClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); }} aria-label={t("player.fitmap")} title={t("player.fitmap")}>⤢</button></div>
+        <div className="pzoom" onPointerDown={(e) => e.stopPropagation()}><button type="button" onClick={() => zoomBtn(1.4)} aria-label={t("player.zoomin")}>+</button><button type="button" onClick={() => zoomBtn(1 / 1.4)} aria-label={t("player.zoomout")}>−</button><button type="button" onClick={fitUnits} aria-label={t("player.fitunits")} title={t("player.fitunits")}>◎</button><button type="button" onClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); }} aria-label={t("player.fitmap")} title={t("player.fitmap")}>⤢</button><button type="button" onClick={() => setMapPanel(true)} aria-label={t("map.open")} title={t("map.open")}>🗺</button></div>
         {active && <div className="pcard" onPointerDown={(e) => e.stopPropagation()}><FindingCard f={active} actions={!playing && <button type="button" onClick={() => setPlaying(true)}>{t("coach.continue")}</button>} /></div>}
-        <div className="pnote">{t("player.nomap")}</div>
+        {!mapInfo && <div className="pnote">{t("player.nomap")}</div>}
+        {mapPanel && <MapLoader mapName={tl.arena.map} onSaved={() => setMapTick((x) => x + 1)} onClose={() => setMapPanel(false)} />}
       </div>
       <canvas ref={tline} className="ptimeline" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); scrub(e); }} onPointerMove={scrub} aria-label={t("player.timeline")} role="slider" aria-valuemin={0} aria-valuemax={end} aria-valuenow={Math.round(uiT)} />
       <div className="pctl">
