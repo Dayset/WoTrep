@@ -9,6 +9,7 @@ import { FindingCard } from "../report/Findings";
 const SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
 const GHOST_FADE_S = 30, TRAIL_S = 10, GRID_M = 100;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const now = () => performance.now() / 1000;
 const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 interface Cam { cx: number; cz: number; s: number }
@@ -94,6 +95,17 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
       if (e.k === "shot" && age < 0.35) { const a = by.get(e.shooter); if (a && a.known === "live") { g.strokeStyle = col(a.team); g.globalAlpha = 1 - age / 0.35; g.lineWidth = 2; g.beginPath(); g.arc(sx(a.x), sy(a.z), 10 + age * 40, 0, 7); g.stroke(); g.globalAlpha = 1; } }
       if (e.k === "damage" && age < 1.5) { const v = by.get(e.target); if (v && v.known !== "never") { g.globalAlpha = 1 - age / 1.5; g.fillStyle = ink; g.font = "bold 12px system-ui"; g.textBaseline = "bottom"; g.fillText(`−${e.amount}`, sx(v.x) + 8, sy(v.z) - 14 - age * 18); g.font = "10px system-ui"; g.globalAlpha = 1; } }
       if (e.k === "kill" && age < 4) { const v = by.get(e.victim); if (v && v.known !== "never") { g.globalAlpha = 1 - age / 4; g.strokeStyle = ink; g.lineWidth = 3; g.beginPath(); g.arc(sx(v.x), sy(v.z), 14 + age * 6, 0, 7); g.stroke(); g.globalAlpha = 1; } }
+    }
+    // evidence of the finding being shown (docs/contracts/findings.md `Evidence`)
+    const act = coachRef.current.marks.find((m) => T >= m.pt && T <= m.f.tEnd + 1.5)?.f, accent = css("--accent");
+    if (act) for (const ev of act.evidence) {
+      g.save(); g.lineWidth = 2;
+      if (ev.k === "zone") { g.strokeStyle = ev.style === "exposed" ? foe : ev.style === "cover" ? you : accent; g.setLineDash([6, 5]); g.globalAlpha = 0.9; g.beginPath(); g.arc(sx(ev.x), sy(ev.z), ev.r * cm.s, 0, 7); g.stroke(); g.globalAlpha = 0.07; g.fillStyle = g.strokeStyle; g.fill(); }
+      else if (ev.k === "path") { const tr = tl.tracks[ev.vid]; if (tr) { g.strokeStyle = ev.style === "actual" ? ink : accent; g.lineWidth = ev.style === "actual" ? 3 : 2; if (ev.style === "suggested") g.setLineDash([6, 5]); g.beginPath(); let pen = false, prev = -1e9; for (let i = 0; i < tr.t.length; i++) { const ti = tr.t[i]!; if (ti < ev.t0) continue; if (ti > Math.min(ev.t1, T + 0.01)) break; if (ti - prev > 1) pen = false; if (pen) g.lineTo(sx(tr.x[i]!), sy(tr.z[i]!)); else { g.moveTo(sx(tr.x[i]!), sy(tr.z[i]!)); pen = true; } prev = ti; } g.stroke(); } }
+      else if (ev.k === "line") { const a = by.get(ev.from), b2 = by.get(ev.to); if (a && b2 && a.known !== "never" && b2.known !== "never") { g.strokeStyle = ev.style === "threat" ? foe : ev.style === "fire" ? ink : accent; g.setLineDash(ev.style === "spot" ? [2, 4] : ev.style === "threat" ? [8, 5] : []); g.globalAlpha = 0.85; g.beginPath(); g.moveTo(sx(a.x), sy(a.z)); g.lineTo(sx(b2.x), sy(b2.z)); g.stroke(); } }
+      else if (ev.k === "unit") { const u = by.get(ev.vid); if (u && u.known !== "never") { g.strokeStyle = ink; g.setLineDash([]); g.lineWidth = 2; g.beginPath(); g.arc(sx(u.x), sy(u.z), 17 + 2 * Math.sin(now() * 6), 0, 7); g.stroke(); if (ev.label) { g.fillStyle = ink; g.font = "bold 11px system-ui"; g.textBaseline = "top"; g.fillText(ev.label.startsWith("coach.ev.") ? t(ev.label) : ev.label, sx(u.x) + 20, sy(u.z) + 8); } } }
+      else if (ev.k === "timer") { const u = by.get(ev.vid); if (u && u.known !== "never") { g.fillStyle = ink; g.font = "bold 11px system-ui"; g.textBaseline = "top"; g.fillText(`${ev.label} ${Math.max(0, ev.secondsLeft - (T - ev.t)).toFixed(1)}s`, sx(u.x) + 12, sy(u.z) - 24); } }
+      g.restore();
     }
     // timeline strip: win probability curve, kill ticks, playhead
     const tc = tline.current;

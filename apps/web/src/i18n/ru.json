@@ -172,5 +172,7 @@
   "coach.survivedUnusedHp.title": "Выжили с запасом HP",
   "coach.survivedUnusedHp.body": "Команда проиграла; вы закончили с {hp} HP и нанесли {dealt} урона.",
   "coach.survivedUnusedHp.fix": "Когда бой уходит, обменивайте HP на урон раньше: неиспользованное HP ничего не выигрывает.",
-  "coach.note": "Вывод"
+  "coach.note": "Вывод",
+  "coach.ev.nearestAlly": "ближайший союзник",
+  "coach.ev.you": "вы"
 }

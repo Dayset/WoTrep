@@ -11,9 +11,18 @@
     "confidence": 0.6,
     "evidence": [
       {
-        "k": "unit",
-        "vid": 13908122,
-        "t": 123.2
+        "k": "line",
+        "from": 13908113,
+        "to": 13908122,
+        "t": 123.2,
+        "style": "fire"
+      },
+      {
+        "k": "path",
+        "vid": 13908113,
+        "t0": 115.2,
+        "t1": 125.3,
+        "style": "actual"
       },
       {
         "k": "number",
@@ -51,9 +60,18 @@
     "confidence": 0.6,
     "evidence": [
       {
-        "k": "unit",
-        "vid": 13908121,
-        "t": 175.4
+        "k": "line",
+        "from": 13908113,
+        "to": 13908121,
+        "t": 175.4,
+        "style": "fire"
+      },
+      {
+        "k": "path",
+        "vid": 13908113,
+        "t0": 167.4,
+        "t1": 178.8,
+        "style": "actual"
       },
       {
         "k": "number",

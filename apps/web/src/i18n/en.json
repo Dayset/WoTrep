@@ -172,5 +172,7 @@
   "coach.survivedUnusedHp.title": "Survived with HP to spare",
   "coach.survivedUnusedHp.body": "Your team lost; you finished with {hp} HP and dealt {dealt} damage.",
   "coach.survivedUnusedHp.fix": "When the game is slipping, trade HP for damage earlier: unused HP wins nothing.",
-  "coach.note": "Takeaway"
+  "coach.note": "Takeaway",
+  "coach.ev.nearestAlly": "nearest ally",
+  "coach.ev.you": "you"
 }

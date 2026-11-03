@@ -22,7 +22,7 @@ export const badTrade = defineDetector({
   detect({ tl, cfg }) {
     return engagements(tl, cfg.gapS as number).filter((g) => g.first === "me" && g.got >= (cfg.minLossShare as number) * g.me.maxHealth && g.dealt / g.got < (cfg.maxRatio as number)).map((g) => ({
       vid: g.me.vid, kind: "mistake" as const, tStart: g.t0, tEnd: g.t1, leadS: 3, cost: { hp: g.got - g.dealt, winProbDelta: Math.min(0, g.wp) }, confidence: 0.6,
-      evidence: [...g.foes.map((f) => ({ k: "unit" as const, vid: f, t: g.t0 })), { k: "number" as const, label: "dealt", value: g.dealt, unit: "hp" }, { k: "number" as const, label: "received", value: g.got, unit: "hp" }],
+      evidence: [...g.foes.map((f) => ({ k: "line" as const, from: g.me.vid, to: f, t: g.t0, style: "fire" as const })), { k: "path" as const, vid: g.me.vid, t0: g.t0 - 8, t1: g.t1, style: "actual" as const }, { k: "number" as const, label: "dealt", value: g.dealt, unit: "hp" }, { k: "number" as const, label: "received", value: g.got, unit: "hp" }],
       messageKey: "coach.badTrade", params: { dealt: g.dealt, got: g.got }, guide: "trading-hp",
     }));
   },
@@ -33,7 +33,7 @@ export const wonTrade = defineDetector({
   detect({ tl, cfg }) {
     return engagements(tl, cfg.gapS as number).filter((g) => g.dealt >= (cfg.minDealtShare as number) * g.me.maxHealth && g.dealt >= (cfg.minRatio as number) * Math.max(g.got, 1)).map((g) => ({
       vid: g.me.vid, kind: "good" as const, tStart: g.t0, tEnd: g.t1, leadS: 3, cost: { winProbDelta: Math.max(0, g.wp) }, confidence: 0.6,
-      evidence: [...g.foes.map((f) => ({ k: "unit" as const, vid: f, t: g.t0 })), { k: "number" as const, label: "dealt", value: g.dealt, unit: "hp" }, { k: "number" as const, label: "received", value: g.got, unit: "hp" }],
+      evidence: [...g.foes.map((f) => ({ k: "line" as const, from: g.me.vid, to: f, t: g.t0, style: "fire" as const })), { k: "path" as const, vid: g.me.vid, t0: g.t0 - 8, t1: g.t1, style: "actual" as const }, { k: "number" as const, label: "dealt", value: g.dealt, unit: "hp" }, { k: "number" as const, label: "received", value: g.got, unit: "hp" }],
       messageKey: "coach.wonTrade", params: { dealt: g.dealt, got: g.got }, guide: "trading-hp",
     }));
   },

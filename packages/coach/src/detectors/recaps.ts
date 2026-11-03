@@ -14,7 +14,7 @@ export const deathRecap = defineDetector({
     const lost = hits.reduce((s, h) => s + h.amount, 0), main = [...by].sort((a, b) => b[1] - a[1])[0];
     return [{
       vid: me.vid, kind: "info" as const, tStart: hits[0]?.t ?? k.t, tEnd: k.t, leadS: 5, cost: { hp: lost }, confidence: 0.9,
-      evidence: [...[...by.keys()].map((a) => ({ k: "unit" as const, vid: a, t: k.t })), { k: "number" as const, label: "lost in last window", value: lost, unit: "hp" }],
+      evidence: [...[...by.keys()].map((a) => ({ k: "line" as const, from: a, to: me.vid, t: k.t, style: "fire" as const })), { k: "path" as const, vid: me.vid, t0: k.t - 10, t1: k.t, style: "actual" as const }, { k: "number" as const, label: "lost in last window", value: lost, unit: "hp" }],
       messageKey: "coach.deathRecap", params: { lost, sources: by.size, killer: tl.vehicles.find((v) => v.vid === k.killer)?.name ?? "?", main: main ? tl.vehicles.find((v) => v.vid === main[0])?.name ?? "?" : "?", mainHp: main?.[1] ?? 0, secs: Math.round(cfg.windowS as number) }, guide: "why-you-died",
     }];
   },

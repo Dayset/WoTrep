@@ -19,7 +19,7 @@ export const idleWithTargets = defineDetector({
       if (start >= 0 && lastSeen - start >= (cfg.idleS as number)) {
         const secs = lastSeen - start; out.push({
           vid: me.vid, kind: "mistake" as const, tStart: start, tEnd: lastSeen, leadS: 3, cost: { damageMissed: Math.round((dpm * secs) / 60) }, confidence: 0.5,
-          evidence: [{ k: "number" as const, label: "idle", value: Math.round(secs), unit: "s" }], messageKey: "coach.idleWithTargets", params: { secs: Math.round(secs), dmg: Math.round((dpm * secs) / 60) }, guide: "stay-useful",
+          evidence: [{ k: "unit" as const, vid: me.vid, t: start, label: "coach.ev.you" }, { k: "path" as const, vid: me.vid, t0: start, t1: lastSeen, style: "actual" as const }, { k: "number" as const, label: "idle", value: Math.round(secs), unit: "s" }], messageKey: "coach.idleWithTargets", params: { secs: Math.round(secs), dmg: Math.round((dpm * secs) / 60) }, guide: "stay-useful",
         });
       }
       void until; start = -1; anchor = null; lastSeen = -1;
