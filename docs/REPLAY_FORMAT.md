@@ -143,6 +143,6 @@ Indices change between client versions and between WG and Lesta. Never hard-code
   `players[].realName` can differ (4 of 30 players in the fixture). Show and store only the in-battle name.
   `realName` must be dropped by the parser before anything leaves the Web Worker — never displayed, stored,
   indexed or uploaded. The same applies to `accountDBID` and clan ids of anonymized players (an account id
-  resolves to the real name through the public API). A parser test enforces this.
+  resolves to the real name through the public API). A parser test enforces this (E1-08, #27).
 - Positions of other players exist in every replay; we show them only inside that battle's viewer, never as
   cross-battle per-player tracking.

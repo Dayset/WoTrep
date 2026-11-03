@@ -4,7 +4,7 @@
 top-down like a StarCraft replay, and let it pause on your mistakes — with the cost of each one in HP, damage and
 win chance, the fix, and what an AI Commander would have ordered at that second. Any moment can be opened in 3D.
 
-Status: **design done, build starting** (2026-11-03). Everything is planned as GitHub issues — start at the epics.
+Status: **design done, build starting** (2026-11-03). Everything is planned as GitHub issues: [14 epics](https://github.com/Dayset/WoTrep/issues?q=is%3Aissue+label%3Aepic) and 111 tasks across milestones M0–M5. Agents: start with [AGENTS.md](AGENTS.md) and the **Start here** list in [docs/ROADMAP.md](docs/ROADMAP.md#start-here-no-blockers).
 
 | | |
 |---|---|
