@@ -61,3 +61,16 @@ export function playerHeuristics(tl: BattleTimeline, vid: number): RecorderHeuri
 }
 
 export const recorderHeuristics = (tl: BattleTimeline) => playerHeuristics(tl, tl.recorder.vid);
+
+export interface PlayerStats { vid: number; accuracy: number | null; penRate: number | null; lifeS: number; lifeShare: number | null }
+/** Exact per-player numbers from the battle results (all players, no coverage caveat). Null when the denominator is zero. */
+export function playerStats(tl: BattleTimeline): PlayerStats[] {
+  const dur = tl.arena.durationS ?? 0;
+  return tl.vehicles.map((v) => {
+    const r = tl.results?.players[v.vid];
+    return {
+      vid: v.vid, accuracy: r && r.shots > 0 ? r.hits / r.shots : null, penRate: r && r.hits > 0 ? r.pens / r.hits : null,
+      lifeS: r?.lifeTimeS ?? 0, lifeShare: r && dur > 0 ? Math.min(1, r.lifeTimeS / dur) : null,
+    };
+  });
+}

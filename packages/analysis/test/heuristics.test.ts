@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { validateTimeline } from "@wotrep/model";
-import { playerHeuristics, playerMetrics, recorderHeuristics, wpOf, wpSeries } from "../src/index";
+import { playerHeuristics, playerMetrics, playerStats, recorderHeuristics, wpOf, wpSeries } from "../src/index";
 import { stateAt } from "@wotrep/model";
 
 const r = validateTimeline(JSON.parse(readFileSync(new URL("../../../fixtures/timelines/lesta-1.46-overlord-sbm44.timeline.json", import.meta.url), "utf8")));
@@ -41,5 +41,10 @@ describe("analysis on the fixture", () => {
   });
   it("Impact of every player on a team, from that team's own win probability, is finite", () => {
     for (const v of tl.vehicles) expect(Number.isFinite(playerHeuristics(tl, v.vid)!.impactPts)).toBe(true);
+  });
+  it("accuracy, pen rate and life share match the results and stay in [0,1]", () => {
+    const me = playerStats(tl).find((p) => p.vid === tl.recorder.vid)!, r = tl.results!.players[tl.recorder.vid]!;
+    expect(me.accuracy).toBeCloseTo(r.hits / r.shots, 10); expect(me.penRate).toBeCloseTo(r.pens / r.hits, 10);
+    for (const p of playerStats(tl)) for (const x of [p.accuracy, p.penRate, p.lifeShare]) if (x != null) { expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThanOrEqual(1); }
   });
 });

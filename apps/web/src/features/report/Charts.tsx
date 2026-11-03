@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BattleTimeline, Team } from "@wotrep/model";
-import { playerHeuristics, recorderHeuristics, wpSeries } from "@wotrep/analysis";
+import { playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
 import { t } from "../../i18n";
 import { Vote } from "./Feedback";
 
@@ -134,21 +134,27 @@ function TargetChart({ tl }: { tl: BattleTimeline }) {
 }
 
 
-type MetricKey = "impact" | "threat" | "onthreats" | "cleanup";
-const METRICS: { key: MetricKey; get: (h: NonNullable<ReturnType<typeof playerHeuristics>>) => number; fmt: (v: number) => string }[] = [
-  { key: "impact", get: (h) => h.impactPts, fmt: (v) => `${sgn(v)} pts` },
-  { key: "threat", get: (h) => h.threatWeighted, fmt: (v) => String(Math.round(v)) },
-  { key: "onthreats", get: (h) => h.shareOnThreats * 100, fmt: (v) => `${v.toFixed(0)}%` },
-  { key: "cleanup", get: (h) => h.cleanupShare * 100, fmt: (v) => `${v.toFixed(0)}%` },
+type MetricKey = "impact" | "threat" | "onthreats" | "cleanup" | "acc" | "pen" | "life";
+type Row = { h: ReturnType<typeof playerHeuristics>; s: ReturnType<typeof playerStats>[number] };
+const pct0 = (v: number) => `${v.toFixed(0)}%`;
+/** exact = from battle results (all players, no coverage caveat); otherwise from per-hit events (coverage applies). */
+const METRICS: { key: MetricKey; label: string; exact: boolean; get: (r: Row) => number | null; fmt: (v: number) => string }[] = [
+  { key: "impact", label: "adv.impact", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.impactPts : null), fmt: (v) => `${sgn(v)} pts` },
+  { key: "threat", label: "adv.threat", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.threatWeighted : null), fmt: (v) => String(Math.round(v)) },
+  { key: "onthreats", label: "adv.onthreats", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.shareOnThreats * 100 : null), fmt: pct0 },
+  { key: "cleanup", label: "adv.cleanup", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.cleanupShare * 100 : null), fmt: pct0 },
+  { key: "acc", label: "col.acc", exact: true, get: (r) => (r.s.accuracy == null ? null : r.s.accuracy * 100), fmt: pct0 },
+  { key: "pen", label: "col.pen", exact: true, get: (r) => (r.s.penRate == null ? null : r.s.penRate * 100), fmt: pct0 },
+  { key: "life", label: "col.life", exact: true, get: (r) => (r.s.lifeShare == null ? null : r.s.lifeShare * 100), fmt: pct0 },
 ];
 const PARTIAL = 0.75;
 
 /** Chart 4 — the same numbers for all players, so your result has something to be relative to. */
 function CompareChart({ tl }: { tl: BattleTimeline }) {
   const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null); const [mk, setMk] = useState<MetricKey>("impact");
-  const all = useMemo(() => tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid) })).filter((r): r is { v: typeof r.v; h: NonNullable<typeof r.h> } => r.h != null && r.h.damage > 0), [tl]);
+  const all = useMemo(() => { const st = new Map(playerStats(tl).map((x) => [x.vid, x])); return tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid), s: st.get(v.vid)! })); }, [tl]);
   const m = METRICS.find((x) => x.key === mk)!;
-  const rows = all.map((r) => ({ ...r, val: m.get(r.h), mine: r.v.isRecorder, ally: r.v.team === tl.recorder.team })).sort((a, b) => b.val - a.val);
+  const rows = all.flatMap((r) => { const val = m.get(r); return val == null ? [] : [{ ...r, val, cov: m.exact ? 1 : r.h?.coverage ?? 0, mine: r.v.isRecorder, ally: r.v.team === tl.recorder.team }]; }).sort((a, b) => b.val - a.val);
   if (rows.length < 2) return null;
   const lo = Math.min(0, ...rows.map((r) => r.val)), hiV = Math.max(1, ...rows.map((r) => r.val));
   const lab = Math.min(120, Math.floor(W * 0.32)), bh = 13, gap = 7, H = rows.length * (bh + gap) + 4, aw = W - lab - 78;
@@ -158,12 +164,12 @@ function CompareChart({ tl }: { tl: BattleTimeline }) {
   return (
     <Frame id="chart.compare" title={t("viz.cmp")} sub={sub || t("viz.cmp.sub")}
       legend={[["--c-you", t("viz.cmp.allies")], ["--c-foe", t("viz.cmp.enemies")]]}
-      table={<table><thead><tr><th>{t("viz.player")}</th><th>{t(`adv.${mk}`)}</th><th>{t("viz.cmp.seen")}</th></tr></thead><tbody>{rows.map((r) => <tr key={r.v.vid} className={r.mine ? "me" : ""}><td className="nm">{r.v.name}</td><td>{m.fmt(r.val)}</td><td>{Math.round(r.h.coverage * 100)}%</td></tr>)}</tbody></table>}>
-      <div className="seg" role="tablist">{METRICS.map((x) => <button key={x.key} role="tab" aria-selected={mk === x.key} onClick={() => setMk(x.key)}>{t(`adv.${x.key}`)}</button>)}</div>
+      table={<table><thead><tr><th>{t("viz.player")}</th><th>{t(m.label)}</th><th>{t("viz.cmp.seen")}</th></tr></thead><tbody>{rows.map((r) => <tr key={r.v.vid} className={r.mine ? "me" : ""}><td className="nm">{r.v.name}</td><td>{m.fmt(r.val)}</td><td>{Math.round(r.cov * 100)}%</td></tr>)}</tbody></table>}>
+      <div className="seg" role="tablist">{METRICS.map((x) => <button key={x.key} role="tab" aria-selected={mk === x.key} onClick={() => setMk(x.key)}>{t(x.label)}</button>)}</div>
       <div ref={ref} className="plot" onPointerLeave={() => setHi(null)}>
         <svg width={W} height={H} role="img" aria-label={t("viz.cmp.aria")}>
           <line x1={lab + zero} x2={lab + zero} y1={0} y2={H} className="ref" />
-          {rows.map((r, i) => { const yy = 2 + i * (bh + gap), partial = r.h.coverage < PARTIAL, x0 = Math.min(zero, bx(r.val)), wd = Math.max(2, Math.abs(bx(r.val) - zero));
+          {rows.map((r, i) => { const yy = 2 + i * (bh + gap), partial = r.cov < PARTIAL, x0 = Math.min(zero, bx(r.val)), wd = Math.max(2, Math.abs(bx(r.val) - zero));
             const nm = r.v.name.length > 14 ? r.v.name.slice(0, 13) + "…" : r.v.name;
             return <g key={r.v.vid} opacity={hi == null || hi === i ? 1 : 0.4} onPointerEnter={() => setHi(i)} onPointerDown={() => setHi(i)}>
               <rect x={0} y={yy - gap / 2} width={W} height={bh + gap} fill="transparent" />
@@ -172,7 +178,7 @@ function CompareChart({ tl }: { tl: BattleTimeline }) {
               <text x={lab + Math.max(bx(r.val), zero) + 6} y={yy + bh - 3} className="ax lbl">{partial ? "~" : ""}{m.fmt(r.val)}</text>
             </g>; })}
         </svg>
-        {hi != null && <div className="tip" style={{ right: 0, top: 0 }}><b>{rows[hi]!.v.name}</b>{rows[hi]!.mine ? ` (${t("report.you")})` : ""}<div>{m.fmt(rows[hi]!.val)} · {rows[hi]!.h.damage} dmg</div><div className="muted">{t("viz.cmp.seen")}: {Math.round(rows[hi]!.h.coverage * 100)}%</div></div>}
+        {hi != null && <div className="tip" style={{ right: 0, top: 0 }}><b>{rows[hi]!.v.name}</b>{rows[hi]!.mine ? ` (${t("report.you")})` : ""}<div>{m.fmt(rows[hi]!.val)}</div>{!m.exact && <div className="muted">{t("viz.cmp.seen")}: {Math.round(rows[hi]!.cov * 100)}%</div>}</div>}
       </div>
       <p className="fbnote muted" style={{ marginTop: 10 }}>{t("viz.cmp.note")}</p>
     </Frame>

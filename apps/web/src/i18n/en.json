@@ -77,5 +77,8 @@
   "fb.note.cloud": "Votes are anonymous: only the metric ids and 👍/👎 are sent, never your replay or names.",
   "fb.send": "Send my feedback",
   "fb.sent": "Sent, thanks",
-  "fb.fail": "Couldn't reach the server; use Copy instead."
+  "fb.fail": "Couldn't reach the server; use Copy instead.",
+  "col.acc": "Accuracy",
+  "col.pen": "Pen rate",
+  "col.life": "Survived"
 }
