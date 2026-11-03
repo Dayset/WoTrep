@@ -132,3 +132,20 @@ Two sources, different completeness:
 Not recoverable for others: their aim, reload state, shots that missed or hit nothing outside our view, positions of unspotted enemies
 (fog gaps stay gaps), their own damage-received detail. Win-probability swing for a player uses that player's team's win probability.
 Open question: whether a larger corpus shows coverage patterns by role (heavies at the front are seen more than flankers).
+
+## 3.7 Initiative (boldness) v0 — took the chance to fight, or played safe
+
+Question: *how often did a player have a chance to improve the team's odds and take it?* (PS2 Elite's 🦁 Brave measures how K/D holds against stronger enemies;
+this is the opportunity-based counterpart and does not need long histories, one battle is enough.)
+
+- **Opening** (per second, per player): the player is alive and visible, an enemy is visible within `engageRangeM` (220 m), the player's team win probability
+  is < `maxWp` (0.9, outcome still open), and the gun is not *known* to be reloading (reload estimator, confidence ≥ 0.3).
+- **Episode**: consecutive openings (gap ≤ 2 s). **Taken**: the player fired within `windowS` (5 s) of the episode.
+- **Initiative = taken / episodes**, shown only with ≥ 3 episodes; otherwise "—". Same definition for all 30 players (each only judged in seconds we can see them).
+- Config: `packages/analysis/config/boldness-v0.json`, every value "initial guess, recalibrate in E13".
+- Fixture: spread 17%-100% across players, recorder 7 of 10 (70%).
+
+Known limits (v0): it counts *taking* a chance, not whether it paid off; a good ambusher or sniper may rightly score low; a shot at long range counts as
+taking a chance; reload and cover are only partly modelled. **v1 (planned):** split taken episodes into "paid off" (Impact > 0, damage per HP lost) and "cost more than it gave",
+so the headline becomes *bold and rewarded* vs *bold and reckless* vs *safe*; add opposition weighting (chances against stronger targets count more), the way
+PS2 Elite weights by enemy strength.

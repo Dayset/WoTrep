@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { validateTimeline } from "@wotrep/model";
-import { estimateReload, reloadStateAt, shotTimes, playerHeuristics, playerMetrics, playerStats, recorderHeuristics, wpOf, wpSeries } from "../src/index";
+import { boldnessAll, estimateReload, reloadStateAt, shotTimes, playerHeuristics, playerMetrics, playerStats, recorderHeuristics, wpOf, wpSeries } from "../src/index";
 import { stateAt } from "@wotrep/model";
 
 const r = validateTimeline(JSON.parse(readFileSync(new URL("../../../fixtures/timelines/lesta-1.46-overlord-sbm44.timeline.json", import.meta.url), "utf8")));
@@ -61,5 +61,14 @@ describe("analysis on the fixture", () => {
   it("single-shot and empty inputs degrade safely", () => {
     expect(estimateReload([]).confidence).toBe(0); expect(estimateReload([5]).clipSize).toBe(1);
     const e = estimateReload([0, 8, 16.2, 24.1, 32.5, 41, 49.2]); expect(e.clipSize).toBe(1); expect(e.reloadS).toBeCloseTo(7.9, 1);
+  });
+  it("boldness: rates are in [0,1], counts are consistent, tiny samples give no rate", () => {
+    const b = boldnessAll(tl); let withRate = 0;
+    for (const x of b.values()) {
+      expect(x.taken).toBeLessThanOrEqual(x.episodes); expect(x.openSeconds).toBeGreaterThanOrEqual(x.episodes);
+      if (x.rate != null) { withRate++; expect(x.rate).toBeGreaterThanOrEqual(0); expect(x.rate).toBeLessThanOrEqual(1); expect(x.episodes).toBeGreaterThanOrEqual(3); }
+    }
+    expect(withRate).toBeGreaterThan(5);
+    console.log("BOLD", JSON.stringify([...b.values()].map((x) => [x.vid === tl.recorder.vid ? "ME" : x.vid % 100, x.episodes, x.taken, x.rate == null ? null : +x.rate.toFixed(2)])));
   });
 });

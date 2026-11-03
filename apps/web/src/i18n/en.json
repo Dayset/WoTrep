@@ -82,5 +82,7 @@
   "col.pen": "Pen rate",
   "col.life": "Survived",
   "err.crash": "Something went wrong showing this page.",
-  "err.retry": "Try again"
+  "err.retry": "Try again",
+  "adv.bold": "Initiative",
+  "adv.bold.tip": "Of the moments you could have fought (visible enemy within 220 m, game still open, gun not reloading), how many you took by firing within 5 s. High = you take chances; low = you sit them out. Not a verdict: some roles should wait."
 }

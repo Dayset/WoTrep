@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BattleTimeline, Team } from "@wotrep/model";
-import { playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
+import { boldnessAll, playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
 import { t } from "../../i18n";
 import { Vote } from "./Feedback";
 
@@ -134,11 +134,12 @@ function TargetChart({ tl }: { tl: BattleTimeline }) {
 }
 
 
-type MetricKey = "impact" | "threat" | "onthreats" | "cleanup" | "acc" | "pen" | "life";
-type Row = { h: ReturnType<typeof playerHeuristics>; s: ReturnType<typeof playerStats>[number] };
+type MetricKey = "bold" | "impact" | "threat" | "onthreats" | "cleanup" | "acc" | "pen" | "life";
+type Row = { h: ReturnType<typeof playerHeuristics>; s: ReturnType<typeof playerStats>[number]; b?: ReturnType<typeof boldnessAll> extends Map<number, infer B> ? B : never };
 const pct0 = (v: number) => `${v.toFixed(0)}%`;
 /** exact = from battle results (all players, no coverage caveat); otherwise from per-hit events (coverage applies). */
 const METRICS: { key: MetricKey; label: string; exact: boolean; get: (r: Row) => number | null; fmt: (v: number) => string }[] = [
+  { key: "bold", label: "adv.bold", exact: true, get: (r) => (r.b?.rate == null ? null : r.b.rate * 100), fmt: pct0 },
   { key: "impact", label: "adv.impact", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.impactPts : null), fmt: (v) => `${sgn(v)} pts` },
   { key: "threat", label: "adv.threat", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.threatWeighted : null), fmt: (v) => String(Math.round(v)) },
   { key: "onthreats", label: "adv.onthreats", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.shareOnThreats * 100 : null), fmt: pct0 },
@@ -151,8 +152,8 @@ const PARTIAL = 0.75;
 
 /** Chart 4 — the same numbers for all players, so your result has something to be relative to. */
 function CompareChart({ tl }: { tl: BattleTimeline }) {
-  const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null); const [mk, setMk] = useState<MetricKey>("impact");
-  const all = useMemo(() => { const st = new Map(playerStats(tl).map((x) => [x.vid, x])); return tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid), s: st.get(v.vid)! })); }, [tl]);
+  const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null); const [mk, setMk] = useState<MetricKey>("bold");
+  const all = useMemo(() => { const st = new Map(playerStats(tl).map((x) => [x.vid, x])); const bd = boldnessAll(tl); return tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid), s: st.get(v.vid)!, b: bd.get(v.vid) })); }, [tl]);
   const m = METRICS.find((x) => x.key === mk)!;
   const rows = all.flatMap((r) => { const val = m.get(r); return val == null ? [] : [{ ...r, val, cov: m.exact ? 1 : r.h?.coverage ?? 0, mine: r.v.isRecorder, ally: r.v.team === tl.recorder.team }]; }).sort((a, b) => b.val - a.val);
   if (rows.length < 2) return null;

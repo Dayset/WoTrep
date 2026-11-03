@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { cloudAvailable, sendFeedback } from "../../lib/cloud";
 import { t } from "../../i18n";
 
+/** Voting UI is hidden for now (owner decision); the Worker endpoint stays on. When it returns it should appear on a few chosen metrics only, not on every field. */
+export const FEEDBACK_UI = false;
 const KEY = "wotrep.feedback.v1";
 type Votes = Record<string, 1 | -1>;
 const load = (): Votes => { try { return JSON.parse(localStorage.getItem(KEY) ?? "{}") as Votes; } catch { return {}; } };
@@ -12,6 +14,7 @@ export function Vote({ id }: { id: string }) {
   const [votes, setVotes] = useState<Votes>(load);
   const cast = (x: 1 | -1) => { const n = { ...load() }; if (n[id] === x) delete n[id]; else n[id] = x; setVotes(n); save(n); };
   const cur = votes[id];
+  if (!FEEDBACK_UI) return null;
   return (
     <span className="vote" role="group" aria-label={t("fb.q")}>
       <button type="button" aria-pressed={cur === 1} aria-label={t("fb.up")} title={t("fb.up")} onClick={() => cast(1)}>👍</button>
@@ -28,6 +31,7 @@ export function FeedbackExport() {
     try { await navigator.clipboard.writeText(payload); setDone(true); setTimeout(() => setDone(false), 2000); } catch { window.prompt(t("fb.copy"), payload); }
   };
   const send = async () => setSent((await sendFeedback(load())) ? "ok" : "fail");
+  if (!FEEDBACK_UI) return null;
   return (
     <p className="fbnote muted">{cloud ? t("fb.note.cloud") : t("fb.note")}{" "}
       {cloud && <button type="button" onClick={send} disabled={sent === "ok"}>{sent === "ok" ? t("fb.sent") : t("fb.send")}</button>}{" "}

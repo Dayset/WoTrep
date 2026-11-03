@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
-import { playerMetrics, playerStats, recorderHeuristics } from "@wotrep/analysis";
+import { boldnessAll, playerMetrics, playerStats, recorderHeuristics } from "@wotrep/analysis";
 import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
 import { HeuristicCharts } from "./Charts";
@@ -42,6 +42,7 @@ type PlayerResultLike = NonNullable<BattleTimeline["results"]>["players"][number
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 function Advanced({ tl }: { tl: BattleTimeline }) {
   const h = recorderHeuristics(tl); if (!h) return null;
+  const bd = boldnessAll(tl).get(tl.recorder.vid);
   const sgn = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
   const cards: [string, string, string, string][] = [
     [t("adv.impact"), `${sgn(h.impactPts)} ${t("adv.pts")}`, t("adv.impact.tip"), "impact"],
@@ -49,6 +50,7 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
     [t("adv.onthreats"), pct(h.shareOnThreats), t("adv.onthreats.tip"), "onthreats"],
     [t("adv.cleanup"), pct(h.cleanupShare), t("adv.cleanup.tip"), "cleanup"],
     [t("adv.dpm"), String(h.dpm), t("adv.dpm.tip"), "dpm"],
+    ...(bd ? [[t("adv.bold"), bd.rate == null ? "—" : `${Math.round(bd.rate * 100)}% (${bd.taken}/${bd.episodes})`, t("adv.bold.tip"), "bold"] as [string, string, string, string]] : []),
   ];
   return (
     <details open className="adv" data-testid="advanced">
