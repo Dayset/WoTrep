@@ -20,3 +20,10 @@ describe("i18n", () => {
     expect(miss).toEqual([]);
   });
 });
+
+import { METRIC_KEYS } from "../src/features/report/glossary";
+describe("glossary", () => {
+  it("every shown metric explains how we get it and what it means, in en and ru", () => {
+    for (const k of METRIC_KEYS) for (const part of ["how", "mean"]) for (const d of [en, ru] as Record<string, string>[]) expect((d[`gl.${k}.${part}`] ?? "").length, `${k}.${part}`).toBeGreaterThan(30);
+  });
+});

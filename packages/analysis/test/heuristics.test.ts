@@ -69,6 +69,7 @@ describe("analysis on the fixture", () => {
       if (x.rate != null) { withRate++; expect(x.rate).toBeGreaterThanOrEqual(0); expect(x.rate).toBeLessThanOrEqual(1); expect(x.episodes).toBeGreaterThanOrEqual(3); }
     }
     expect(withRate).toBeGreaterThan(5);
-    console.log("BOLD", JSON.stringify([...b.values()].map((x) => [x.vid === tl.recorder.vid ? "ME" : x.vid % 100, x.episodes, x.taken, x.rate == null ? null : +x.rate.toFixed(2)])));
+    for (const x of b.values()) { expect(x.rewarded + x.costly + x.flat).toBe(x.taken); expect(x.flat).toBeGreaterThanOrEqual(0); if (x.style === "safe") expect(x.rate!).toBeLessThan(0.35); if (x.rate == null) expect(x.style).toBeNull(); }
+    console.log("BOLD", JSON.stringify([...b.values()].map((x) => [x.vid === tl.recorder.vid ? "ME" : x.vid % 100, x.episodes, x.taken, x.rewarded, x.costly, x.style])));
   });
 });

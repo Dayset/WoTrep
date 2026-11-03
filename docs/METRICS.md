@@ -146,6 +146,35 @@ this is the opportunity-based counterpart and does not need long histories, one 
 - Fixture: spread 17%-100% across players, recorder 7 of 10 (70%).
 
 Known limits (v0): it counts *taking* a chance, not whether it paid off; a good ambusher or sniper may rightly score low; a shot at long range counts as
-taking a chance; reload and cover are only partly modelled. **v1 (planned):** split taken episodes into "paid off" (Impact > 0, damage per HP lost) and "cost more than it gave",
-so the headline becomes *bold and rewarded* vs *bold and reckless* vs *safe*; add opposition weighting (chances against stronger targets count more), the way
-PS2 Elite weights by enemy strength.
+taking a chance; reload and cover are only partly modelled. ### v1 (shipped): how the chances went
+
+For every *taken* episode we look at the window from its start to `windowS` (5 s) after its end:
+
+| Outcome | Rule (all numbers in `config/boldness-v0.json`, provenance "initial guess") |
+|---|---|
+| **Rewarded** | threat-weighted damage dealt ≥ `rewardRatio` (1.0) × HP lost, with something dealt — or a kill by the player in the window |
+| **Costly** | HP lost ≥ `minLossShare` (10%) of max HP **and** threat-weighted damage dealt < HP lost **and** no kill |
+| **Flat** | anything else (little happened) |
+
+`paid = rewarded / taken`, `costly = costly / taken` (both need ≥ `minTaken` = 3 taken chances). **Style** (a description, not a grade):
+`safe` initiative < 0.35 · `bold-costly` initiative ≥ 0.35 and costly ≥ 0.40 · `bold-rewarded` initiative ≥ 0.60, costly < 0.40 and paid ≥ 0.50 · else `balanced`.
+Opposition weighting enters through the target weight on each hit (§3.4), as in PS2 Elite's strength weighting. Damage taken by other players is only seen where
+they were visible to the recorder, so enemies' "costly" counts are lower bounds. Fixture: recorder 70% initiative, 4 of 7 paid off, 2 of 7 costly → bold, rewarded.
+
+## 3.8 Rule: every value we show is explained
+
+A new number, column or chart option is not done until it has (1) a row in the glossary below, (2) `gl.<key>.how` and `gl.<key>.mean` texts in `en.json` and `ru.json`
+(shown to the player under the card / chart), and (3) its key in `METRIC_KEYS` (`apps/web/src/features/report/glossary.ts`); a test fails otherwise. "How" says exactly where the
+number comes from (results field, event, model, config thresholds). "Mean" says what a player should take from high and low values and what it is *not*.
+
+| Key | Source | Meaning for the player |
+|---|---|---|
+| impact | per-hit events + win-probability model v0 | win chance your hits added; compare inside one battle |
+| threat | per-hit events × target weight (target DPM ÷ enemy median, 0.25–3) | whether your damage hit the dangerous players |
+| onthreats | per-hit events, weight ≥ 1 | share of damage on dangerous targets |
+| cleanup | per-hit events, team win chance ≥ 90% | damage dealt after the result was mostly decided |
+| dpm | results: damage, life time | damage per minute alive |
+| bold | positions + visibility + shots + reload estimate | how often you fought when a chance existed |
+| paid / costly | bold episodes + hits + damage taken + kills | whether the chances you took won or lost the exchange |
+| style | bold, paid, costly thresholds | description of the battle's style, not a grade |
+| acc / pen / life | results: shots, hits, pens, life time | accuracy, penetration rate, share of the battle survived |

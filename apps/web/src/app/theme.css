@@ -71,3 +71,8 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .plot .lbl.mine { font-weight: 700; fill: var(--me); }
 .err-inline { color: var(--enemy); }
 .sortbtn { all: unset; cursor: pointer; font: inherit; color: inherit; white-space: nowrap; } .sortbtn:focus-visible { outline: 2px solid var(--accent); } th[aria-sort="ascending"], th[aria-sort="descending"] { color: var(--text); }
+.card details.how { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.card details.how summary { cursor: pointer; color: var(--accent); }
+.card details.how p { margin: 6px 0 0; line-height: 1.4; } .card details.how b { color: var(--text); font-weight: 600; }
+.how-inline { font-size: 12.5px; color: var(--muted); margin-top: 8px; border-left: 2px solid var(--line); padding-left: 10px; }
+.how-inline p { margin: 4px 0; } .how-inline b { color: var(--text); font-weight: 600; }

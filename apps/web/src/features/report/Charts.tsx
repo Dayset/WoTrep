@@ -134,12 +134,14 @@ function TargetChart({ tl }: { tl: BattleTimeline }) {
 }
 
 
-type MetricKey = "bold" | "impact" | "threat" | "onthreats" | "cleanup" | "acc" | "pen" | "life";
+type MetricKey = "bold" | "paid" | "costly" | "impact" | "threat" | "onthreats" | "cleanup" | "acc" | "pen" | "life";
 type Row = { h: ReturnType<typeof playerHeuristics>; s: ReturnType<typeof playerStats>[number]; b?: ReturnType<typeof boldnessAll> extends Map<number, infer B> ? B : never };
 const pct0 = (v: number) => `${v.toFixed(0)}%`;
 /** exact = from battle results (all players, no coverage caveat); otherwise from per-hit events (coverage applies). */
 const METRICS: { key: MetricKey; label: string; exact: boolean; get: (r: Row) => number | null; fmt: (v: number) => string }[] = [
   { key: "bold", label: "adv.bold", exact: true, get: (r) => (r.b?.rate == null ? null : r.b.rate * 100), fmt: pct0 },
+  { key: "paid", label: "adv.paid", exact: true, get: (r) => (r.b?.rewardedShare == null ? null : r.b.rewardedShare * 100), fmt: pct0 },
+  { key: "costly", label: "adv.costly", exact: true, get: (r) => (r.b?.costlyShare == null ? null : r.b.costlyShare * 100), fmt: pct0 },
   { key: "impact", label: "adv.impact", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.impactPts : null), fmt: (v) => `${sgn(v)} pts` },
   { key: "threat", label: "adv.threat", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.threatWeighted : null), fmt: (v) => String(Math.round(v)) },
   { key: "onthreats", label: "adv.onthreats", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.shareOnThreats * 100 : null), fmt: pct0 },
@@ -181,6 +183,7 @@ function CompareChart({ tl }: { tl: BattleTimeline }) {
         </svg>
         {hi != null && <div className="tip" style={{ right: 0, top: 0 }}><b>{rows[hi]!.v.name}</b>{rows[hi]!.mine ? ` (${t("report.you")})` : ""}<div>{m.fmt(rows[hi]!.val)}</div>{!m.exact && <div className="muted">{t("viz.cmp.seen")}: {Math.round(rows[hi]!.cov * 100)}%</div>}</div>}
       </div>
+      <div className="how-inline"><p><b>{t("gl.how")}.</b> {t(`gl.${mk}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${mk}.mean`)}</p></div>
       <p className="fbnote muted" style={{ marginTop: 10 }}>{t("viz.cmp.note")}</p>
     </Frame>
   );

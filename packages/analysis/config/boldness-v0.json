@@ -1,8 +1,80 @@
 {
-  "engageRangeM": { "value": 220, "why": "initial guess, recalibrate in E13 (an enemy this close and visible counts as an opening)", "n": 0, "date": "2026-11-03" },
-  "windowS": { "value": 5, "why": "initial guess, recalibrate in E13 (a shot within this long after an opening counts as taking it)", "n": 0, "date": "2026-11-03" },
-  "gapS": { "value": 2, "why": "initial guess, recalibrate in E13 (openings closer together than this are one episode)", "n": 0, "date": "2026-11-03" },
-  "maxWp": { "value": 0.9, "why": "same cutoff as cleanupWp: once the battle is nearly decided an opening no longer changes the result", "n": 0, "date": "2026-11-03" },
-  "minEpisodes": { "value": 3, "why": "initial guess, recalibrate in E13 (fewer openings is too few to call a style)", "n": 0, "date": "2026-11-03" },
-  "minReloadConfidence": { "value": 0.3, "why": "initial guess, recalibrate in E13 (only trust the reload estimate above this to excuse a missed opening)", "n": 0, "date": "2026-11-03" }
+  "engageRangeM": {
+    "value": 220,
+    "why": "initial guess, recalibrate in E13 (an enemy this close and visible counts as an opening)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "windowS": {
+    "value": 5,
+    "why": "initial guess, recalibrate in E13 (a shot within this long after an opening counts as taking it)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "gapS": {
+    "value": 2,
+    "why": "initial guess, recalibrate in E13 (openings closer together than this are one episode)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "maxWp": {
+    "value": 0.9,
+    "why": "same cutoff as cleanupWp: once the battle is nearly decided an opening no longer changes the result",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "minEpisodes": {
+    "value": 3,
+    "why": "initial guess, recalibrate in E13 (fewer openings is too few to call a style)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "minReloadConfidence": {
+    "value": 0.3,
+    "why": "initial guess, recalibrate in E13 (only trust the reload estimate above this to excuse a missed opening)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "minLossShare": {
+    "value": 0.1,
+    "why": "initial guess, recalibrate in E13 (an exchange only counts as costly if you lost at least this share of your max HP)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "rewardRatio": {
+    "value": 1.0,
+    "why": "initial guess, recalibrate in E13 (threat-weighted damage dealt must be at least this multiple of HP lost to count as paid off)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "minTaken": {
+    "value": 3,
+    "why": "initial guess, recalibrate in E13 (fewer taken chances is too few to judge how they went)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "safeBelow": {
+    "value": 0.35,
+    "why": "initial guess, recalibrate in E13 (initiative under this is a safe style)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "boldFrom": {
+    "value": 0.6,
+    "why": "initial guess, recalibrate in E13 (initiative from this is a bold style)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "costlyShare": {
+    "value": 0.4,
+    "why": "initial guess, recalibrate in E13 (this share of taken chances ending badly makes the style costly)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "rewardedShare": {
+    "value": 0.5,
+    "why": "initial guess, recalibrate in E13 (this share of taken chances paying off makes bold style rewarded)",
+    "n": 0,
+    "date": "2026-11-03"
+  }
 }

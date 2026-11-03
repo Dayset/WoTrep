@@ -50,12 +50,17 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
     [t("adv.onthreats"), pct(h.shareOnThreats), t("adv.onthreats.tip"), "onthreats"],
     [t("adv.cleanup"), pct(h.cleanupShare), t("adv.cleanup.tip"), "cleanup"],
     [t("adv.dpm"), String(h.dpm), t("adv.dpm.tip"), "dpm"],
-    ...(bd ? [[t("adv.bold"), bd.rate == null ? "—" : `${Math.round(bd.rate * 100)}% (${bd.taken}/${bd.episodes})`, t("adv.bold.tip"), "bold"] as [string, string, string, string]] : []),
+    ...(bd ? ([
+      [t("adv.bold"), bd.rate == null ? "—" : `${Math.round(bd.rate * 100)}% (${bd.taken}/${bd.episodes})`, t("adv.bold.tip"), "bold"],
+      [t("adv.paid"), bd.rewardedShare == null ? "—" : `${Math.round(bd.rewardedShare * 100)}% (${bd.rewarded}/${bd.taken})`, "", "paid"],
+      [t("adv.costly"), bd.costlyShare == null ? "—" : `${Math.round(bd.costlyShare * 100)}% (${bd.costly}/${bd.taken})`, "", "costly"],
+      [t("adv.style"), bd.style ? t(`adv.style.${bd.style}`) : "—", "", "style"],
+    ] as [string, string, string, string][]) : []),
   ];
   return (
     <details open className="adv" data-testid="advanced">
       <summary>{t("adv.title")}<span className="beta">{t("adv.beta")}</span> <span className="muted">· {t("adv.sub")}</span></summary>
-      <div className="cards">{cards.map(([k, v, tip, id]) => <div className="card" key={k} title={tip}><div className="k">{k} <Vote id={`card.${id}`} /></div><div className="v">{v}</div><div className="tip">{tip}</div></div>)}</div>
+      <div className="cards">{cards.map(([k, v, tip, id]) => <div className="card" key={k}><div className="k">{k} <Vote id={`card.${id}`} /></div><div className="v">{v}</div>{tip && <div className="tip">{tip}</div>}<details className="how"><summary>{t("gl.how")} · {t("gl.mean")}</summary><p><b>{t("gl.how")}.</b> {t(`gl.${id}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${id}.mean`)}</p></details></div>)}</div>
     </details>
   );
 }
