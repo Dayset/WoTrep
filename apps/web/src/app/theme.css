@@ -243,3 +243,12 @@ details > summary::before { content: "▸ "; color: var(--muted); } details[open
 /* compact picker: name selects must not take a whole phone screen */
 select.pick { width: auto; max-width: min(100%, 220px); font-size: 13px; padding: 4px 6px; }
 .chart select.pick { margin: 4px 0 6px; }
+
+/* match outro: fade to 50% black over 10 s, then a title (shiny for a win, muted for a loss) */
+.pstage { position: relative; }
+.outro { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(0, 0, 0, var(--fade, 0)); }
+.outro b { font-size: clamp(28px, 8vw, 64px); letter-spacing: .08em; text-transform: uppercase; opacity: var(--txt, 0); }
+.outro.win b { background: linear-gradient(100deg, #8a6d1e 30%, #fff3b0 45%, #f0c75e 50%, #8a6d1e 70%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: outro-shine 2.8s linear infinite; }
+.outro.lose b { color: #8d96a0; font-weight: 300; text-shadow: 0 0 18px rgba(0, 0, 0, .8); }
+.outro.draw b { color: #b8b8b8; font-weight: 300; }
+@keyframes outro-shine { from { background-position: 150% 0; } to { background-position: -150% 0; } }

@@ -40,7 +40,10 @@ function smoke(g: CanvasRenderingContext2D, X: number, Y: number, age: number) {
 }
 
 export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; findings: Finding[]; startAt?: number; seekTo?: { t: number; n: number } }) {
-  const end = Math.floor(tl.arena.durationS ?? tl.events.at(-1)?.t ?? 0);
+  const OUTRO_S = 10, matchEnd = Math.floor(tl.arena.durationS ?? tl.events.at(-1)?.t ?? 0), end = matchEnd + OUTRO_S;
+  // outcome for the outro: the recorder's side won, lost, or the battle was drawn
+  const outcome = tl.arena.winnerTeam == null || tl.arena.winnerTeam === 0 ? "draw" : tl.arena.winnerTeam === tl.recorder.team ? "win" : "lose";
+  const outroRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false), [speed, setSpeed] = useState(1), [uiT, setUiT] = useState(Math.max(0, startAt ?? 0));
   const [coach, setCoach] = useState(false), [seenIds, setSeenIds] = useState<string[]>([]);
   const [pauseOn, setPauseOn] = useState<string[]>(["mistake", "good", "info"]), [resumeS, setResumeS] = useState(0), [resumeGoodS, setResumeGoodS] = useState(8), [slowS, setSlowS] = useState(6), coachPaused = useRef<string | false>(false);
@@ -225,11 +228,15 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
         for (let i = lo; i < sh.length && sh[i]!.t <= c.t; i++) sfxShot(sh[i]!.kind);
       }
       sfxLast.current = c.t;
+      // outro: after the match, the scene fades smoothly to 50% black over OUTRO_S, the title fades in after 2 s
+      { const p = Math.min(1, Math.max(0, (c.t - matchEnd) / OUTRO_S)), ease = p * p * (3 - 2 * p), el = outroRef.current;
+        if (el) { el.style.opacity = c.t > matchEnd ? "1" : "0"; el.style.setProperty("--fade", String(0.5 * ease));
+          el.style.setProperty("--txt", String(Math.min(1, Math.max(0, (c.t - matchEnd - 2) / 2)))); } }
       const q = Math.floor(c.t * 10); if (q !== lastUi) { lastUi = q; setUiT(c.t); }
       draw(); raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame); return () => cancelAnimationFrame(raf);
-  }, [draw, end]);
+  }, [draw, end, matchEnd]);
   useEffect(() => { clock.current.playing = playing; clock.current.speed = speed; }, [playing, speed]);
 
   useEffect(() => {
@@ -319,7 +326,8 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
         <div className="pteam foe"><b>{snap.alive[o]}</b> · {Math.round(snap.teamHp[o]).toLocaleString()}<i style={{ width: `${(snap.teamHp[o] / maxHp[o]) * 100}%` }} /></div>
       </div>
       <div className="pmap" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} onDoubleClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); setFollow(false); }}>
-        <canvas ref={canvas} aria-label={t("player.aria")} role="img" />
+        <div className="pstage"><canvas ref={canvas} aria-label={t("player.aria")} role="img" />
+          <div ref={outroRef} className={`outro ${outcome}`} aria-hidden="true" style={{ opacity: 0 }}><b>{t(`outro.${outcome}`)}</b></div></div>
         {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView trainer={{ on: trainer, sel: trainerSel }} tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} /></Suspense>{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
         <div className="pviewsw" role="group" aria-label={t("pov.view")} onPointerDown={(e) => e.stopPropagation()}>{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)} title={t(`pov.${m}`)} data-testid={`v3d-${m}`}>{t(`ui.v.${m}`)}</button>)}</div>
         {view3dCtl}
