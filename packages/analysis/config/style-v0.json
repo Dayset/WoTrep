@@ -1,0 +1,26 @@
+{
+  "weights": {
+    "value": { "dpm": 1, "kpm": 1, "exchange": 1, "hitRate": 0.5, "spottedPerMin": 0.5, "assistsPerMin": 0.5 },
+    "why": "initial guess: equal weights for damage and kill speed, half weight for accuracy, spotting and assists. Recalibrate once enough battles exist (same rule as the other configs).",
+    "n": 0,
+    "date": "2026-11-04"
+  },
+  "slopeFloor": {
+    "value": -2,
+    "why": "copied from the Ps2 Elite KD Brave/PVS definition (SLOPE_FLOOR) as a starting point; the WoT slope is a proxy, so this is not a fitted value",
+    "n": 0,
+    "date": "2026-11-04"
+  },
+  "slopeEps": {
+    "value": 0.05,
+    "why": "copied from the Ps2 Elite KD Brave/PVS definition (SLOPE_EPS); keeps the shifted slope positive",
+    "n": 0,
+    "date": "2026-11-04"
+  },
+  "scale": {
+    "value": 100,
+    "why": "team average of the score is 100 by construction, so a player's score reads as percent of the team average",
+    "n": 0,
+    "date": "2026-11-04"
+  }
+}

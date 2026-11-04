@@ -1,11 +1,12 @@
 import wpCfg from "../config/wp-v0.json";
 import boldCfg from "../config/boldness-v0.json";
 import teamCfg from "../config/teamplay-v0.json";
+import styleCfg from "../config/style-v0.json";
 export * from "./wp";
 export * from "./heuristics";
 export * from "./reload";
 export * from "./boldness";
-export const configs = { "wp-v0": wpCfg, "boldness-v0": boldCfg, "teamplay-v0": teamCfg };
+export const configs = { "wp-v0": wpCfg, "boldness-v0": boldCfg, "teamplay-v0": teamCfg, "style-v0": styleCfg };
 export * from "./series";
 export * from "./heatmap";
 export * from "./teamplay";
@@ -20,3 +21,4 @@ export * from "./percentile";
 export * from "./trades";
 export * from "./shooting";
 export * from "./alignment";
+export * from "./style";
