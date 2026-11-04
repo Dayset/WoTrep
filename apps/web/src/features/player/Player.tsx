@@ -27,7 +27,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
   const end = Math.floor(tl.arena.durationS ?? tl.events.at(-1)?.t ?? 0);
   const [playing, setPlaying] = useState(false), [speed, setSpeed] = useState(1), [uiT, setUiT] = useState(Math.max(0, startAt ?? 0));
   const [coach, setCoach] = useState(false), [seenIds, setSeenIds] = useState<string[]>([]);
-  const [pauseOn, setPauseOn] = useState<string[]>(["mistake", "good", "info"]), [resumeS, setResumeS] = useState(0), [slowS, setSlowS] = useState(6), coachPaused = useRef(false);
+  const [pauseOn, setPauseOn] = useState<string[]>(["mistake", "good", "info"]), [resumeS, setResumeS] = useState(0), [resumeGoodS, setResumeGoodS] = useState(8), [slowS, setSlowS] = useState(6), coachPaused = useRef<string | false>(false);
   const [view3d, setView3d] = useState<"off" | "fp" | "chase">("off"), [scope, setScope] = useState(6), [lockView, setLockView] = useState(false), [resync, setResync] = useState(0), [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [logOn, setLogOn] = useState(false), [sel, setSel] = useState<number | null>(null);
   const clock = useRef({ t: Math.max(0, startAt ?? 0), playing: false, speed: 1 }), cam = useRef<Cam | null>(null), opts = useRef({ follow: false, names: true, trails: true, sel: null as number | null });
   const canvas = useRef<HTMLCanvasElement>(null), tline = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
@@ -58,7 +58,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
     if (pauseOn.includes("death")) for (const e of tl.events) if (e.k === "kill" && e.victim === tl.recorder.vid) out.push({ id: `xk:${e.t}`, pt: Math.max(0, e.t - 5), tEnd: e.t, text: t("pause.deathCard") });
     return out.sort((a, b) => a.pt - b.pt);
   }, [tl, pauseOn, dangersAll, crewAll]);
-  const pauses = useMemo(() => [...marks.filter((m) => pauseOn.includes(m.f.kind)).map((m) => ({ id: m.f.id, pt: m.pt })), ...xmarks.map((m) => ({ id: m.id, pt: m.pt }))].sort((a, b) => a.pt - b.pt), [marks, xmarks, pauseOn]);
+  const pauses = useMemo(() => [...marks.filter((m) => pauseOn.includes(m.f.kind)).map((m) => ({ id: m.f.id, pt: m.pt, kind: m.f.kind as string })), ...xmarks.map((m) => ({ id: m.id, pt: m.pt, kind: m.id.startsWith("xg:") ? "good" : "other" }))].sort((a, b) => a.pt - b.pt), [marks, xmarks, pauseOn]);
   const coachRef = useRef({ on: false, seen: new Set<string>(), marks, pauses, slowS: 6 });
   coachRef.current.on = coach; coachRef.current.marks = marks; coachRef.current.pauses = pauses; coachRef.current.slowS = slowS; coachRef.current.seen = new Set(seenIds);
 
@@ -78,7 +78,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const you = css("--c-you"), foe = css("--c-foe"), ink = css("--c-ink"), grid = css("--c-grid"), bg = css("--panel"), muted = css("--muted"), me = css("--me");
     const snap = stateAt(tl, T), by = new Map(snap.units.map((u) => [u.vid, u]));
-    if (o.follow) { const r = by.get(tl.recorder.vid); if (r && r.known !== "never") { cm.cx = r.x; cm.cz = r.z; } }
+    if (o.follow) { const r = by.get(o.sel ?? tl.recorder.vid); if (r && r.known !== "never") { cm.cx = r.x; cm.cz = r.z; } }
     const sx = (x: number) => W / 2 + (x - cm.cx) * cm.s, sy = (z: number) => H / 2 - (z - cm.cz) * cm.s;
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
     if (mapInfo) { g.globalAlpha = 0.9; g.drawImage(mapInfo.img, sx(mapInfo.b.x0), sy(mapInfo.b.z1), (mapInfo.b.x1 - mapInfo.b.x0) * cm.s, (mapInfo.b.z1 - mapInfo.b.z0) * cm.s); g.globalAlpha = 1; }
@@ -182,7 +182,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
         const cr = coachRef.current; let sp = c.speed;
         if (cr.on && cr.slowS > 0) for (const m of cr.pauses) if (!cr.seen.has(m.id) && c.t >= m.pt - cr.slowS && c.t < m.pt) sp = Math.min(sp, 0.5);
         const nt = Math.min(end, c.t + dt * sp);
-        if (cr.on) for (const m of cr.pauses) if (!cr.seen.has(m.id) && c.t < m.pt && nt >= m.pt) { c.t = m.pt; c.playing = false; coachPaused.current = true; setPlaying(false); setSeenIds((x) => [...x, m.id]); setUiT(m.pt); break; }
+        if (cr.on) for (const m of cr.pauses) if (!cr.seen.has(m.id) && c.t < m.pt && nt >= m.pt) { c.t = m.pt; c.playing = false; coachPaused.current = m.kind; setPlaying(false); setSeenIds((x) => [...x, m.id]); setUiT(m.pt); break; }
         if (c.playing) c.t = nt;
         if (c.t >= end) { c.playing = false; setPlaying(false); }
       }
@@ -194,9 +194,11 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
   useEffect(() => { clock.current.playing = playing; clock.current.speed = speed; }, [playing, speed]);
 
   useEffect(() => {
-    if (playing || !coachPaused.current || !coach || resumeS <= 0) return;
-    const h = window.setTimeout(() => { coachPaused.current = false; setPlaying(true); }, resumeS * 1000); return () => window.clearTimeout(h);
-  }, [playing, coach, resumeS, uiT]);
+    if (playing) { coachPaused.current = false; return; }
+    const kind = coachPaused.current, delay = kind === "good" ? resumeGoodS : resumeS;
+    if (!kind || !coach || delay <= 0) return;
+    const h = window.setTimeout(() => { coachPaused.current = false; setPlaying(true); }, delay * 1000); return () => window.clearTimeout(h);
+  }, [playing, coach, resumeS, resumeGoodS]);
   // ---- input ----
   const jump = useCallback((dir: 1 | -1) => {
     const cur = clock.current.t, ms = coachRef.current.pauses, m = dir > 0 ? ms.find((x) => x.pt > cur + 0.05) : [...ms].reverse().find((x) => x.pt < cur - 0.05);
@@ -299,11 +301,18 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
         <span className="ptime">{mmss(uiT)} / {mmss(end)}</span>
         <span className="pspeed">{SPEEDS.map((s) => <button type="button" key={s} aria-pressed={speed === s} onClick={() => setSpeed(s)}>{s}×</button>)}</span>
         <button type="button" onClick={() => jump(-1)} aria-label={t("coach.prev")} title={t("coach.prev")}>⏮</button><button type="button" onClick={() => jump(1)} aria-label={t("coach.next")} title={t("coach.next")}>⏭</button>
+        <label className="pwho">{t("pov.who")} <select value={sel ?? ""} onChange={(e) => setSel(e.target.value === "" ? null : Number(e.target.value))} data-testid="who">
+          <option value="">{t("pov.me")} · {vehicle.get(tl.recorder.vid)?.name}</option>
+          <optgroup label={t("pov.team")}>{tl.vehicles.filter((v) => v.team === tl.recorder.team && !v.isRecorder).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
+          <optgroup label={t("pov.foes")}>{tl.vehicles.filter((v) => v.team !== tl.recorder.team).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
+        </select></label>
+        {sel != null && <button type="button" onClick={() => setSel(null)} data-testid="backme">↩ {t("pov.me")}</button>}
         <span className="pview" role="group" aria-label={t("pov.view")}>{view3d !== "off" && <><label><input type="checkbox" checked={lockView} onChange={(e) => setLockView(e.target.checked)} /> {t("pov.lock")}</label><button type="button" onClick={() => setResync((n) => n + 1)} title={t("pov.resync.tip")}>{t("pov.resync")}</button></>}{view3d === "fp" && <select value={scope} onChange={(e) => setScope(Number(e.target.value))} aria-label={t("pov.scope")} data-testid="scope">{[1, 3, 6, 12].map((z) => <option key={z} value={z}>{z === 1 ? t("pov.scope.off") : `${t("pov.scope")} ${z}×`}</option>)}</select>}{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)}>{t(`pov.${m}`)}</button>)}</span>
         <label><input type="checkbox" checked={coach} onChange={(e) => setCoach(e.target.checked)} /> {t("coach.mode")}</label>
         {coach && <details className="pauseopts"><summary>{t("pause.title")}</summary>
           {(["mistake", "good", "info", "danger", "crew", "death"] as const).map((k) => <label key={k}><input type="checkbox" checked={pauseOn.includes(k)} onChange={(e) => setPauseOn((x) => (e.target.checked ? [...x, k] : x.filter((y) => y !== k)))} /> {t(`pause.${k}`)}</label>)}
           <label>{t("pause.slow")} <select value={slowS} onChange={(e) => setSlowS(Number(e.target.value))}>{[0, 3, 6, 10].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
+          <label>{t("pause.resumeGood")} <select value={resumeGoodS} onChange={(e) => setResumeGoodS(Number(e.target.value))} data-testid="resumegood">{[0, 5, 8, 10].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
           <label>{t("pause.resume")} <select value={resumeS} onChange={(e) => setResumeS(Number(e.target.value))}>{[0, 5, 10, 20].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
         </details>}
         <label><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> {t("player.follow")}</label>

@@ -50,11 +50,25 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     const place = (g: THREE.BufferGeometry, m: THREE.Material, n: number, fn: (o: THREE.Object3D) => void) => { deco.push(g); decoMat.push(m); const im = new THREE.InstancedMesh(g, m, n), o = new THREE.Object3D(); for (let i = 0; i < n; i++) { fn(o); o.updateMatrix(); im.setMatrixAt(i, o.matrix); } scene.add(im); };
     const rx = () => bounds.x0 + rnd() * W, rz = () => -(bounds.z0 + rnd() * D);
     const trunk = new THREE.CylinderGeometry(0.4, 0.5, 3, 5); trunk.translate(0, 1.5, 0); const crown = new THREE.ConeGeometry(2.6, 7, 6); crown.translate(0, 6, 0);
-    const trees = Array.from({ length: 220 }, () => ({ x: rx(), z: rz(), k: 0.8 + rnd() * 0.7 }));
-    const treeAt = (i: number) => (o: THREE.Object3D) => { const t = trees[i]!; o.position.set(t.x, gh(t.x, -t.z), t.z); o.scale.setScalar(t.k); };
-    for (const [g, c] of [[trunk, 0x6b4a2b], [crown, 0x2f6b34]] as const) { let i = 0; place(g, new THREE.MeshLambertMaterial({ color: c, flatShading: true }), trees.length, (o) => treeAt(i++)(o)); }
-    const bush = new THREE.IcosahedronGeometry(1.4, 0); bush.translate(0, 0.9, 0);
-    place(bush, new THREE.MeshLambertMaterial({ color: 0x3f7a3c, flatShading: true }), 260, (o) => { { const x = rx(), z = rz(); o.position.set(x, gh(x, -z), z); } o.scale.set(0.8 + rnd(), 0.6 + rnd() * 0.6, 0.8 + rnd()); });
+    // trees and bushes: a solid copy and a 70% transparent copy of every instance; the ones close in front of the camera use the transparent copy (they are not real cover)
+    type Item = { x: number; y: number; z: number; sx: number; sy: number; sz: number };
+    const trees: Item[] = Array.from({ length: 220 }, () => { const x = rx(), z = rz(), k = 0.8 + rnd() * 0.7; return { x, y: gh(x, -z), z, sx: k, sy: k, sz: k }; });
+    const bushes: Item[] = Array.from({ length: 260 }, () => { const x = rx(), z = rz(); return { x, y: gh(x, -z), z, sx: 0.8 + rnd(), sy: 0.6 + rnd() * 0.6, sz: 0.8 + rnd() }; });
+    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+    const dual: { items: Item[]; solid: THREE.InstancedMesh; ghost: THREE.InstancedMesh; faded: Map<Item, boolean> }[] = [];
+    const addDual = (g: THREE.BufferGeometry, color: number, items: Item[]) => {
+      deco.push(g); const ms = new THREE.MeshLambertMaterial({ color, flatShading: true }), mg = new THREE.MeshLambertMaterial({ color, flatShading: true, transparent: true, opacity: 0.3, depthWrite: false }); decoMat.push(ms, mg);
+      const solid = new THREE.InstancedMesh(g, ms, items.length), ghost = new THREE.InstancedMesh(g, mg, items.length); solid.frustumCulled = false; ghost.frustumCulled = false; ghost.renderOrder = 3; scene.add(solid, ghost);
+      items.forEach((it, i) => { M.compose(P.set(it.x, it.y, it.z), Q, S.set(it.sx, it.sy, it.sz)); solid.setMatrixAt(i, M); ghost.setMatrixAt(i, ZERO); }); dual.push({ items, solid, ghost, faded: new Map() });
+    };
+    addDual(trunk, 0x6b4a2b, trees); addDual(crown, 0x2f6b34, trees);
+    const bush = new THREE.IcosahedronGeometry(1.4, 0); bush.translate(0, 0.9, 0); addDual(bush, 0x3f7a3c, bushes);
+    const updateFade = (camPos: THREE.Vector3, fwd: THREE.Vector3, halfFovH: number) => {
+      const fl = Math.hypot(fwd.x, fwd.z) || 1, fx = fwd.x / fl, fz = fwd.z / fl, cosMax = Math.cos(halfFovH + 0.17);
+      for (const d of dual) { let changed = false;
+        d.items.forEach((it, i) => { const dx = it.x - camPos.x, dz = it.z - camPos.z, dist = Math.hypot(dx, dz), f = dist < 170 && dist > 0.5 && (dx * fx + dz * fz) / dist > cosMax; if (d.faded.get(it) === f && d.faded.has(it)) return; d.faded.set(it, f); changed = true; M.compose(P.set(it.x, it.y, it.z), Q, S.set(it.sx, it.sy, it.sz)); d.solid.setMatrixAt(i, f ? ZERO : M); d.ghost.setMatrixAt(i, f ? M : ZERO); });
+        if (changed) { d.solid.instanceMatrix.needsUpdate = true; d.ghost.instanceMatrix.needsUpdate = true; } }
+    };
     const cloud = new THREE.IcosahedronGeometry(1, 1);
     place(cloud, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, fog: false }), 28, (o) => { o.position.set(bounds.x0 - 400 + rnd() * (W + 800), hMax + 160 + rnd() * 120, -(bounds.z0 - 400 + rnd() * (D + 800))); o.scale.set(40 + rnd() * 60, 10 + rnd() * 8, 25 + rnd() * 30); });
     const mount = new THREE.ConeGeometry(1, 1, 5);
@@ -96,6 +110,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
         if (L.mode === "fp") { cam.position.set(p.x, p.y + 2.9, p.z); cam.lookAt(p.x - Math.sin(ay) * 50, p.y + 2.9 + Math.tan(pitchNow) * 50 - (K.pitch - 0.28) * 50, p.z - Math.cos(ay) * 50); }
         else { const cx = p.x + Math.sin(ay) * cp * K.dist, cz = p.z + Math.cos(ay) * cp * K.dist; cam.position.set(cx, Math.max(gh(cx, -cz) + 1.2, p.y + 1.5 + Math.sin(K.pitch) * K.dist), cz); cam.lookAt(p.x, p.y + 2, p.z); }
       }
+      { const dir = new THREE.Vector3(); cam.getWorldDirection(dir); updateFade(cam.position, dir, Math.atan(Math.tan((cam.fov * Math.PI) / 360) * cam.aspect)); }
       { let q = 0; const T = clock.current.t;
         if (L.trails) for (const v of tl.vehicles) {
           const tr = tl.tracks[v.vid]; if (!tr || !tr.t.length) continue; const mine = v.team === tl.recorder.team, rgb = mine ? ally : foe;

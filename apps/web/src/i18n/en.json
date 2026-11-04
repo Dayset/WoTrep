@@ -365,7 +365,7 @@
   "pause.crew": "Teammates' good plays",
   "pause.death": "Before you are destroyed",
   "pause.slow": "Slow down before a pause",
-  "pause.resume": "Resume automatically after",
+  "pause.resume": "Resume after other pauses",
   "pause.off": "Off",
   "pause.deathCard": "You are destroyed in 5 s",
   "mini.aria": "Mini map",
@@ -373,5 +373,10 @@
   "mini.near": "Near",
   "pov.lock": "Lock view to the replay",
   "pov.resync": "Resync view",
-  "pov.resync.tip": "Return the camera to the replayed player's own view direction"
+  "pov.resync.tip": "Return the camera to the replayed player's own view direction",
+  "pause.resumeGood": "Resume after a good play",
+  "pov.who": "Watching",
+  "pov.me": "You",
+  "pov.team": "Teammates",
+  "pov.foes": "Enemies"
 }
