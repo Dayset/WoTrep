@@ -1,6 +1,6 @@
 import { SortTable } from "./SortTable";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { BattleTimeline, Team } from "@wotrep/model";
+import type { BattleTimeline, Team, VehicleInfo } from "@wotrep/model";
 import { aimSamples, alignWith, teamCoherence, boldnessAll, percentileRank, playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
 import { t } from "../../i18n";
 import { Vote } from "./Feedback";
@@ -298,6 +298,72 @@ export function AimChart({ tl }: { tl: BattleTimeline }) {
       <SortTable sortKey="share" cols={[{ key: "player", label: t("viz.player"), name: true }, { key: "share", label: t("viz.aim.share") }, ...(teamMode ? [] : [{ key: "gap", label: t("viz.aim.gap") }]), { key: "seen", label: t("viz.cmp.seen") }]} rows={rows.map((r) => ({ id: r.vid, cls: !teamMode && !ally(r.vid) ? "foe" : "", side: ally(r.vid) ? "ally" : "foe", cells: { player: { v: name(r.vid), node: <span className="nm">{name(r.vid)}</span> }, share: { v: r.share, node: `${Math.round(r.share * 100)}%` }, gap: { v: r.gap ?? 0, node: `${Math.round(r.gap ?? 0)}°` }, seen: { v: teamMode ? null : r.n, node: teamMode ? "" : r.n } } }))} /></>}
       <div className="how-inline"><p><b>{t("gl.how")}.</b> {t(teamMode ? "gl.aimteam.how" : "gl.aimsame.how")}</p><p><b>{t("gl.mean")}.</b> {t(teamMode ? "gl.aimteam.mean" : "gl.aimsame.mean")}</p></div>
     </figure>
+  );
+}
+
+const PALETTE = ["#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#42d4f4", "#f032e6"];
+/** Line colour by pick index: the familiar 8 first, then golden-angle hues so a full team stays distinguishable. */
+const color = (i: number) => i < PALETTE.length ? PALETTE[i]! : `hsl(${Math.round((i * 137.5) % 360)}, 85%, 60%)`;
+
+/** Chart 5 — one metric's distribution across all players: every player is a dot on the value axis, each picked player
+ *  gets a coloured line at their value, labelled with name and percentile (share of players at or below). Percentiles are
+ *  within this battle's players only — there is no global baseline yet (see E11-04). */
+export function DistChart({ tl }: { tl: BattleTimeline }) {
+  const [ref, W] = useWidth(); const [mk, setMk] = useState<MetricKey>("bold"); const [hi, setHi] = useState<number | null>(null);
+  const [showAllies, setShowAllies] = useState(true);
+  const [showFoes, setShowFoes] = useState(false);
+  const all = useMemo(() => { const st = new Map(playerStats(tl).map((x) => [x.vid, x])); const bd = boldnessAll(tl); return tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid), s: st.get(v.vid)!, b: bd.get(v.vid) })); }, [tl]);
+  const m = METRICS.find((x) => x.key === mk)!;
+  const rows = all.flatMap((r) => { const val = m.get(r); return val == null ? [] : [{ ...r, val, cov: m.exact ? 1 : r.h?.coverage ?? 0 }]; });
+  if (rows.length < 2) return null;
+  const vals = rows.map((r) => r.val), lo = Math.min(...vals), hiV = Math.max(...vals);
+  const x = (v: number) => 10 + (hiV === lo ? 0.5 : (v - lo) / (hiV - lo)) * (W - 20);
+  const byName = (a: { v: VehicleInfo }, b: { v: VehicleInfo }) => a.v.name.localeCompare(b.v.name);
+  const allies = rows.filter((r) => r.v.team === tl.recorder.team).sort(byName);
+  const foes = rows.filter((r) => r.v.team !== tl.recorder.team).sort(byName);
+  const picked = [...(showAllies ? allies : []), ...(showFoes ? foes : [])].map((r, i) => ({ ...r, color: color(i), pct: percentileRank(vals, r.val)! }));
+  /** Phone graph: ~30% of viewport height instead of the fixed 116 px; desktop unchanged. */
+  const H = W < 520 ? Math.max(180, Math.min(320, Math.round(window.innerHeight * 0.30))) : 116, axisY = H - 32;
+  const nm = (v: { name: string }) => v.name.length > 14 ? v.name.slice(0, 13) + "…" : v.name;
+  const hov = hi == null ? null : picked.find((p) => p.v.vid === hi) ?? null;
+  /** Greedy label rows: each label takes the lowest row with no neighbour within ~110 px, so a
+   *  full team's labels spread instead of stacking on 3 rows. Overflow labels share the last row. */
+  const maxRow = Math.max(2, Math.floor((axisY - 34) / 16));
+  const placed: { row: number; x: number }[] = [];
+  const rowOf = new Map<number, number>();
+  [...picked].sort((a, b) => x(a.val) - x(b.val)).forEach((p) => {
+    const lx = Math.min(Math.max(x(p.val), 46), W - 46);
+    let row = 0;
+    while (row < maxRow && placed.some((q) => q.row === row && Math.abs(q.x - lx) < 110)) row++;
+    placed.push({ row, x: lx });
+    rowOf.set(p.v.vid, row);
+  });
+  return (
+    <Frame id="chart.dist" title={t("viz.dist")} sub={t("viz.dist.sub")}
+      table={<table><thead><tr><th>{t("viz.player")}</th><th>{t(m.label)}</th><th>{t("viz.dist.pct")}</th><th>{t("viz.cmp.seen")}</th></tr></thead><tbody>{picked.map((r) => <tr key={r.v.vid}><td className="nm">{r.v.name}</td><td>{m.fmt(r.val)}</td><td>{r.pct}%</td><td>{Math.round(r.cov * 100)}%</td></tr>)}</tbody></table>}>
+      <div className="seg" role="tablist">{METRICS.map((y) => <button key={y.key} role="tab" aria-selected={mk === y.key} onClick={() => setMk(y.key)}>{t(y.label)}</button>)}</div>
+      <div><b>{t("viz.dist.pick")}</b> <span className="seg" role="group">
+        <button type="button" aria-selected={showAllies} onClick={() => setShowAllies((v) => !v)}>{t("viz.cmp.allies")} · {allies.length}</button>
+        <button type="button" aria-selected={showFoes} onClick={() => setShowFoes((v) => !v)}>{t("viz.cmp.enemies")} · {foes.length}</button>
+      </span></div>
+      <div ref={ref} className="plot" onPointerLeave={() => setHi(null)}>
+        <svg width={W} height={H} role="img" aria-label={t("viz.dist.aria")}>
+          <line x1={10} x2={W - 10} y1={axisY} y2={axisY} className="ref" />
+          {rows.map((r) => <circle key={r.v.vid} cx={x(r.val)} cy={axisY} r={3} fill="#888" opacity={0.7} />)}
+          {picked.map((p) => { const lx = Math.min(Math.max(x(p.val), 46), W - 46), ly = 12 + (rowOf.get(p.v.vid) ?? 0) * 16;
+            return <g key={p.v.vid} opacity={hi == null || hi === p.v.vid ? 1 : 0.35} onPointerEnter={() => setHi(p.v.vid)} onPointerDown={() => setHi(p.v.vid)}>
+              <line x1={x(p.val)} x2={x(p.val)} y1={axisY} y2={ly + 10} stroke={p.color} strokeWidth={2} />
+              <circle cx={x(p.val)} cy={axisY} r={5} fill={p.color} />
+              <text x={lx} y={ly} className="ax lbl" textAnchor="middle" style={{ fill: p.color }}>{nm(p.v)} {p.pct}%</text>
+            </g>; })}
+          <text x={10} y={axisY + 18} className="ax">{m.fmt(lo)}</text>
+          <text x={W - 10} y={axisY + 18} className="ax" textAnchor="end">{m.fmt(hiV)}</text>
+        </svg>
+        {hov && <div className="tip" style={{ left: Math.min(Math.max(x(hov.val) - 80, 0), W - 170) }}>
+          <b>{hov.v.name}</b><div>{m.fmt(hov.val)} · {hov.pct}%</div>{!m.exact && <div className="muted">{t("viz.cmp.seen")}: {Math.round(hov.cov * 100)}%</div>}
+        </div>}
+      </div>
+    </Frame>
   );
 }
 
