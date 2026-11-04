@@ -200,7 +200,7 @@
   "coach.collision.good.body": "You rammed an enemy and dealt {dealt} while taking {got}.",
   "coach.collision.good.fix": "Ramming works when it wins the contact. Repeat it when the enemy is weakened and you are not.",
   "coach.unseenDamage.title": "Hit out of view",
-  "coach.unseenDamage.body": "Lost {hp} HP that no replay event explains, probably while out of the recorder’s view. {n} enemies are likely sources (estimate).",
+  "coach.unseenDamage.body": "Lost {hp} HP no replay event explains. #1 suspect (estimate): {suspect}. Still unexplained: {left} HP.",
   "coach.unseenDamage.fix": "Treat unseen HP loss as a warning sign: check the minimap before you push again.",
   "coach.collision.title": "Rammed a teammate",
   "coach.collision.body": "Contact damage: you dealt {dealt} and took {got}. Nothing was gained, the team just lost HP.",

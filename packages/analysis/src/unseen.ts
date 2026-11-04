@@ -54,3 +54,37 @@ export function unseenCandidates(tl: BattleTimeline, drop: UnseenDrop, hidden = 
   if (!total) return [];
   return score.sort((a, b) => b.s - a.s).slice(0, c("topN") as number).map((x) => ({ vid: x.vid, share: x.s / total, hidden: x.hidden, shots: x.shots, confidence: Math.min(c("maxConfidence") as number, x.s / total) }));
 }
+
+export interface UnseenAllocation {
+  victim: number; t0: number; t1: number; unseen: number;
+  /** hidden damage assigned to each source from its remaining budget, in share order */
+  sources: { vid: number; hp: number }[];
+  /** what no source could cover within its budget */
+  unexplained: number;
+  /** the top-ranked candidate, shown even when its budget is used up by an earlier drop */
+  topSuspect: number | null;
+}
+
+/** Allocation pass: drops are processed in time order. Each source's hidden damage is a budget spent once; each drop takes
+ *  its candidates in share order until the drop is covered or the candidates run out. The leftover stays unexplained, and the
+ *  top-ranked candidate is still reported as the #1 suspect. Estimate only: the budgets are the official totals minus the itemised ones. */
+export function allocateUnseen(tl: BattleTimeline): UnseenAllocation[] {
+  const hidden = hiddenDealt(tl);
+  const budget = new Map(hidden);
+  const drops: UnseenDrop[] = [];
+  for (const v of tl.vehicles) drops.push(...unseenDrops(tl, v.vid));
+  drops.sort((a, b) => a.t0 - b.t0 || a.t1 - b.t1);
+  return drops.map((d) => {
+    const cands = unseenCandidates(tl, d, hidden);
+    let left = d.unseen;
+    const sources: { vid: number; hp: number }[] = [];
+    for (const c of cands) {
+      if (left <= 0) break;
+      const avail = budget.get(c.vid) ?? 0;
+      const take = Math.min(avail, left);
+      if (take <= 0) continue;
+      budget.set(c.vid, avail - take); left -= take; sources.push({ vid: c.vid, hp: Math.round(take) });
+    }
+    return { victim: d.vid, t0: d.t0, t1: d.t1, unseen: Math.round(d.unseen), sources, unexplained: Math.max(0, Math.round(left)), topSuspect: cands[0]?.vid ?? null };
+  });
+}
