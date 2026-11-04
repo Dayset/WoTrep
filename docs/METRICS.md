@@ -222,3 +222,6 @@ Per player, one sample per battle second while the tank is alive and live-visibl
 
 ### 3.17 Vanish events
 An enemy of the recorder leaves our team's vision while alive (visible interval ends, >= 3 s long, not within 2 s of its death). Records last position, nearest ally 20-445 m (proxy spotter), speed over the last seconds and whether it stopped. Clue for cover / line-of-sight breaks only; camouflage, range, a dead spotter and smoke look the same. Map page layer "Enemy vanishes". Config `packages/analysis/config/vanish-v0.json`. Aggregating many replays per map is the plan for a cover map.
+
+### 3.18 Estimated turret direction and aim counter
+Not in the replay (gunYaw is not decoded), so rebuilt: at each shot with a known shell end point the turret points from shooter to end point; it holds 1 s, then turns at an assumed 30 deg/s to the next shot if that is within 6 s (arriving just in time), else back to the hull direction. Aim counter = seconds the turret has been still since the last shot or turn, up to an assumed 2.3 s aim time; resets on every shot. Config `packages/analysis/config/aim-v0.json` (all assumptions until gun data, #42). A shot can snap the turret when the assumed speed was too slow. 3D view shows turret rotation, first person follows the turret, and a reticle HUD shows the counter.

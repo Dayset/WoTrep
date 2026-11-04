@@ -345,12 +345,14 @@
   "pov.off": "Top-down",
   "pov.fp": "First person",
   "pov.chase": "Behind the tank",
-  "pov.note": "Simple 3D: drag to look around, wheel or pinch to zoom, double-click to reset. Flat ground, boxes for tanks; trees, bushes, clouds and mountains are decoration only and do not show real cover. Yellow = enemy that hit the followed tank in the last 4 s.",
+  "pov.note": "Simple 3D: drag to look around, wheel or pinch to zoom, double-click to reset. Flat ground, boxes for tanks; trees, bushes, clouds and mountains are decoration only and do not show real cover. Yellow = enemy that hit the followed tank in the last 4 s. Turret direction and the aim counter are estimates: the turret points along each shell's path and turns at an assumed 30°/s; aim time is an assumed 2.3 s (typical medium gun). Real values need gun data.",
   "pov.show": "Show from their view",
   "mp.l.vanish": "Enemy vanishes",
   "mp.l.vanish.how": "Each time an enemy tank that is still alive leaves our team's vision, it is counted in the cell where it was last seen. Short flickers and deaths are left out.",
   "mp.l.vanish.mean": "A clue to cover and line-of-sight breaks: places where enemies keep disappearing are likely behind something or in foliage. It can also be camouflage, range or a spotter that died, so one replay is weak evidence; many replays on the same map would make it reliable.",
   "mp.who": "Player",
   "mp.all": "All players",
-  "mp.you": "you"
+  "mp.you": "you",
+  "pov.aim": "Aim",
+  "pov.turning": "turret turning"
 }

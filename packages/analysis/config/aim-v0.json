@@ -1,0 +1,6 @@
+{
+  "traverseDegS": { "value": 30, "why": "assumption, no gun data yet (#42): a typical medium-tank turret turns 24-40 deg/s; replace with per-vehicle values", "n": 0, "date": "2026-11-03" },
+  "aimTimeS": { "value": 2.3, "why": "assumption, no gun data yet (#42): usual WoT aim time is about 1.7-3.5 s by gun; 2.3 s is a common medium-gun value; the game's aim circle settles in about this time after the turret stops or the gun fires", "n": 0, "date": "2026-11-03" },
+  "holdS": { "value": 1, "why": "guess (turret stays on the target this long after a shot)", "n": 0, "date": "2026-11-03" },
+  "horizonS": { "value": 6, "why": "guess (a next shot within this many seconds means the turret stays pre-aimed toward it; later it goes back to the hull direction)", "n": 0, "date": "2026-11-03" }
+}

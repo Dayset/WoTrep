@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
-import { tracerLines } from "@wotrep/analysis";
+import { tracerLines, aimAt } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
 
 /** Low-poly 3D view of the replay on flat ground (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
@@ -26,7 +26,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds }: {
     for (const v of tl.vehicles) {
       const mat = new THREE.MeshLambertMaterial({ color: v.team === tl.recorder.team ? ally : foe, flatShading: true, transparent: true }), g = new THREE.Group();
       const h = new THREE.Mesh(hull, mat); h.position.y = 1.1; const tu = new THREE.Mesh(tur, mat); tu.position.set(0, 2.25, 0.3); const gn = new THREE.Mesh(gun, mat); gn.position.set(0, 2.3, -2.2);
-      g.add(h, tu, gn); g.visible = false; scene.add(g); tanks.set(v.vid, { g, mat });
+      const tg = new THREE.Group(); tg.add(tu, gn); g.add(h, tg); g.visible = false; scene.add(g); tanks.set(v.vid, { g, mat });
     }
     const labels: THREE.Sprite[] = [], shots = tracerLines(tl, {}), MAXS = 80;
     for (const v of tl.vehicles) {
@@ -63,19 +63,19 @@ export default function PovView({ tl, clock, vid, mode, img, bounds }: {
     dom.addEventListener("pointerdown", down); dom.addEventListener("pointermove", move); dom.addEventListener("pointerup", up); dom.addEventListener("pointercancel", up); dom.addEventListener("wheel", wheel, { passive: false }); dom.addEventListener("dblclick", reset);
     size(); const ro = new ResizeObserver(size); ro.observe(el);
     let raf = 0; const loop = () => {
-      raf = requestAnimationFrame(loop); const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
+      raf = requestAnimationFrame(loop); let turretYaw = 0; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
       const hit = new Set<number>(); for (const e of tl.events) if (e.k === "damage" && e.target === L.vid && e.t <= clock.current.t && e.t >= clock.current.t - 4) hit.add(e.attacker);
       for (const u of s.units) {
         const k = tanks.get(u.vid)!; k.g.visible = u.known !== "never" && !(L.mode === "fp" && u.vid === L.vid && u.alive);
         k.g.position.set(u.x, 0, -u.z); k.g.rotation.y = -u.yaw; k.mat.opacity = !u.alive ? 0.5 : u.known === "ghost" ? 0.3 : 1;
         k.mat.color.copy(!u.alive ? new THREE.Color(0x444444) : hit.has(u.vid) ? new THREE.Color(0xffd23f) : u.team === tl.recorder.team ? ally : foe);
-        k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[3]!.visible = u.vid !== L.vid;
+        k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = u.alive ? aimAt(tl, u.vid, clock.current.t) : null; (k.g.children[1] as THREE.Group).rotation.y = aim ? u.yaw - aim.yaw : 0; if (u.vid === L.vid) turretYaw = aim ? aim.yaw : u.yaw;
       }
       let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; tpos.set([sh.x0, 2.6, -sh.z0, sh.x1, 2.6, -sh.z1], n * 6); n++; }
       tgeo.setDrawRange(0, n * 2); (tgeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
       if (me && me.known !== "never") {
         const f = new THREE.Vector3(Math.sin(me.yaw), 0, -Math.cos(me.yaw)), p = new THREE.Vector3(me.x, 0, -me.z);
-        const K = look.current, ay = -me.yaw + K.yaw, cp = Math.cos(K.pitch);
+        const K = look.current, ay = -(L.mode === "fp" ? turretYaw : me.yaw) + K.yaw, cp = Math.cos(K.pitch);
         if (L.mode === "fp") { cam.position.set(p.x, 2.9, p.z); cam.lookAt(p.x - Math.sin(ay) * 50, 2.9 - (K.pitch - 0.28) * 50, p.z - Math.cos(ay) * 50); }
         else { cam.position.set(p.x + Math.sin(ay) * cp * K.dist, Math.max(1, 1.5 + Math.sin(K.pitch) * K.dist), p.z + Math.cos(ay) * cp * K.dist); cam.lookAt(p.x, 2, p.z); }
         void f;
