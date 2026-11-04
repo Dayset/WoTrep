@@ -208,6 +208,7 @@
   "coach.unseenDamage.unresolved.title": "Hidden damage not placed",
   "coach.unseenDamage.unresolved.body": "Lost {hp} HP out of view and no candidate could be matched to it. Most likely source: {suspect}.",
   "coach.unseenDamage.unresolved.fix": "The replay does not show who dealt this damage.",
+  "pcard.close": "Close",
   "coach.collision.title": "Rammed a teammate",
   "coach.collision.body": "Contact damage: you dealt {dealt} and took {got}. Nothing was gained, the team just lost HP.",
   "coach.collision.fix": "Check the tank beside you before you turn or reverse. A collision with an ally is never a trade.",

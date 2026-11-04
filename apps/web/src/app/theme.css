@@ -267,3 +267,7 @@ select.pick { width: auto; max-width: min(100%, 220px); font-size: 13px; padding
 
 /* Estimated values (not replay data): shown italic and muted */
 .est { font-style: italic; color: var(--muted); }
+
+/* Finding card: close button in the corner */
+.pcard { position: relative; }
+.pcardx { position: absolute; top: 2px; right: 4px; min-height: 28px; min-width: 28px; padding: 0 6px; border: 0; background: transparent; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }

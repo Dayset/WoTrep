@@ -208,6 +208,7 @@
   "coach.unseenDamage.unresolved.title": "Скрытый урон не распределён",
   "coach.unseenDamage.unresolved.body": "Потеряно {hp} HP вне обзора, ни один кандидат не совпал. Наиболее вероятный источник: {suspect}.",
   "coach.unseenDamage.unresolved.fix": "В реплее не видно, кто нанёс этот урон.",
+  "pcard.close": "Закрыть",
   "coach.collision.title": "Столкновение с союзником",
   "coach.collision.body": "Урон от тарана: вы нанесли {dealt}, получили {got}. Ничего не выиграно, команда просто потеряла HP.",
   "coach.collision.fix": "Смотрите на соседний танк перед поворотом или задним ходом. Столкновение с союзником никогда не является обменом.",
