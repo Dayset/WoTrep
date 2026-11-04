@@ -1,0 +1,20 @@
+{
+  "minUnseenHp": {
+    "value": 150,
+    "why": "initial guess: an HP loss of at least this much with no damage events behind it counts as unseen damage (a single hit is often 100–400 HP, so smaller gaps are noise)",
+    "n": 0,
+    "date": "2026-11-04"
+  },
+  "topN": {
+    "value": 3,
+    "why": "initial guess: candidate sources listed per drop",
+    "n": 0,
+    "date": "2026-11-04"
+  },
+  "maxConfidence": {
+    "value": 0.4,
+    "why": "initial guess: attribution is an estimate, never certain, so confidence is capped",
+    "n": 0,
+    "date": "2026-11-04"
+  }
+}
