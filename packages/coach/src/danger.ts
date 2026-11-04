@@ -19,8 +19,8 @@ export function dangerSpots(tl: BattleTimeline): DangerSpot[] {
     const official = tl.results?.players[me.vid]?.damageDealt ?? 0, coverage = official > 0 ? Math.min(1, (seen.get(me.vid) ?? 0) / official) : 1;
     for (const g of engagements(tl, v("gapS"), me.vid)) {
       if (!(g.got >= v("minLossShare") * me.maxHealth && g.dealt / g.got < v("maxRatio"))) continue;
-      const s = stateAt(tl, g.t0), u = s.units.find((x) => x.vid === me.vid), known = !!u && u.known !== "never";
-      const allies = s.units.filter((x) => x.team === me.team && x.vid !== me.vid && x.alive && x.known !== "never");
+      const s = stateAt(tl, g.t0), u = s.units.find((x) => x.vid === me.vid), known = !!u && u.known === "live";
+      const allies = s.units.filter((x) => x.team === me.team && x.vid !== me.vid && x.alive && x.known === "live");
       const nearest = known && allies.length ? Math.min(...allies.map((a) => Math.hypot(a.x - u!.x, a.z - u!.z))) : null;
       const cause: DangerCause = nearest != null && nearest > v("allyDistM") ? "alone" : g.foes.length >= v("crossfireFoes") ? "crossfire" : g.t0 < v("earlyS") ? "early" : "outtraded";
       const died = tl.events.some((e) => e.k === "kill" && e.victim === me.vid && e.t >= g.t0 && e.t <= g.t1 + 3);

@@ -5,12 +5,13 @@ export const recorder = (tl: BattleTimeline) => tl.vehicles.find((v) => v.isReco
 export const subject = (tl: BattleTimeline, vid?: number) => vid != null ? tl.vehicles.find((v) => v.vid === vid) : recorder(tl);
 export const dist = (a: Unit, b: Unit) => Math.hypot(a.x - b.x, a.z - b.z);
 /** The subject's view of a second: live enemies near, nearest living ally. Positions and visibility come from the recorder's
- *  battle data, so for a non-recorder subject this is what the replay shows — not what the subject saw. */
+ *  battle data, so for a non-recorder subject this is what the replay shows — not what the subject saw.
+ *  Only live positions count: a ghost is the last spotted spot, so distances from it are stale. A ghost subject gives null. */
 export function around(tl: BattleTimeline, t: number, rangeM: number, subjectVid?: number) {
   const v = subject(tl, subjectVid); if (!v) return null;
   const me = v, s = stateAt(tl, t), u = s.units.find((x) => x.vid === me.vid);
-  if (!u || u.known === "never") return null;
-  const allies = s.units.filter((x) => x.team === me.team && x.vid !== me.vid && x.alive && x.known !== "never");
+  if (!u || u.known !== "live") return null;
+  const allies = s.units.filter((x) => x.team === me.team && x.vid !== me.vid && x.alive && x.known === "live");
   const enemies = s.units.filter((x) => x.team !== me.team && x.alive && x.known === "live" && dist(u, x) <= rangeM);
   const nearest = allies.reduce<{ vid: number; d: number } | null>((b, a) => { const d = dist(u, a); return !b || d < b.d ? { vid: a.vid, d } : b; }, null);
   return { me: u, enemies, nearestAlly: nearest };

@@ -1,0 +1,267 @@
+[
+  {
+    "vid": 13908113,
+    "kind": "mistake",
+    "tStart": 253.99,
+    "tEnd": 255.19,
+    "leadS": 3,
+    "cost": {
+      "hp": 421
+    },
+    "confidence": 1,
+    "evidence": [
+      {
+        "k": "unit",
+        "vid": 13908133,
+        "t": 253.99
+      },
+      {
+        "k": "timer",
+        "vid": 13908133,
+        "t": 253.99,
+        "label": "reload",
+        "secondsLeft": 5.3
+      },
+      {
+        "k": "line",
+        "from": 13908133,
+        "to": 13908113,
+        "t": 253.99,
+        "style": "threat"
+      },
+      {
+        "k": "number",
+        "label": "hp lost",
+        "value": 421,
+        "unit": "hp"
+      }
+    ],
+    "messageKey": "coach.peekIntoLoadedAutoloader",
+    "params": {
+      "got": 421,
+      "enemy": "P-133"
+    },
+    "guide": "autoloader-timing",
+    "drill": true,
+    "schema": "wotrep.finding/1",
+    "detector": "peek-into-loaded-autoloader",
+    "detectorVersion": 1,
+    "id": "peek-into-loaded-autoloader:13908113:254.0"
+  },
+  {
+    "vid": 13908113,
+    "kind": "mistake",
+    "tStart": 268.29,
+    "tEnd": 270.69,
+    "leadS": 3,
+    "cost": {
+      "damageMissed": 236
+    },
+    "confidence": 0.6,
+    "evidence": [
+      {
+        "k": "number",
+        "label": "shells",
+        "value": 11
+      },
+      {
+        "k": "number",
+        "label": "pens",
+        "value": 1
+      },
+      {
+        "k": "number",
+        "label": "damage",
+        "value": 52,
+        "unit": "hp"
+      }
+    ],
+    "messageKey": "coach.lowYieldClip",
+    "params": {
+      "shells": 11,
+      "pens": 1,
+      "dmg": 52
+    },
+    "guide": "autoloader-timing",
+    "schema": "wotrep.finding/1",
+    "detector": "low-yield-clip",
+    "detectorVersion": 1,
+    "id": "low-yield-clip:13908113:268.3"
+  },
+  {
+    "vid": 13908113,
+    "kind": "mistake",
+    "tStart": 38.2,
+    "tEnd": 77,
+    "leadS": 3,
+    "cost": {
+      "damageMissed": 212
+    },
+    "confidence": 0.6,
+    "evidence": [
+      {
+        "k": "number",
+        "label": "shells",
+        "value": 10
+      },
+      {
+        "k": "number",
+        "label": "pens",
+        "value": 1
+      },
+      {
+        "k": "number",
+        "label": "damage",
+        "value": 46,
+        "unit": "hp"
+      }
+    ],
+    "messageKey": "coach.lowYieldClip",
+    "params": {
+      "shells": 10,
+      "pens": 1,
+      "dmg": 46
+    },
+    "guide": "autoloader-timing",
+    "schema": "wotrep.finding/1",
+    "detector": "low-yield-clip",
+    "detectorVersion": 1,
+    "id": "low-yield-clip:13908113:38.2"
+  },
+  {
+    "vid": 13908113,
+    "kind": "good",
+    "tStart": 123.2,
+    "tEnd": 125.3,
+    "leadS": 3,
+    "cost": {
+      "winProbDelta": 0.026
+    },
+    "confidence": 0.6,
+    "evidence": [
+      {
+        "k": "line",
+        "from": 13908113,
+        "to": 13908122,
+        "t": 123.2,
+        "style": "fire"
+      },
+      {
+        "k": "path",
+        "vid": 13908113,
+        "t0": 115.2,
+        "t1": 125.3,
+        "style": "actual"
+      },
+      {
+        "k": "number",
+        "label": "dealt",
+        "value": 342,
+        "unit": "hp"
+      },
+      {
+        "k": "number",
+        "label": "received",
+        "value": 104,
+        "unit": "hp"
+      }
+    ],
+    "messageKey": "coach.wonTrade",
+    "params": {
+      "dealt": 342,
+      "got": 104
+    },
+    "guide": "trading-hp",
+    "schema": "wotrep.finding/1",
+    "detector": "won-trade",
+    "detectorVersion": 1,
+    "id": "won-trade:13908113:123.2"
+  },
+  {
+    "vid": 13908113,
+    "kind": "good",
+    "tStart": 175.4,
+    "tEnd": 178.8,
+    "leadS": 3,
+    "cost": {
+      "winProbDelta": 0.018
+    },
+    "confidence": 0.6,
+    "evidence": [
+      {
+        "k": "line",
+        "from": 13908113,
+        "to": 13908121,
+        "t": 175.4,
+        "style": "fire"
+      },
+      {
+        "k": "path",
+        "vid": 13908113,
+        "t0": 167.4,
+        "t1": 178.8,
+        "style": "actual"
+      },
+      {
+        "k": "number",
+        "label": "dealt",
+        "value": 493,
+        "unit": "hp"
+      },
+      {
+        "k": "number",
+        "label": "received",
+        "value": 0,
+        "unit": "hp"
+      }
+    ],
+    "messageKey": "coach.wonTrade",
+    "params": {
+      "dealt": 493,
+      "got": 0
+    },
+    "guide": "trading-hp",
+    "schema": "wotrep.finding/1",
+    "detector": "won-trade",
+    "detectorVersion": 1,
+    "id": "won-trade:13908113:175.4"
+  },
+  {
+    "vid": 13908113,
+    "kind": "info",
+    "tStart": 298,
+    "tEnd": 328,
+    "leadS": 3,
+    "cost": {
+      "damageMissed": 458
+    },
+    "confidence": 0.8,
+    "evidence": [
+      {
+        "k": "number",
+        "label": "weak damage",
+        "value": 234,
+        "unit": "hp"
+      },
+      {
+        "k": "number",
+        "label": "weak shells",
+        "value": 31
+      }
+    ],
+    "messageKey": "coach.lowYieldSummary",
+    "params": {
+      "lowN": 3,
+      "lowShells": 31,
+      "lowDmg": 234,
+      "highN": 3,
+      "highShells": 30,
+      "highDmg": 1128
+    },
+    "guide": "autoloader-timing",
+    "schema": "wotrep.finding/1",
+    "detector": "low-yield-clip",
+    "detectorVersion": 1,
+    "id": "low-yield-clip:13908113:298.0"
+  }
+]

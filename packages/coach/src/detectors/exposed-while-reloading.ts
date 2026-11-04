@@ -29,7 +29,8 @@ export const exposedWhileReloading = defineDetector({
     const shots = shotTimes(tl, me.vid);
     const est = estimateReload(shots);
     if (est.clipSize <= 1 || est.confidence < minConfidence || est.reloadS == null) return [];
-    const posAt = (t: number) => { const u = stateAt(tl, t).units.find((x) => x.vid === me.vid); return u && u.known !== "never" ? u : null; };
+    // only live positions: a ghost is the last spotted spot, so movement measured from it is not movement
+    const posAt = (t: number) => { const u = stateAt(tl, t).units.find((x) => x.vid === me.vid); return u && u.known === "live" ? u : null; };
     const groups = new Map<number, { hits: { t: number; amount: number; attacker: number }[]; lastShot: number; left0: number }>();
     for (const e of tl.events) {
       if (e.k !== "damage" || e.target !== me.vid) continue;
