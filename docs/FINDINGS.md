@@ -146,3 +146,6 @@ Next, by value: (1) spot quality and spot-to-damage link (needs 0x37 / #26); (2)
 - Fixture medians (recorder team / enemy): m/min 333 / 194, standing still 20% / 27%, under 2+ enemies at 150 m 16% / 73%. The enemy figure is inflated by the spotting bias, so compare within a team.
 - Packets: 0x37 (kill message on WG) still not decoded; needs a packet-layout pass. Spot-to-damage link and exact assists remain blocked on #26/#30.
 - Next: line-of-sight from aggregated vanish events; pair "under 2+ enemies" with the danger spots to separate daredevils who got away from those who paid.
+
+## WG kill message found (2026-11-03)
+Kill records in 0x37 packets (`78 01 victim killer reason`) give exact killer, reason and packet time for Wargaming replays; see REPLAY_FORMAT.md. 203/203 match results. Gaps: 23 of 27 deaths in one dday replay (rest from results), Tundra/Epic layout unknown. Also seen in the same stream: `deathOrder` pickles, and per-slot records `0c b7 02 06 <slot> 98 <n>` that look like per-vehicle counters (undecoded). Candidate source for assists and spots: look at records around damage events (next).

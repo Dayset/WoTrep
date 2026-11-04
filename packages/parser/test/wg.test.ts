@@ -15,6 +15,8 @@ describe.skipIf(!existsSync(path))("Wargaming 2.4.1.0 draft manifest (local repl
     const ids = new Set(ev.filter((e) => e.k === "shot").map((e) => e.shotId)), ends = ev.filter((e) => e.k === "projectileEnd");
     const kills = ev.filter((e) => e.k === "kill"); expect(kills.length).toBe(27);       // results list 27 destroyed tanks
     expect(kills.every((k) => tl.vehicles.some((v) => v.vid === k.victim))).toBe(true);
+    expect(tl.diagnostics.warnings.some((w) => w.startsWith("kills read from 0x37 packets"))).toBe(true);
+    for (const k of kills) { const r = tl.results!.players[k.victim]!; expect(k.killer).toBe(r.killerVid); expect(k.reason).toBe(r.deathReason); expect(Math.abs(k.t - r.lifeTimeS)).toBeLessThan(35); }
     expect(ends.length).toBe(121); expect(ends.every((e) => ids.has(e.shotId))).toBe(true);
   });
 });

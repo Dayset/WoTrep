@@ -146,3 +146,6 @@ Indices change between client versions and between WG and Lesta. Never hard-code
   resolves to the real name through the public API). A parser test enforces this (E1-08, #27).
 - Positions of other players exist in every replay; we show them only inside that battle's viewer, never as
   cross-battle per-player tracking.
+
+### Wargaming 0x37: kill record (V on 8 replays)
+Inside the nested property-update stream of 0x37 packets: `78 01 <victim u32 LE> <killer u32 LE> <reason u8> ...`, ids are vehicle entity ids. 203/203 killer and reason values equal the results block; distinct victims equal the deaths in the results in 7 of 8 replays (one replay has 23 records for 27 deaths, the rest are filled from results). Records repeat in later packets; the earliest wins. Next to it: pickled `{'deathOrder': n}` (`0c b7 02 1a ..`), the nth death. Tundra (14 players) and Epic (60) replays have no such record (layout differs), they fall back to results. Decoder: `packages/parser/src/wgkill.ts`.

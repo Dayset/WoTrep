@@ -8,6 +8,7 @@ import { buildTracks } from "./positions";
 import { decodeCamera, decodeChat, decodeEvents, findBattleStart } from "./events";
 import { anonymizedVids } from "./privacy";
 import { killsFromResults, normalizeResults } from "./results";
+import { killsFromPackets } from "./wgkill";
 
 const KNOWN = new Set([0x00, 0x01, 0x02, 0x04, 0x05, 0x06, 0x07, 0x08, 0x0a, 0x0d, 0x0f, 0x11, 0x12, 0x15, 0x16, 0x17, 0x18, 0x1a, 0x1b, 0x1c, 0x1d, 0x1f, 0x20, 0x22, 0x23, 0x24, 0x26, 0x28, 0x2b, 0x2d, 0x2e, 0x30, 0x31, 0x32, 0x35, 0x36, 0x37, 0x3d, 0xffffffff]);
 
@@ -46,8 +47,11 @@ export async function parseReplay(bytes: Uint8Array, fileName?: string): Promise
   const events = [...(res.manifest ? decodeEvents(calls, res.manifest, T0) : []), ...decodeChat(walk.packets, T0)].sort((a, b) => a.t - b.t);
   if (nr && t0 != null && !events.some((e) => e.k === "kill")) {
     // No kill message decoded for this client version: rebuild kills from the results block (see killsFromResults).
-    const derived = killsFromResults(nr.results);
-    if (derived.length) { events.push(...derived); events.sort((a, b) => a.t - b.t); warnings.push(`kills derived from battle results (time within +-0.5 s): ${derived.length}`); }
+    const fromPk = killsFromPackets(walk.packets, vehicleIds, T0), have = new Set(fromPk.map((e) => (e.k === "kill" ? e.victim : -1)));
+    const derived = killsFromResults(nr.results).filter((e) => e.k === "kill" && !have.has(e.victim));
+    if (fromPk.length) warnings.push(`kills read from 0x37 packets: ${fromPk.length}`);
+    if (derived.length) warnings.push(`kills derived from battle results (time within +-0.5 s): ${derived.length}`);
+    if (fromPk.length || derived.length) { events.push(...fromPk, ...derived); events.sort((a, b) => a.t - b.t); }
   }
   const rec = vehicles.find((v) => v.isRecorder)!;
   const tl: BattleTimeline = {
