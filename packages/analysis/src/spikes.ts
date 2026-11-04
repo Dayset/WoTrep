@@ -40,3 +40,10 @@ export function largestRaise(tl: BattleTimeline, team: 1 | 2): Swing | null {
   for (const s of impactSwings(tl)) if (s.team[team] > 0 && (!best || s.team[team] > best.team[team])) best = s;
   return best;
 }
+
+/** The biggest single loss for a team (its most negative swing), or null when it never lost ground. */
+export function largestDrop(tl: BattleTimeline, team: 1 | 2): Swing | null {
+  let worst: Swing | null = null;
+  for (const s of impactSwings(tl)) if (s.team[team] < 0 && (!worst || s.team[team] < worst.team[team])) worst = s;
+  return worst;
+}

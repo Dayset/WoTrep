@@ -16,6 +16,7 @@ import { Scoreboard } from "./Scoreboard";
 import { alignment, detectors, goodPlaysAll, rank, runDetectors } from "@wotrep/coach";
 import { Vote, FeedbackExport } from "./Feedback";
 import { StyleTable } from "./StyleTable";
+import { Swings } from "./Swings";
 
 const tank = (v: VehicleInfo) => vehicleLabel(v.vehicleType).label;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
@@ -142,7 +143,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
           {subjectVid !== tl.recorder.vid && <p className="muted">{t("report.subjectPartial")}</p>}
         </div>
       )}
-      {tab === "stats" && <><StyleTable tl={tl} /><Stats tl={tl} vid={subjectVid} /><FeedbackExport />{debugOn() && <Debug tl={tl} />}</>}
+      {tab === "stats" && <><Swings tl={tl} /><StyleTable tl={tl} /><Stats tl={tl} vid={subjectVid} /><FeedbackExport />{debugOn() && <Debug tl={tl} />}</>}
       {tab === "coach" && <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => { setSeekTo((s) => ({ t: Math.max(0, f.tStart - f.leadS), n: s.n + 1 })); go("replay"); }} />}
       {tab === "teams" && <div className="pane">
         <Seg value={tsub} set={setTsub} label={t("ui.tab.teams")} items={[["score", t("ui.t.score")], ["ledger", t("ui.t.ledger")], ["danger", t("ui.t.danger")], ["move", t("ui.t.move")]]} />
