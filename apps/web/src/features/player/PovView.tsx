@@ -5,6 +5,15 @@ import { tracerLines, aimAt, heightField, heightAt } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
 import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, trainerMatch, type TrainerSel } from "./viewConfig";
 
+/** Seeded per-pixel noise (dithering) as a canvas texture: a base colour with a small random spread per pixel. */
+function noiseTexture(size: number, base: [number, number, number], spread: number): THREE.CanvasTexture {
+  const c = document.createElement("canvas"); c.width = c.height = size; const g = c.getContext("2d")!, img = g.createImageData(size, size);
+  let seed = 987654321; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let i = 0; i < size * size; i++) { const d = (rnd() - 0.5) * spread; for (let k = 0; k < 3; k++) img.data[i * 4 + k] = Math.max(0, Math.min(255, base[k]! + d)); img.data[i * 4 + 3] = 255; }
+  g.putImageData(img, 0, 0);
+  const tx = new THREE.CanvasTexture(c); tx.magFilter = THREE.NearestFilter; tx.wrapS = tx.wrapT = THREE.RepeatWrapping; return tx;
+}
+
 /** Low-poly 3D view of the replay on flat ground (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
  *  Heights and cover are not known yet, so ground is flat and nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
 export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync, trails, trainer }: {
@@ -25,12 +34,17 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     const geo = new THREE.BufferGeometry(), nv = field.cols * field.rows, pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), col = new Float32Array(nv * 3), idx: number[] = [];
     for (let r = 0; r < field.rows; r++) for (let c = 0; c < field.cols; c++) {
       const i = r * field.cols + c, x = field.x0 + c * field.cell, z = field.z0 + r * field.cell, y = field.h[i]!, k = (y - hMin) / Math.max(1, hMax - hMin);
-      pos.set([x, y, -z], i * 3); uv.set([(x - bounds.x0) / W, (z - bounds.z0) / D], i * 2); col.set([0.33 + 0.30 * k, 0.55 + 0.08 * k, 0.30 + 0.12 * k], i * 3);
+      pos.set([x, y, -z], i * 3); uv.set([(x - bounds.x0) / W, (z - bounds.z0) / D], i * 2); col.set([0.27 + 0.10 * k, 0.27 + 0.10 * k, 0.28 + 0.10 * k], i * 3);
       if (r < field.rows - 1 && c < field.cols - 1) idx.push(i, i + 1, i + field.cols, i + 1, i + field.cols + 1, i + field.cols);
     }
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
     let tex: THREE.Texture | null = null; if (img) { tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true; }
-    const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff, map: tex, vertexColors: !tex, flatShading: true })); scene.add(ground);
+    const grain = noiseTexture(128, [72, 72, 74], 46); grain.repeat.set(W / 12, D / 12);
+    const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff, map: tex ?? grain, vertexColors: !tex, flatShading: true })); scene.add(ground);
+    // sky dome: blue dithering that stays with the camera
+    const skyTex = noiseTexture(64, [186, 210, 232], 34); skyTex.repeat.set(28, 14);
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(3000, 24, 12), new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false, depthWrite: false }));
+    sky.renderOrder = -1; scene.add(sky);
     const hull = new THREE.BoxGeometry(3.2, 1.5, 6.4), tur = new THREE.BoxGeometry(2, 0.9, 2.4), gun = new THREE.BoxGeometry(0.25, 0.25, 3.6);
     const tanks = new Map<number, { g: THREE.Group; mat: THREE.MeshLambertMaterial }>();
     for (const v of tl.vehicles) {
@@ -148,6 +162,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       if (me && me.known !== "never") {
         const p = new THREE.Vector3(me.x, gh(me.x, me.z), -me.z), K = look.current, ay = -(L.mode === "fp" ? turretYaw : hullYawS) + K.yaw, cp = Math.cos(K.pitch);
         pitchNow += (turretPitch - pitchNow) * 0.15;
+        sky.position.copy(cam.position);
         if (L.mode === "fp") { cam.position.set(p.x, p.y + 2.9, p.z); cam.lookAt(p.x - Math.sin(ay) * 50, p.y + 2.9 + Math.tan(pitchNow) * 50 - (K.pitch - 0.28) * 50, p.z - Math.cos(ay) * 50); }
         else { const cx = p.x + Math.sin(ay) * cp * K.dist, cz = p.z + Math.cos(ay) * cp * K.dist; cam.position.set(cx, Math.max(gh(cx, -cz) + 1.2, p.y + 1.5 + Math.sin(K.pitch) * K.dist), cz); cam.lookAt(p.x, p.y + 2, p.z); }
       }
@@ -161,7 +176,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
             const tt = tr.t[i]!; if (prev && prev.t - tt < 0.3) continue; if (!visAt(tr, tt)) { prev = null; continue; }
             const x = tr.x[i]!, z = tr.z[i]!;
             if (prev) { const dx = x - prev.x, dz = z - prev.z, len = Math.hypot(dx, dz); if (prev.t - tt > 1.5 || len > 30 || len < 0.2) { prev = len > 30 || prev.t - tt > 1.5 ? null : prev; if (!prev) { prev = { x, z, t: tt }; } continue; }
-              nx = -dz / len * 0.4; nz = dx / len * 0.4; const a0 = Math.max(0, 1 - (T - prev.t) / TRAIL_S) * 0.7, a1 = Math.max(0, 1 - (T - tt) / TRAIL_S) * 0.7, y0 = gh(prev.x, prev.z) + 0.2, y1 = gh(x, z) + 0.2, o = q * 12, c = q * 16;
+              nx = -dz / len * 0.4; nz = dx / len * 0.4; const a0 = 0.25, a1 = 0.25, y0 = gh(prev.x, prev.z) + 0.2, y1 = gh(x, z) + 0.2, o = q * 12, c = q * 16;
               tpos2.set([prev.x - nx, y0, -(prev.z - nz), prev.x + nx, y0, -(prev.z + nz), x - nx, y1, -(z - nz), x + nx, y1, -(z + nz)], o);
               tcol2.set([rgb.r, rgb.g, rgb.b, a0, rgb.r, rgb.g, rgb.b, a0, rgb.r, rgb.g, rgb.b, a1, rgb.r, rgb.g, rgb.b, a1], c); q++; got++; }
             prev = { x, z, t: tt };
