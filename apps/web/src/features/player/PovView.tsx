@@ -88,7 +88,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     // trees and bushes: a solid copy and a 70% transparent copy of every instance; the ones close in front of the camera use the transparent copy (they are not real cover)
     type Item = { x: number; y: number; z: number; sx: number; sy: number; sz: number };
     const trees: Item[] = Array.from({ length: 220 }, () => { const x = rx(), z = rz(), k = 0.8 + rnd() * 0.7; return { x, y: gh(x, -z), z, sx: k, sy: k, sz: k }; });
-    const BUSHES_N = 900, bushes: Item[] = Array.from({ length: BUSHES_N }, () => { const x = rx(), z = rz(); return { x, y: gh(x, -z), z, sx: 0.8 + rnd(), sy: 0.6 + rnd() * 0.6, sz: 0.8 + rnd() }; });
+    const BUSHES_N = 9000, bushes: Item[] = Array.from({ length: BUSHES_N }, () => { const x = rx(), z = rz(); return { x, y: gh(x, -z), z, sx: 0.8 + rnd(), sy: 0.6 + rnd() * 0.6, sz: 0.8 + rnd() }; });
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
     const dual: { items: Item[]; solid: THREE.InstancedMesh; ghost: THREE.InstancedMesh; faded: Map<Item, boolean> }[] = [];
     const addDual = (g: THREE.BufferGeometry, color: number, items: Item[]) => {
@@ -101,7 +101,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     const cross = (() => { const a = new THREE.PlaneGeometry(2.4, 1.2); a.translate(0, 0.6, 0); const b = a.clone(); b.rotateY(Math.PI / 2);
       const g = new THREE.BufferGeometry(), pa = a.attributes.position!.array as Float32Array, pb = b.attributes.position!.array as Float32Array, ia = a.index!.array, ib = b.index!.array, n = pa.length / 3;
       g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([...pa, ...pb]), 3)); g.setIndex([...Array.from(ia), ...Array.from(ib, (i) => i + n)]); return g; })();
-    const bushMat = new THREE.MeshBasicMaterial({ color: 0x9ccc6e, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false });
+    const bushMat = new THREE.MeshBasicMaterial({ color: 0x9ccc6e, transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthWrite: false });
     const bushIm = new THREE.InstancedMesh(cross, bushMat, BUSHES_N), bo = new THREE.Object3D();
     bushes.forEach((b, i) => { bo.position.set(b.x, b.y, -b.z); bo.rotation.set(0, rnd() * Math.PI, 0); bo.scale.set(b.sx * 1.4, b.sy * 0.7, b.sz * 1.4); bo.updateMatrix(); bushIm.setMatrixAt(i, bo.matrix); });
     bushIm.frustumCulled = false; scene.add(bushIm); deco.push(cross); decoMat.push(bushMat);
