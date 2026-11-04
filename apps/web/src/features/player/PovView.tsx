@@ -50,6 +50,14 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       fan.visible = ring.visible = false; fan.frustumCulled = ring.frustumCulled = false; fan.renderOrder = 2; scene.add(fan, ring);
       vcones.set(v.vid, { fan, fanPos, ring, ringPos });
     }
+    // smoke over destroyed tanks: a few low-poly puffs per tank, rising high and staying visible from far away
+    const puffGeo = new THREE.IcosahedronGeometry(1, 0), SMOKE_END_S = 120;
+    const deathAt = new Map<number, number>(); for (const e of tl.events) if (e.k === "kill" && e.t >= 0 && !deathAt.has(e.victim)) deathAt.set(e.victim, e.t);
+    const smoke = new Map<number, { puffs: THREE.Mesh[]; mat: THREE.MeshLambertMaterial }>();
+    for (const v of tl.vehicles) { if (!deathAt.has(v.vid)) continue;
+      const mat = new THREE.MeshLambertMaterial({ color: 0x8c8c8c, flatShading: true, transparent: true, opacity: 0, depthWrite: false });
+      const puffs = Array.from({ length: 5 }, () => { const m = new THREE.Mesh(puffGeo, mat); m.visible = false; m.frustumCulled = false; scene.add(m); return m; });
+      smoke.set(v.vid, { puffs, mat }); }
     const labels: THREE.Sprite[] = [], shots = tracerLines(tl, {}), MAXS = 80;
     for (const v of tl.vehicles) {
       const c = document.createElement("canvas"); c.width = 256; c.height = 64; const g2 = c.getContext("2d")!; g2.font = "bold 34px sans-serif"; g2.textAlign = "center"; g2.fillStyle = "rgba(0,0,0,0.55)"; g2.fillRect(0, 8, 256, 48); g2.fillStyle = v.team === tl.recorder.team ? "#9fd0ff" : "#ffb0b0"; g2.fillText(v.name.slice(0, 14), 128, 46);
@@ -125,6 +133,14 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
             (cn.fan.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
             (cn.ring.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
           } }
+        { const sk = smoke.get(u.vid), dth = deathAt.get(u.vid);
+          if (sk) { const age = dth != null ? clock.current.t - dth : -1, on = age >= 0 && age < SMOKE_END_S;
+            sk.puffs.forEach((p) => { p.visible = on; });
+            if (on) { sk.mat.opacity = 0.8 * Math.max(0, 1 - Math.max(0, age - 60) / 60);
+              const rise = Math.min(age, 90) * 3.5, base = gh(u.x, u.z) + 6;
+              sk.puffs.forEach((p, j) => { const a = age * 0.25 + j * 1.3, sway = 4 + age * 0.08;
+                p.position.set(u.x + Math.sin(a) * sway, base + rise - j * 5, -u.z + Math.cos(a) * sway);
+                p.scale.setScalar(Math.min(45, 7 + age * 0.35 + j * 2.5)); p.rotation.set(a, a * 0.7, 0); }); } } }
         k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = aim0; (k.g.children[1] as THREE.Group).rotation.y = aim ? sm.h - sm.g : 0; if (u.vid === L.vid) { turretYaw = sm.g; hullYawS = sm.h; onTarget = !!aim?.onTarget; turretPitch = aim ? aim.pitch : 0; }
       }
       let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; tpos.set([sh.x0, (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, -sh.z0, sh.x1, (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, -sh.z1], n * 6); n++; }
