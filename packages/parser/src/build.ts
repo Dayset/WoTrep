@@ -1,4 +1,4 @@
-import { validateTimeline, type BattleTimeline, type VehicleInfo } from "@wotrep/model";
+import { salvageTimeline, validateTimeline, type BattleTimeline, type VehicleInfo } from "@wotrep/model";
 import { fingerprintManifest, resolveManifest, type Manifest } from "@wotrep/defs";
 import { readContainer } from "./container";
 import { ParseError } from "./errors";
@@ -21,13 +21,13 @@ async function sha256(b: Uint8Array): Promise<string> {
  *  `opts.manifests` replaces the built-in manifest set (empty = none: the fingerprint fallback
  *  applies). Absent, resolution is exactly as before. */
 export async function parseReplay(bytes: Uint8Array, fileName?: string, opts?: { manifests?: Manifest[] }): Promise<BattleTimeline> {
-  const { blocks, packets: raw } = readContainer(bytes);
+  const { blocks, packets: raw, warnings: containerWarnings } = readContainer(bytes);
+  const warnings: string[] = [...containerWarnings];
   const b0 = blocks[0] as any, b1 = blocks[1];
   if (!b0?.vehicles) throw new ParseError("BadBlock", "container", "block 0 has no vehicles");
   const realm: "wg" | "lesta" = /\.mtreplay$/i.test(fileName ?? "") || /Мир танков/.test(b0.clientVersionFromXml ?? "") ? "lesta" : "wg";
   const version: string = b0.clientVersionFromExe ?? "";
   const res = resolveManifest(realm, version, [], opts?.manifests !== undefined ? { builtIns: opts.manifests } : {});
-  const warnings: string[] = [];
   const walk = walkPackets(raw); warnings.push(...walk.warnings);
   const unknown: Record<string, number> = {};
   for (const p of walk.packets) if (!KNOWN.has(p.type)) { const k = `0x${p.type.toString(16)}`; unknown[k] = (unknown[k] ?? 0) + 1; }
@@ -90,7 +90,10 @@ export async function parseReplay(bytes: Uint8Array, fileName?: string, opts?: {
     ...(nr ? { results: nr.results } : {}),
     diagnostics: { unknownPacketTypes: unknown, warnings },
   };
-  const v = validateTimeline(tl);
-  if (!v.ok) throw new ParseError("BadBlock", "events", `timeline failed validation: ${v.errors.slice(0, 3).join("; ")}`);
-  return tl;
+  // Keep everything that is valid; drop only the records that are not. Report what was dropped.
+  const salvaged = salvageTimeline(tl as unknown as Record<string, unknown>);
+  warnings.push(...salvaged.dropped);
+  const v = validateTimeline(salvaged.timeline);
+  if (!v.ok) throw new ParseError("BadBlock", "events", `timeline failed validation: ${v.errors.slice(0, 5).join("; ")}`);
+  return v.value;
 }

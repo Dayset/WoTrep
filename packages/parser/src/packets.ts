@@ -1,4 +1,3 @@
-import { ParseError } from "./errors";
 
 export interface Packet { type: number; clock: number; payload: Uint8Array }
 export interface PacketWalk { packets: Packet[]; warnings: string[] }
@@ -11,7 +10,7 @@ export function walkPackets(buf: Uint8Array): PacketWalk {
   let off = 0;
   while (off + 12 <= buf.byteLength) {
     const len = dv.getUint32(off, true), type = dv.getUint32(off + 4, true), clock = dv.getFloat32(off + 8, true);
-    if (off + 12 + len > buf.byteLength) throw new ParseError("Truncated", "packets", `packet at ${off} claims ${len} bytes`);
+    if (off + 12 + len > buf.byteLength) { warnings.push(`stream ends inside a packet at byte ${off} (${off + 12 + len - buf.byteLength} bytes missing); kept ${packets.length} packets`); off = buf.byteLength; break; }
     packets.push({ type, clock, payload: buf.subarray(off + 12, off + 12 + len) });
     off += 12 + len;
     if (type === END_MARKER) break;

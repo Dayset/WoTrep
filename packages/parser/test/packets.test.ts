@@ -18,8 +18,10 @@ describe("walkPackets", () => {
     expect(h).toEqual(want);
     expect(w.warnings).toEqual([]);
   });
-  it("throws a typed error on a lying length", () => {
+  it("keeps the packets before a lying length and reports where the stream ends", () => {
     const b = new Uint8Array(16); new DataView(b.buffer).setUint32(0, 999, true);
-    expect(() => walkPackets(b)).toThrowError(/claims 999/);
+    const w = walkPackets(b);
+    expect(w.packets.length).toBe(0);
+    expect(w.warnings.join(" ")).toMatch(/stream ends inside a packet at byte 0/);
   });
 });

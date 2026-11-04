@@ -22,6 +22,9 @@ describe("readContainer", () => {
     const t = (f: () => unknown) => { try { f(); } catch (e) { return (e as ParseError).code; } return "none"; };
     expect(t(() => readContainer(file.subarray(0, 100)))).toBe("Truncated");
     expect(t(() => readContainer(new Uint8Array(64)))).toBe("BadMagic");
-    expect(t(() => readContainer(file.subarray(0, file.length - 5000)))).toMatch(/Truncated|InflateFailed/);
+    // a stream cut short keeps the output it has and says so
+    const cutC = readContainer(file.subarray(0, file.length - 5000));
+    expect(cutC.packets.byteLength).toBeGreaterThan(0);
+    expect(cutC.warnings.join(" ")).toMatch(/cut off|stopped early|decompressed/);
   });
 });
