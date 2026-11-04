@@ -164,7 +164,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
                 p.scale.setScalar(Math.min(45, 7 + age * 0.35 + j * 2.5)); p.rotation.set(a, a * 0.7, 0); }); } } }
         k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = aim0; (k.g.children[1] as THREE.Group).rotation.y = aim ? sm.h - sm.g : 0; if (u.vid === L.vid) { turretYaw = sm.g; hullYawS = sm.h; onTarget = !!aim?.onTarget; turretPitch = aim ? aim.pitch : 0; }
       }
-      let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; const fpO = L.mode === "fp" && me && me.known !== "never" ? [me.x, gh(me.x, me.z) + 2.9, -me.z] : null; // first person: tracers start at the camera
+      let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; const fpO: [number, number, number] | null = L.mode === "fp" && me && me.known !== "never" ? [me.x, gh(me.x, me.z) + 2.9, -me.z] : null; // first person: tracers start at the camera
       tpos.set([fpO ? fpO[0] : sh.x0, fpO ? fpO[1] : (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, fpO ? fpO[2] : -sh.z0, sh.x1, (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, -sh.z1], n * 6); n++; }
       tgeo.setDrawRange(0, n * 2); (tgeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
       if (me && me.known !== "never") {
