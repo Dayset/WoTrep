@@ -33,7 +33,7 @@ function Frame({ id, title, sub, legend, children, table }: { id: string; title:
 const M = { l: 38, r: 10, t: 10, b: 24 };
 
 /** Chart 1 — win probability over battle time with kill markers and the recorder's hits. */
-function WpChart({ tl }: { tl: BattleTimeline }) {
+export function WpChart({ tl }: { tl: BattleTimeline }) {
   const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null);
   const team = tl.recorder.team as Team, H = 230;
   const s = wpSeries(tl, team, 1), end = s.t.at(-1) || 1;
@@ -72,7 +72,7 @@ function WpChart({ tl }: { tl: BattleTimeline }) {
 }
 
 /** Chart 2 — what each of the recorder's hits did to win probability, and the running Impact total. */
-function ImpactChart({ tl }: { tl: BattleTimeline }) {
+export function ImpactChart({ tl }: { tl: BattleTimeline }) {
   const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null);
   const h = recorderHeuristics(tl); if (!h || !h.hits.length) return null;
   const H = 210, end = tl.arena.durationS ?? h.hits.at(-1)!.t;
@@ -105,7 +105,7 @@ function ImpactChart({ tl }: { tl: BattleTimeline }) {
 }
 
 /** Chart 3 — damage by target; bar length is raw damage, the notch is threat-weighted damage. */
-function TargetChart({ tl }: { tl: BattleTimeline }) {
+export function TargetChart({ tl }: { tl: BattleTimeline }) {
   const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null);
   const h = recorderHeuristics(tl); if (!h || !h.hits.length) return null;
   const by = new Map<number, { dmg: number; w: number }>();
@@ -153,7 +153,7 @@ const METRICS: { key: MetricKey; label: string; exact: boolean; get: (r: Row) =>
 const PARTIAL = 0.75;
 
 /** Chart 4 — the same numbers for all players, so your result has something to be relative to. */
-function CompareChart({ tl }: { tl: BattleTimeline }) {
+export function CompareChart({ tl }: { tl: BattleTimeline }) {
   const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null); const [mk, setMk] = useState<MetricKey>("bold");
   const all = useMemo(() => { const st = new Map(playerStats(tl).map((x) => [x.vid, x])); const bd = boldnessAll(tl); return tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid), s: st.get(v.vid)!, b: bd.get(v.vid) })); }, [tl]);
   const m = METRICS.find((x) => x.key === mk)!;

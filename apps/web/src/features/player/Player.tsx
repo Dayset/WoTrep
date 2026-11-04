@@ -29,7 +29,7 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
   const [playing, setPlaying] = useState(false), [speed, setSpeed] = useState(1), [uiT, setUiT] = useState(Math.max(0, startAt ?? 0));
   const [coach, setCoach] = useState(false), [seenIds, setSeenIds] = useState<string[]>([]);
   const [pauseOn, setPauseOn] = useState<string[]>(["mistake", "good", "info"]), [resumeS, setResumeS] = useState(0), [resumeGoodS, setResumeGoodS] = useState(8), [slowS, setSlowS] = useState(6), coachPaused = useRef<string | false>(false);
-  const [view3d, setView3d] = useState<"off" | "fp" | "chase">("off"), [scope, setScope] = useState(6), [lockView, setLockView] = useState(false), [resync, setResync] = useState(0), [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [logOn, setLogOn] = useState(false), [sel, setSel] = useState<number | null>(null);
+  const [view3d, setView3d] = useState<"off" | "fp" | "chase">("off"), [scope, setScope] = useState(6), [lockView, setLockView] = useState(false), [resync, setResync] = useState(0), [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [logOn, setLogOn] = useState(() => window.matchMedia?.("(min-width: 1100px)").matches === true), [setOpen, setSetOpen] = useState(false), [sel, setSel] = useState<number | null>(null);
   const clock = useRef({ t: Math.max(0, startAt ?? 0), playing: false, speed: 1 }), cam = useRef<Cam | null>(null), opts = useRef({ follow: false, names: true, trails: true, sel: null as number | null });
   const canvas = useRef<HTMLCanvasElement>(null), tline = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
   const maxHp = useMemo(() => { const m = { 1: 0, 2: 0 }; for (const v of tl.vehicles) m[v.team] += v.maxHealth; return m; }, [tl]);
@@ -210,7 +210,8 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
   const toggle = useCallback(() => { if (clock.current.t >= end) seek(0); setPlaying((p) => !p); }, [end, seek]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.tagName === "INPUT") return;
+      const tg = (e.target as HTMLElement)?.tagName; if (tg === "INPUT" || tg === "SELECT" || tg === "TEXTAREA") return;
+      if (!box.current || box.current.offsetParent === null) return; // player tab hidden
       if (e.key === " ") { e.preventDefault(); toggle(); }
       else if (e.key === "ArrowLeft") seek(clock.current.t - 5); else if (e.key === "ArrowRight") seek(clock.current.t + 5);
       else if (e.key === ",") seek(clock.current.t - 0.1); else if (e.key === ".") seek(clock.current.t + 0.1);
@@ -267,73 +268,78 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
   const sr = useMemo(() => seriesFor(tl, curveVid), [tl, curveVid]);
   const wpNow = wp.wp[Math.min(wp.wp.length - 1, Math.round(uiT))] ?? 0.5;
   const su = sel != null ? snap.units.find((u) => u.vid === sel) : null, sv = sel != null ? vehicle.get(sel) : null;
+  const view3dCtl = view3d !== "off" && <div className="p3dctl" onPointerDown={(e) => e.stopPropagation()}>
+    <button type="button" aria-pressed={lockView} onClick={() => setLockView(!lockView)} title={t("pov.lock")} aria-label={t("pov.lock")}>{lockView ? "🔒" : "🔓"}</button>
+    <button type="button" onClick={() => setResync((n) => n + 1)} title={t("pov.resync.tip")} aria-label={t("pov.resync")}>⟲</button>
+    {view3d === "fp" && <select value={scope} onChange={(e) => setScope(Number(e.target.value))} aria-label={t("pov.scope")} data-testid="scope">{[1, 3, 6, 12].map((z) => <option key={z} value={z}>{z === 1 ? "1×" : `${z}×`}</option>)}</select>}
+  </div>;
+  const chk = (v: boolean, set: (x: boolean) => void, key: string, testid?: string) => <label className="opt"><input type="checkbox" checked={v} onChange={(e) => set(e.target.checked)} data-testid={testid} /> {t(key)}</label>;
   return (
     <div className="player" data-testid="player">
+      <div className="pmain">
       <div className="pbars">
-        <div className="pteam you"><b>{snap.alive[r]}</b> · {Math.round(snap.teamHp[r]).toLocaleString()} HP<i style={{ width: `${(snap.teamHp[r] / maxHp[r]) * 100}%` }} /></div>
-        <div className="pwp" title={t("player.wp")}>{t("player.wp")} {Math.round(wpNow * 100)}%</div>
-        <div className="pteam foe"><b>{snap.alive[o]}</b> · {Math.round(snap.teamHp[o]).toLocaleString()} HP<i style={{ width: `${(snap.teamHp[o] / maxHp[o]) * 100}%` }} /></div>
+        <div className="pteam you"><b>{snap.alive[r]}</b> · {Math.round(snap.teamHp[r]).toLocaleString()}<i style={{ width: `${(snap.teamHp[r] / maxHp[r]) * 100}%` }} /></div>
+        <div className="pwp" title={t("player.wp")}>{Math.round(wpNow * 100)}%</div>
+        <div className="pteam foe"><b>{snap.alive[o]}</b> · {Math.round(snap.teamHp[o]).toLocaleString()}<i style={{ width: `${(snap.teamHp[o] / maxHp[o]) * 100}%` }} /></div>
       </div>
       <div className="pmap" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} onDoubleClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); setFollow(false); }}>
         <canvas ref={canvas} aria-label={t("player.aria")} role="img" />
-        {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} /></Suspense>{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{t("pov.aim")} {a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
+        {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} /></Suspense>{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
+        <div className="pviewsw" role="group" aria-label={t("pov.view")} onPointerDown={(e) => e.stopPropagation()}>{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)} title={t(`pov.${m}`)} data-testid={`v3d-${m}`}>{t(`ui.v.${m}`)}</button>)}</div>
+        {view3dCtl}
         {sv && su && <div className="pinfo"><b>{sv.name}</b> · {vehicleLabel(sv.vehicleType).label}<div>{su.alive ? `${Math.round(su.hp)} / ${sv.maxHealth} HP` : "✕"}{su.known === "ghost" ? ` · ${t("player.lastseen", { s: Math.round(su.ageS ?? 0) })}` : ""}</div></div>}
-        {hmap && <div className="hlegend" onPointerDown={(e) => e.stopPropagation()}><i /><span>{Math.round(hmap.min)} m</span><span>{Math.round(hmap.max)} m</span><small>{t("player.heights.note")}</small></div>}
-        <div className="pzoom" onPointerDown={(e) => e.stopPropagation()}><button type="button" onClick={() => zoomBtn(1.4)} aria-label={t("player.zoomin")}>+</button><button type="button" onClick={() => zoomBtn(1 / 1.4)} aria-label={t("player.zoomout")}>−</button><button type="button" onClick={fitUnits} aria-label={t("player.fitunits")} title={t("player.fitunits")}>◎</button><button type="button" onClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); }} aria-label={t("player.fitmap")} title={t("player.fitmap")}>⤢</button><button type="button" onClick={() => setMapPanel(true)} aria-label={t("map.open")} title={t("map.open")}>🗺</button></div>
+        {hmap && view3d === "off" && <div className="hlegend" onPointerDown={(e) => e.stopPropagation()}><i /><span>{Math.round(hmap.min)} m</span><span>{Math.round(hmap.max)} m</span><small>{t("player.heights.note")}</small></div>}
+        {view3d === "off" && <div className="pzoom" onPointerDown={(e) => e.stopPropagation()}><button type="button" onClick={() => zoomBtn(1.4)} aria-label={t("player.zoomin")}>+</button><button type="button" onClick={() => zoomBtn(1 / 1.4)} aria-label={t("player.zoomout")}>−</button><button type="button" onClick={fitUnits} aria-label={t("player.fitunits")} title={t("player.fitunits")}>◎</button><button type="button" onClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); }} aria-label={t("player.fitmap")} title={t("player.fitmap")}>⤢</button><button type="button" onClick={() => setMapPanel(true)} aria-label={t("map.open")} title={t("map.open")}>🗺</button></div>}
         {!active && xActive && <div className="pcard" onPointerDown={(e) => e.stopPropagation()}><p>{xActive.text}</p>{!playing && <button type="button" onClick={() => { coachPaused.current = false; setPlaying(true); }}>{t("coach.continue")}</button>}</div>}
         {active && <div className="pcard" onPointerDown={(e) => e.stopPropagation()}><FindingCard f={active} actions={!playing && <><button type="button" onClick={() => setPlaying(true)}>{t("coach.continue")}</button> <button type="button" onClick={() => { setSel(tl.recorder.vid); seek(active.tStart - 4); setView3d("fp"); }}>{t("pov.show")}</button></>} /></div>}
-        {!mapInfo && <div className="pnote">{t("player.nomap")}</div>}
+        {!mapInfo && view3d === "off" && <div className="pnote">{t("player.nomap")}</div>}
         {mapPanel && <MapLoader mapName={tl.arena.map} onSaved={() => setMapTick((x) => x + 1)} onClose={() => setMapPanel(false)} />}
         <canvas ref={tline} className="ptimeline povtl" onPointerDown={(e) => { e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); const r = e.currentTarget.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; const hit = crew.find((p) => Math.abs((p.tStart / Math.max(1, end)) * r.width - x) <= 9 && Math.abs((p.team === tl.recorder.team ? r.height - 31 : r.height - 20) - y) <= 9); const dh = hit ? undefined : dangers.find((d) => Math.abs((d.tStart / Math.max(1, end)) * r.width - x) <= 9 && Math.abs((d.team === tl.recorder.team ? r.height - 31 : r.height - 20) - y) <= 9); if (hit) { setDot(hit); setDg(null); seek(hit.tStart - 3); } else if (dh) { setDg(dh); setDot(null); seek(dh.tStart - 3); } else { setDot(null); setDg(null); scrub(e); } }} onPointerMove={(e) => { e.stopPropagation(); scrub(e); }} aria-label={t("player.timeline")} role="slider" aria-valuemin={0} aria-valuemax={end} aria-valuenow={Math.round(uiT)} />
       </div>
-      <div className="pctl">
-        <div className="prow ptransport">
-          <button type="button" onClick={toggle} aria-label={playing ? t("player.pause") : t("player.play")} className="pbig">{playing ? "⏸" : "▶"}</button>
-          <button type="button" onClick={() => jump(-1)} aria-label={t("coach.prev")} title={t("coach.prev")}>⏮</button>
-          <button type="button" onClick={() => seek(uiT - 5)} aria-label="−5 s">⏪</button><button type="button" onClick={() => seek(uiT + 5)} aria-label="+5 s">⏩</button>
-          <button type="button" onClick={() => jump(1)} aria-label={t("coach.next")} title={t("coach.next")}>⏭</button>
-          <span className="ptime">{mmss(uiT)} / {mmss(end)}</span>
-          <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label={t("player.speed")}>{SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}</select>
-        </div>
-        <div className="prow">
-        <label className="pwho">{t("pov.who")} <select value={sel ?? ""} onChange={(e) => setSel(e.target.value === "" ? null : Number(e.target.value))} data-testid="who">
-          <option value="">{t("pov.me")} · {vehicle.get(tl.recorder.vid)?.name}</option>
-          <optgroup label={t("pov.team")}>{tl.vehicles.filter((v) => v.team === tl.recorder.team && !v.isRecorder).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
-          <optgroup label={t("pov.foes")}>{tl.vehicles.filter((v) => v.team !== tl.recorder.team).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
-        </select></label>
-        {sel != null && <button type="button" onClick={() => setSel(null)} data-testid="backme">↩ {t("pov.me")}</button>}
-        <span className="pview" role="group" aria-label={t("pov.view")}>{view3d !== "off" && <><label><input type="checkbox" checked={lockView} onChange={(e) => setLockView(e.target.checked)} /> {t("pov.lock")}</label><button type="button" onClick={() => setResync((n) => n + 1)} title={t("pov.resync.tip")}>{t("pov.resync")}</button></>}{view3d === "fp" && <select value={scope} onChange={(e) => setScope(Number(e.target.value))} aria-label={t("pov.scope")} data-testid="scope">{[1, 3, 6, 12].map((z) => <option key={z} value={z}>{z === 1 ? t("pov.scope.off") : `${t("pov.scope")} ${z}×`}</option>)}</select>}{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)}>{t(`pov.${m}`)}</button>)}</span>
-        </div>
-        <div className="prow">
-        <label><input type="checkbox" checked={coach} onChange={(e) => setCoach(e.target.checked)} /> {t("coach.mode")}</label>
-        {coach && <details className="pauseopts"><summary>{t("pause.title")}</summary>
-          {(["mistake", "good", "info", "danger", "crew", "death"] as const).map((k) => <label key={k}><input type="checkbox" checked={pauseOn.includes(k)} onChange={(e) => setPauseOn((x) => (e.target.checked ? [...x, k] : x.filter((y) => y !== k)))} /> {t(`pause.${k}`)}</label>)}
-          <label>{t("pause.slow")} <select value={slowS} onChange={(e) => setSlowS(Number(e.target.value))}>{[0, 3, 6, 10].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
-          <label>{t("pause.resumeGood")} <select value={resumeGoodS} onChange={(e) => setResumeGoodS(Number(e.target.value))} data-testid="resumegood">{[0, 5, 8, 10].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
-          <label>{t("pause.resume")} <select value={resumeS} onChange={(e) => setResumeS(Number(e.target.value))}>{[0, 5, 10, 20].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
-        </details>}
-        </div>
-        <details className="popts"><summary>{t("player.options")}</summary><div className="prow">
-        <label><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> {t("player.follow")}</label>
-        <label><input type="checkbox" checked={heights} onChange={(e) => setHeights(e.target.checked)} data-testid="heights" /> {t("player.heights")}</label>
-        <label><input type="checkbox" checked={logOn} onChange={(e) => setLogOn(e.target.checked)} /> {t("log.toggle")}</label>
-        <label><input type="checkbox" checked={names} onChange={(e) => setNames(e.target.checked)} /> {t("player.names")}</label>
-        <label><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} /> {t("player.trails")}</label>
-
-        </div></details>
+      <div className="pctl ptransport">
+        <button type="button" onClick={toggle} aria-label={playing ? t("player.pause") : t("player.play")} className="pbig" data-testid="play">{playing ? "⏸" : "▶"}</button>
+        <button type="button" onClick={() => jump(-1)} aria-label={t("coach.prev")} title={t("coach.prev")}>⏮</button>
+        <button type="button" onClick={() => seek(uiT - 5)} aria-label="−5 s" title="−5 s">⏪</button><button type="button" onClick={() => seek(uiT + 5)} aria-label="+5 s" title="+5 s">⏩</button>
+        <button type="button" onClick={() => jump(1)} aria-label={t("coach.next")} title={t("coach.next")}>⏭</button>
+        <span className="ptime">{mmss(uiT)} / {mmss(end)}</span>
+        <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label={t("player.speed")}>{SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}</select>
       </div>
-      {dot && <div className="pdot" onPointerDown={(e) => e.stopPropagation()}><b className={dot.team === tl.recorder.team ? "ally" : "enemy"}>{vehicle.get(dot.vid)?.name}</b> · {t("crew.play", { dealt: String(dot.dealt), got: String(dot.got) })} · <b>{t(`crew.${dot.enabled}`)}</b>{dot.absorbedHp > 0 ? ` · ${t("crew.absorbed", { hp: String(dot.absorbedHp) })}` : ""}{dot.sacrificed.length ? ` · ${t("crew.sacrificed", { n: String(dot.sacrificed.length) })}` : ""}{dot.coverage < 0.75 ? ` · ${t("crew.lowcov", { p: String(Math.round(dot.coverage * 100)) })}` : ""}</div>}
-      {dg && <div className="pdot" onPointerDown={(e) => e.stopPropagation()}><b className={dg.team === tl.recorder.team ? "ally" : "enemy"}>{vehicle.get(dg.vid)?.name}</b> · {t("dg.spot", { got: String(dg.got), dealt: String(dg.dealt) })} · <b>{t(`dg.cause.${dg.cause}`)}</b> · {t(`dg.do.${dg.cause}`)}{dg.coverage < 0.75 ? ` · ${t("crew.lowcov", { p: String(Math.round(dg.coverage * 100)) })}` : ""} <button type="button" onClick={() => { setSel(dg.vid); seek(dg.tStart - 4); setView3d("fp"); }}>{t("pov.show")}</button></div>}
-      <details className="pleg"><summary>{t("player.legend")}</summary><p className="muted pdotleg">{t("crew.legend")}</p>{view3d !== "off" && <p className="muted pdotleg">{t("pov.note")}</p>}</details>
-      <div className="pcurve">
-        <div className="pcurvebar" onPointerDown={(e) => e.stopPropagation()}>
-          {(["wp", "dmg", "dpm", "hit", "flank"] as const).map((k) => <button type="button" key={k} aria-pressed={curve === k} onClick={() => setCurve(k)}>{t(`curve.${k}`)}</button>)}
-          <span className="muted">{sv ? sv.name : tl.recorder.name}</span>
-        </div>
-        <canvas ref={curveCv} className="ptimeline" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); scrubC(e); }} onPointerMove={scrubC} aria-label={t("curve.aria")} />
-        <p className="muted pcurvenote">{t(`curve.${curve}.how`)}{curve !== "wp" && sr.officialDmg != null && sr.officialDmg > 0 && sr.finalDmg < sr.officialDmg * 0.98 ? ` ${t("curve.partial", { p: Math.round((sr.finalDmg / sr.officialDmg) * 100) })}` : ""}</p>
       </div>
-      {logOn && <DamageLog tl={tl} now={uiT} onSeek={seek} />}
+      <aside className="pside">
+        <div className="prow">
+          <select className="pwho" value={sel ?? ""} onChange={(e) => setSel(e.target.value === "" ? null : Number(e.target.value))} data-testid="who" aria-label={t("pov.who")} title={t("pov.who")}>
+            <option value="">👁 {vehicle.get(tl.recorder.vid)?.name} ({t("pov.me")})</option>
+            <optgroup label={t("pov.team")}>{tl.vehicles.filter((v) => v.team === tl.recorder.team && !v.isRecorder).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
+            <optgroup label={t("pov.foes")}>{tl.vehicles.filter((v) => v.team !== tl.recorder.team).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
+          </select>
+          {sel != null && <button type="button" onClick={() => setSel(null)} data-testid="backme" title={t("pov.me")} aria-label={t("pov.me")}>↩</button>}
+          <button type="button" aria-pressed={coach} onClick={() => setCoach(!coach)} data-testid="coachbtn">🎓 {t("ui.coach")}</button>
+          <button type="button" aria-pressed={setOpen} onClick={() => setSetOpen(!setOpen)} aria-label={t("ui.settings")} title={t("ui.settings")} data-testid="settings">⚙</button>
+        </div>
+        {setOpen && <div className="psettings" data-testid="psettings">
+          <div className="optgrid">
+            {chk(follow, setFollow, "player.follow")}{chk(names, setNames, "player.names")}{chk(trails, setTrails, "player.trails")}
+            {chk(heights, setHeights, "player.heights", "heights")}{chk(logOn, setLogOn, "log.toggle")}
+          </div>
+          {coach && <fieldset className="pauseopts"><legend>{t("pause.title")}</legend><div className="optgrid">
+            {(["mistake", "good", "info", "danger", "crew", "death"] as const).map((k) => <label className="opt" key={k}><input type="checkbox" checked={pauseOn.includes(k)} onChange={(e) => setPauseOn((x) => (e.target.checked ? [...x, k] : x.filter((y) => y !== k)))} /> {t(`pause.${k}`)}</label>)}</div>
+            <label className="opt">{t("pause.slow")} <select value={slowS} onChange={(e) => setSlowS(Number(e.target.value))}>{[0, 3, 6, 10].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
+            <label className="opt">{t("pause.resumeGood")} <select value={resumeGoodS} onChange={(e) => setResumeGoodS(Number(e.target.value))} data-testid="resumegood">{[0, 5, 8, 10].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
+            <label className="opt">{t("pause.resume")} <select value={resumeS} onChange={(e) => setResumeS(Number(e.target.value))}>{[0, 5, 10, 20].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
+          </fieldset>}
+          <p className="muted pdotleg">{t("crew.legend")}</p>{view3d !== "off" && <p className="muted pdotleg">{t("pov.note")}</p>}
+        </div>}
+        {dot && <div className="pdot" onPointerDown={(e) => e.stopPropagation()}><b className={dot.team === tl.recorder.team ? "ally" : "enemy"}>{vehicle.get(dot.vid)?.name}</b> · {t("crew.play", { dealt: String(dot.dealt), got: String(dot.got) })} · <b>{t(`crew.${dot.enabled}`)}</b>{dot.absorbedHp > 0 ? ` · ${t("crew.absorbed", { hp: String(dot.absorbedHp) })}` : ""}{dot.sacrificed.length ? ` · ${t("crew.sacrificed", { n: String(dot.sacrificed.length) })}` : ""}{dot.coverage < 0.75 ? ` · ${t("crew.lowcov", { p: String(Math.round(dot.coverage * 100)) })}` : ""}</div>}
+        {dg && <div className="pdot" onPointerDown={(e) => e.stopPropagation()}><b className={dg.team === tl.recorder.team ? "ally" : "enemy"}>{vehicle.get(dg.vid)?.name}</b> · {t("dg.spot", { got: String(dg.got), dealt: String(dg.dealt) })} · <b>{t(`dg.cause.${dg.cause}`)}</b> · {t(`dg.do.${dg.cause}`)}{dg.coverage < 0.75 ? ` · ${t("crew.lowcov", { p: String(Math.round(dg.coverage * 100)) })}` : ""} <button type="button" onClick={() => { setSel(dg.vid); seek(dg.tStart - 4); setView3d("fp"); }}>{t("pov.show")}</button></div>}
+        <div className="pcurve">
+          <div className="segbar sm" role="tablist" aria-label={t("curve.aria")} onPointerDown={(e) => e.stopPropagation()}>
+            {(["wp", "dmg", "dpm", "hit", "flank"] as const).map((k) => <button type="button" role="tab" key={k} aria-selected={curve === k} onClick={() => setCurve(k)}>{t(`curve.${k}`)}</button>)}
+          </div>
+          <canvas ref={curveCv} className="ptimeline" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); scrubC(e); }} onPointerMove={scrubC} aria-label={t("curve.aria")} />
+          <details className="how"><summary>{sv ? sv.name : tl.recorder.name} · ?</summary><p className="muted pcurvenote">{t(`curve.${curve}.how`)}{curve !== "wp" && sr.officialDmg != null && sr.officialDmg > 0 && sr.finalDmg < sr.officialDmg * 0.98 ? ` ${t("curve.partial", { p: Math.round((sr.finalDmg / sr.officialDmg) * 100) })}` : ""}</p></details>
+        </div>
+        {logOn && <DamageLog tl={tl} now={uiT} onSeek={seek} />}
+      </aside>
     </div>
   );
 }

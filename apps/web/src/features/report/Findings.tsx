@@ -25,7 +25,6 @@ export function FindingCard({ f, onShow, actions }: { f: Finding; onShow?: () =>
 export function FindingsPanel({ findings, checks, onShow }: { findings: Finding[]; checks: number; onShow: (f: Finding) => void }) {
   return (
     <section className="coach" data-testid="coach">
-      <h3>{t("coach.title")} <span className="muted">· {t("coach.sub")}</span></h3>
       {findings.length === 0 ? <p className="muted">{t("coach.none", { n: checks })}</p> : <div className="fgrid">{findings.map((f) => <FindingCard key={f.id} f={f} onShow={() => onShow(f)} />)}</div>}
     </section>
   );

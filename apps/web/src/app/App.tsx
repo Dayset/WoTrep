@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { BattleTimeline } from "@wotrep/model";
 import { Upload } from "../features/upload/Upload";
 import { Report } from "../features/report/Report";
-import { getLang, setLang, t, type Lang } from "../i18n";
+import { getLang, setLang, t } from "../i18n";
 import "./theme.css";
 
 export function App() {
@@ -12,13 +12,13 @@ export function App() {
   document.documentElement.dataset.theme = dark ? "dark" : "light";
   const lang = getLang();
   return (
-    <>
+    <div className={tl ? "app wide" : "app"}>
       <header className="top">
         <h1>WoTrep</h1><span className="tag">{t("app.tagline")}</span>
-        {(["en", "ru"] as Lang[]).map((l) => <button key={l} aria-pressed={lang === l} style={{ fontWeight: lang === l ? 700 : 400 }} onClick={() => { setLang(l); bump((n) => n + 1); }}>{l.toUpperCase()}</button>)}
-        <button onClick={() => setDark(!dark)} aria-label="theme">{dark ? "☾" : "☀"}</button>
+        <button type="button" className="sm" onClick={() => { setLang(lang === "en" ? "ru" : "en"); bump((n) => n + 1); }} aria-label={lang === "en" ? "Русский" : "English"} title={lang === "en" ? "Русский" : "English"}>{lang === "en" ? "RU" : "EN"}</button>
+        <button type="button" className="sm" onClick={() => setDark(!dark)} aria-label="theme">{dark ? "☾" : "☀"}</button>
       </header>
       {tl ? <Report tl={tl} onBack={() => setTl(null)} /> : <Upload onDone={setTl} />}
-    </>
+    </div>
   );
 }

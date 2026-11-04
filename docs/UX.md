@@ -49,6 +49,20 @@ Top to bottom:
 6. **Classic vs ours** explainer box: "WN8 says 1,850 (good). Impact says +4.1% — 61% of your damage came while
    your team was already winning by 4+." Short, factual.
 
+## 2a. Report layout (as built, v2)
+
+The report is one screen with a sticky tab bar instead of one long page:
+**Replay · Stats · Coach (n) · Teams · Charts**. Above the tabs: result · map · tank, a 5-number strip
+(Impact, Damage, Assist, Kills, Blocked) and short data-quality chips that expand on tap.
+- Replay: map with the view switch (2D / 1st / 3rd) on the map's top-left; 2D zoom stack or 3D controls
+  (lock, resync, scope) on the top-right; transport row under the map. Side column (beside the map ≥ 1100 px,
+  under it on phones): who to watch, Coach toggle, ⚙ settings (display options, coach pauses, legend), curve, damage log.
+  The player stays mounted across tabs; keyboard shortcuts only work while the Replay tab is shown.
+- Stats: tiles in three groups (Damage and impact, Taking chances, Teamplay). Each tile is label + number;
+  "?" opens the tip, how we get it and what it means in place (the tile takes the full row).
+- Teams: Scoreboard (your team | enemy team) · Sacrifice · Danger spots · Movement. Charts: one chart at a time.
+- Tap targets ≥ 36 px (transport 40 px); segmented controls scroll sideways instead of wrapping on phones.
+
 ## 3. 2D tactical player (the core screen)
 
 ```

@@ -3,7 +3,7 @@ import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
 import { boldnessAll, flankModel, playerMetrics, playerStats, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
 import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
-import { HeuristicCharts } from "./Charts";
+import { CompareChart, ImpactChart, TargetChart, WpChart } from "./Charts";
 import { Debug, debugOn } from "./Debug";
 import { Player } from "../player/Player";
 import { MapPage } from "../map/MapPage";
@@ -18,7 +18,18 @@ import { Vote, FeedbackExport } from "./Feedback";
 const tank = (v: VehicleInfo) => vehicleLabel(v.vehicleType).label;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
-function Team({ tl, team, title, cls }: { tl: BattleTimeline; team: 1 | 2; title: string; cls: string }) {
+/** Segmented control: one row of equal buttons, scrolls sideways on narrow screens instead of wrapping into a wall of buttons. */
+export function Seg<T extends string>({ value, set, items, label, testid }: { value: T; set: (v: T) => void; items: readonly (readonly [T, string])[]; label: string; testid?: string }) {
+  return (
+    <div className="segbar" role="tablist" aria-label={label} data-testid={testid}>
+      {items.map(([k, l]) => <button type="button" role="tab" key={k} aria-selected={value === k} onClick={() => set(k)}>{l}</button>)}
+    </div>
+  );
+}
+
+type PlayerResultLike = NonNullable<BattleTimeline["results"]>["players"][number];
+
+function Team({ tl, team }: { tl: BattleTimeline; team: 1 | 2 }) {
   const dpm = new Map(playerMetrics(tl).map((p) => [p.vid, p.dpm]));
   const st = new Map(playerStats(tl).map((p) => [p.vid, p]));
   const pc = (x: number | null | undefined) => (x == null ? "—" : `${Math.round(x * 100)}%`);
@@ -32,92 +43,124 @@ function Team({ tl, team, title, cls }: { tl: BattleTimeline; team: 1 | 2; title
     const x = val[sort.k]!(a.v, a.r), y = val[sort.k]!(b.v, b.r); return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
   });
   return (
-    <details open>
-      <summary className={cls}>{title}</summary>
-      <div className="tablewrap"><table>
-        <thead><tr>{["name", "tank", "dmg", "dpm", "assist", "blocked", "kills", "shots", "acc", "pen", "life", "received"].map((c) => <th key={c} aria-sort={sort.k === c ? (sort.dir === 1 ? "ascending" : "descending") : "none"}><button type="button" className="sortbtn" onClick={() => setSort({ k: c, dir: sort.k === c ? (sort.dir === 1 ? -1 : 1) : c === "name" || c === "tank" ? 1 : -1 })}>{t(`col.${c}`)}{sort.k === c ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button></th>)}</tr></thead>
-        <tbody>{rows.map(({ v, r }) => (
-          <tr key={v.vid} className={v.isRecorder ? "me" : ""}>
-            <td className="nm">{v.name}{v.isRecorder ? ` (${t("report.you")})` : ""}</td><td className="tk">{tank(v)}</td>
-            <td>{r?.damageDealt ?? "—"}</td><td>{r ? dpm.get(v.vid) : "—"}</td><td>{r ? r.assistRadio + r.assistTrack + r.assistStun : "—"}</td><td>{r?.blocked ?? "—"}</td>
-            <td>{r?.kills ?? "—"}</td><td>{r ? `${r.shots} / ${r.hits} / ${r.pens}` : "—"}</td><td>{pc(st.get(v.vid)?.accuracy)}</td><td>{pc(st.get(v.vid)?.penRate)}</td><td title={pc(st.get(v.vid)?.lifeShare)}>{r ? mmss(r.lifeTimeS) : "—"}</td><td>{r?.damageReceived ?? "—"}</td>
-          </tr>))}</tbody>
-      </table></div>
-    </details>
+    <div className="tablewrap tall" data-testid={`team${team}`}><table>
+      <thead><tr>{["name", "tank", "dmg", "dpm", "assist", "blocked", "kills", "shots", "acc", "pen", "life", "received"].map((c) => <th key={c} aria-sort={sort.k === c ? (sort.dir === 1 ? "ascending" : "descending") : "none"}><button type="button" className="sortbtn" onClick={() => setSort({ k: c, dir: sort.k === c ? (sort.dir === 1 ? -1 : 1) : c === "name" || c === "tank" ? 1 : -1 })}>{t(`col.${c}`)}{sort.k === c ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button></th>)}</tr></thead>
+      <tbody>{rows.map(({ v, r }) => (
+        <tr key={v.vid} className={v.isRecorder ? "me" : ""}>
+          <td className="nm">{v.name}</td><td className="tk">{tank(v)}</td>
+          <td>{r?.damageDealt ?? "—"}</td><td>{r ? dpm.get(v.vid) : "—"}</td><td>{r ? r.assistRadio + r.assistTrack + r.assistStun : "—"}</td><td>{r?.blocked ?? "—"}</td>
+          <td>{r?.kills ?? "—"}</td><td>{r ? `${r.shots} / ${r.hits} / ${r.pens}` : "—"}</td><td>{pc(st.get(v.vid)?.accuracy)}</td><td>{pc(st.get(v.vid)?.penRate)}</td><td title={pc(st.get(v.vid)?.lifeShare)}>{r ? mmss(r.lifeTimeS) : "—"}</td><td>{r?.damageReceived ?? "—"}</td>
+        </tr>))}</tbody>
+    </table></div>
   );
 }
 
-type PlayerResultLike = NonNullable<BattleTimeline["results"]>["players"][number];
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
-function Advanced({ tl }: { tl: BattleTimeline }) {
-  const h = recorderHeuristics(tl); if (!h) return null;
+type Card = [label: string, value: string, tip: string, id: string];
+
+/** Stat tile: label + number. "?" opens the explanation in place (the tile widens to the full row) so the grid stays short. */
+function Tile({ c: [k, v, tip, id] }: { c: Card }) {
+  return (
+    <div className="card" data-testid={`card-${id}`}>
+      <div className="k">{k} <Vote id={`card.${id}`} /></div><div className="v">{v}</div>
+      <details className="how"><summary aria-label={t("ui.more")} title={t("ui.more")}>?</summary>{tip && <p>{tip}</p>}<p><b>{t("gl.how")}.</b> {t(`gl.${id}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${id}.mean`)}</p></details>
+    </div>
+  );
+}
+
+function Stats({ tl }: { tl: BattleTimeline }) {
+  const h = recorderHeuristics(tl); if (!h) return <p className="muted">—</p>;
   const plays = goodPlaysAll(tl), al = alignment(plays, tl.recorder.team), mineP = plays.filter((p) => p.vid === tl.recorder.vid), carried = mineP.filter((p) => p.enabled === "carried").length;
   const fm = flankModel(tl), rf = fm ? reinforce(tl, fm) : null, mineR = rf?.byPlayer.get(tl.recorder.vid) ?? 0, reactions = rf ? rf.episodes.flatMap((e) => (e.reactionS == null ? [] : [e.reactionS])).sort((a, b) => a - b) : [];
   const bd = boldnessAll(tl).get(tl.recorder.vid), tp = teamplayAll(tl).get(tl.recorder.vid), shape = teamShape(tl, tl.recorder.team);
   const myRes = tl.results?.players[tl.recorder.vid];
   const sgn = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
-  const cards: [string, string, string, string][] = [
+  const assist = myRes ? myRes.assistRadio + myRes.assistTrack + myRes.assistStun : 0;
+  const impact: Card[] = [
     [t("adv.impact"), `${sgn(h.impactPts)} ${t("adv.pts")}`, t("adv.impact.tip"), "impact"],
     [t("adv.threat"), `${h.threatWeighted} (×${h.threatWeightedPerDamage.toFixed(2)})`, t("adv.threat.tip"), "threat"],
     [t("adv.onthreats"), pct(h.shareOnThreats), t("adv.onthreats.tip"), "onthreats"],
     [t("adv.cleanup"), pct(h.cleanupShare), t("adv.cleanup.tip"), "cleanup"],
     [t("adv.dpm"), String(h.dpm), t("adv.dpm.tip"), "dpm"],
-    ...(myRes && myRes.lifeTimeS >= 10 ? ([[t("adv.support"), `${Math.round(((myRes.assistRadio + myRes.assistTrack + myRes.assistStun) / (myRes.lifeTimeS / 60)))} (${Math.round((100 * (myRes.assistRadio + myRes.assistTrack + myRes.assistStun)) / Math.max(1, myRes.assistRadio + myRes.assistTrack + myRes.assistStun + myRes.damageDealt))}%)`, t("adv.support.tip"), "support"]] as [string, string, string, string][]) : []),
-    ...(bd ? ([
-      [t("adv.bold"), bd.rate == null ? "—" : `${Math.round(bd.rate * 100)}% (${bd.taken}/${bd.episodes})`, t("adv.bold.tip"), "bold"],
-      [t("adv.paid"), bd.rewardedShare == null ? "—" : `${Math.round(bd.rewardedShare * 100)}% (${bd.rewarded}/${bd.taken})`, "", "paid"],
-      [t("adv.costly"), bd.costlyShare == null ? "—" : `${Math.round(bd.costlyShare * 100)}% (${bd.costly}/${bd.taken})`, "", "costly"],
-      [t("adv.style"), bd.style ? t(`adv.style.${bd.style}`) : "—", "", "style"],
-    ] as [string, string, string, string][]) : []),
-    ...(tp ? ([
-      [t("adv.focus"), tp.focusShare == null ? "—" : pct(tp.focusShare), "", "focus"],
-      [t("adv.company"), tp.companyShare == null ? "—" : pct(tp.companyShare), "", "company"],
-      [t("adv.hang"), tp.hangS == null ? "—" : `${tp.hangS} s (${pct(tp.hangShare ?? 0)})`, "", "hang"],
-      [t("adv.rank"), tp.frontRank == null ? "—" : pct(tp.frontRank), "", "rank"],
-      [t("adv.spread"), shape.spreadM == null ? "—" : `${shape.spreadM} m`, "", "spread"],
-      [t("adv.align"), al.share == null ? "—" : `${pct(al.share)} (${al.aligned}/${al.plays})`, "", "align"],
-      ...(rf ? ([
-        [t("adv.reinforce"), rf.episodes.length ? `${rf.answered}/${rf.episodes.length}${reactions.length ? ` · ${reactions[reactions.length >> 1]} s` : ""}` : "—", "", "reinforce"],
-        [t("adv.reinforced"), rf.episodes.length ? String(mineR) : "—", "", "reinforced"],
-      ] as [string, string, string, string][]) : []),
-      [t("adv.enabled"), mineP.length ? `${carried}/${mineP.length}` : "—", "", "enabled"],
-    ] as [string, string, string, string][]) : []),
+    ...(myRes && myRes.lifeTimeS >= 10 ? ([[t("adv.support"), `${Math.round(assist / (myRes.lifeTimeS / 60))} (${Math.round((100 * assist) / Math.max(1, assist + myRes.damageDealt))}%)`, t("adv.support.tip"), "support"]] as Card[]) : []),
   ];
+  const risk: Card[] = bd ? [
+    [t("adv.bold"), bd.rate == null ? "—" : `${Math.round(bd.rate * 100)}% (${bd.taken}/${bd.episodes})`, t("adv.bold.tip"), "bold"],
+    [t("adv.paid"), bd.rewardedShare == null ? "—" : `${Math.round(bd.rewardedShare * 100)}% (${bd.rewarded}/${bd.taken})`, "", "paid"],
+    [t("adv.costly"), bd.costlyShare == null ? "—" : `${Math.round(bd.costlyShare * 100)}% (${bd.costly}/${bd.taken})`, "", "costly"],
+    [t("adv.style"), bd.style ? t(`adv.style.${bd.style}`) : "—", "", "style"],
+  ] : [];
+  const team: Card[] = tp ? [
+    [t("adv.focus"), tp.focusShare == null ? "—" : pct(tp.focusShare), "", "focus"],
+    [t("adv.company"), tp.companyShare == null ? "—" : pct(tp.companyShare), "", "company"],
+    [t("adv.hang"), tp.hangS == null ? "—" : `${tp.hangS} s (${pct(tp.hangShare ?? 0)})`, "", "hang"],
+    [t("adv.rank"), tp.frontRank == null ? "—" : pct(tp.frontRank), "", "rank"],
+    [t("adv.spread"), shape.spreadM == null ? "—" : `${shape.spreadM} m`, "", "spread"],
+    [t("adv.align"), al.share == null ? "—" : `${pct(al.share)} (${al.aligned}/${al.plays})`, "", "align"],
+    ...(rf ? ([
+      [t("adv.reinforce"), rf.episodes.length ? `${rf.answered}/${rf.episodes.length}${reactions.length ? ` · ${reactions[reactions.length >> 1]} s` : ""}` : "—", "", "reinforce"],
+      [t("adv.reinforced"), rf.episodes.length ? String(mineR) : "—", "", "reinforced"],
+    ] as Card[]) : []),
+    [t("adv.enabled"), mineP.length ? `${carried}/${mineP.length}` : "—", "", "enabled"],
+  ] : [];
   return (
-    <details open className="adv" data-testid="advanced">
-      <summary>{t("adv.title")}<span className="beta">{t("adv.beta")}</span> <span className="muted">· {t("adv.sub")}</span></summary>
-      <div className="cards">{cards.map(([k, v, tip, id]) => <div className="card" key={k}><div className="k">{k} <Vote id={`card.${id}`} /></div><div className="v">{v}</div>{tip && <div className="tip">{tip}</div>}<details className="how"><summary>{t("gl.how")} · {t("gl.mean")}</summary><p><b>{t("gl.how")}.</b> {t(`gl.${id}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${id}.mean`)}</p></details></div>)}</div>
-      <Ledger tl={tl} />
-      <Danger tl={tl} />
-      <Movement tl={tl} />
-    </details>
+    <div className="adv" data-testid="advanced">
+      {([["ui.grp.impact", impact], ["ui.grp.risk", risk], ["ui.grp.team", team]] as const).map(([g, cs]) => cs.length > 0 && (
+        <section key={g}><h3 className="grp">{t(g)}{g === "ui.grp.impact" && <span className="beta">{t("adv.beta")}</span>}</h3><div className="cards">{cs.map((c) => <Tile key={c[3]} c={c} />)}</div></section>
+      ))}
+    </div>
   );
 }
 
+type Tab = "replay" | "stats" | "coach" | "teams" | "charts";
+
 export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void }) {
+  const [tab, setTab] = useState<Tab>("replay");
+  const [tsub, setTsub] = useState<"score" | "ledger" | "danger" | "move">("score"), [side, setSide] = useState<"own" | "enemy">("own");
+  const [csub, setCsub] = useState<"wp" | "impact" | "targets" | "compare" | "heat">("wp");
   const [seekTo, setSeekTo] = useState<{ t: number; n: number }>({ t: 0, n: 0 });
   const findings = useMemo(() => rank(runDetectors(tl, detectors)), [tl]);
-  const me = tl.vehicles.find((v) => v.isRecorder)!, w = tl.arena.winnerTeam;
+  const h = useMemo(() => recorderHeuristics(tl), [tl]);
+  const me = tl.vehicles.find((v) => v.isRecorder)!, w = tl.arena.winnerTeam, mr = tl.results?.players[tl.recorder.vid];
   const res = w == null ? t("report.unfinished") : w === 0 ? t("report.draw") : w === tl.recorder.team ? t("report.win") : t("report.loss");
   const resCls = w == null || w === 0 ? "" : w === tl.recorder.team ? "win" : "loss";
+  const go = (x: Tab) => { setTab(x); window.scrollTo({ top: 0 }); };
+  const kpis: [string, string][] = [
+    ...(h ? ([[t("ui.sum.impact"), `${h.impactPts >= 0 ? "+" : "−"}${Math.abs(h.impactPts).toFixed(1)}`]] as [string, string][]) : []),
+    ...(mr ? ([[t("col.dmg"), String(mr.damageDealt)], [t("col.assist"), String(mr.assistRadio + mr.assistTrack + mr.assistStun)], [t("col.kills"), String(mr.kills)], [t("col.blocked"), String(mr.blocked)]] as [string, string][]) : []),
+  ];
+  const nCoach = findings.length;
   return (
     <div className="report" data-testid="report">
-      <button onClick={onBack}>← {t("report.back")}</button>
-      <Player tl={tl} findings={findings} seekTo={seekTo} />
-      <h2><span className={resCls}>{res}</span> · {tl.arena.mapDisplayName} · {tank(me)}</h2>
-      <div className="sub">{tl.arena.startedAt} · {tl.source.server} · v{tl.source.clientVersion}
-        {tl.arena.durationS != null && <> · {t("report.duration")} {mmss(tl.arena.durationS)}</>}</div>
-      {tl.source.manifest.confidence !== "defs" && <div className="banner">{t("report.partial")}</div>}
-      {(tl.arena.battleType !== 1 || tl.vehicles.length !== 30) && <div className="banner" data-testid="modebanner">{t("report.mode")}</div>}
-      <CoverageBadge tl={tl} />
-      <Advanced tl={tl} />
-      <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => { setSeekTo((s) => ({ t: Math.max(0, f.tStart - f.leadS), n: s.n + 1 })); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
-      <details className="repheat" data-testid="heatsec"><summary>{t("report.section.heat")}</summary><MapPage tl={tl} /></details>
-      <HeuristicCharts tl={tl} />
-      <FeedbackExport />
-      <Team tl={tl} team={tl.recorder.team} title={t("report.allies")} cls="ally-h" />
-      <Team tl={tl} team={tl.recorder.team === 1 ? 2 : 1} title={t("report.enemies")} cls="enemy-h" />
-      {debugOn() && <Debug tl={tl} />}
+      <div className="rhead">
+        <div className="rtitle">
+          <h2><span className={resCls}>{res}</span> · {tl.arena.mapDisplayName} · {tank(me)}</h2>
+          <div className="sub">{tl.arena.startedAt.slice(0, 16)} · {tl.source.server}{tl.arena.durationS != null && <> · {mmss(tl.arena.durationS)}</>}</div>
+        </div>
+        <button type="button" className="sm" onClick={onBack} title={t("report.back")}>＋ {t("ui.new")}</button>
+        <dl className="kpis">{kpis.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+        <div className="notes">
+          <CoverageBadge tl={tl} />
+          {tl.source.manifest.confidence !== "defs" && <details className="covbadge partial"><summary>{t("ui.partial")}</summary><p>{t("report.partial")}</p></details>}
+          {(tl.arena.battleType !== 1 || tl.vehicles.length !== 30) && <details className="covbadge partial" data-testid="modebanner"><summary>{t("ui.mode")}</summary><p>{t("report.mode")}</p></details>}
+        </div>
+      </div>
+      <nav className="tabs" role="tablist" aria-label={t("ui.tabs")}>
+        {(["replay", "stats", "coach", "teams", "charts"] as const).map((k) => <button type="button" role="tab" key={k} aria-selected={tab === k} onClick={() => go(k)} data-testid={`tab-${k}`}>{t(`ui.tab.${k}`)}{k === "coach" && nCoach > 0 && <span className="badge">{nCoach}</span>}</button>)}
+      </nav>
+      {/* the player stays mounted so 3D, map and time survive tab switches */}
+      <div hidden={tab !== "replay"}><Player tl={tl} findings={findings} seekTo={seekTo} /></div>
+      {tab === "stats" && <><Stats tl={tl} /><FeedbackExport />{debugOn() && <Debug tl={tl} />}</>}
+      {tab === "coach" && <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => { setSeekTo((s) => ({ t: Math.max(0, f.tStart - f.leadS), n: s.n + 1 })); go("replay"); }} />}
+      {tab === "teams" && <div className="pane">
+        <Seg value={tsub} set={setTsub} label={t("ui.tab.teams")} items={[["score", t("ui.t.score")], ["ledger", t("ui.t.ledger")], ["danger", t("ui.t.danger")], ["move", t("ui.t.move")]]} />
+        {tsub === "score" && <><Seg value={side} set={setSide} label={t("ui.t.score")} items={[["own", t("report.allies")], ["enemy", t("report.enemies")]]} /><Team key={side} tl={tl} team={side === "own" ? tl.recorder.team : tl.recorder.team === 1 ? 2 : 1} /></>}
+        {tsub === "ledger" && <Ledger tl={tl} />}{tsub === "danger" && <Danger tl={tl} />}{tsub === "move" && <Movement tl={tl} />}
+      </div>}
+      {tab === "charts" && <div className="pane">
+        <Seg value={csub} set={setCsub} label={t("ui.tab.charts")} testid="charts" items={[["wp", t("ui.c.wp")], ["impact", t("ui.c.impact")], ["targets", t("ui.c.targets")], ["compare", t("ui.c.compare")], ["heat", t("ui.c.heat")]]} />
+        <div className="charts">{csub === "wp" && <WpChart tl={tl} />}{csub === "impact" && <ImpactChart tl={tl} />}{csub === "targets" && <TargetChart tl={tl} />}{csub === "compare" && <CompareChart tl={tl} />}{csub === "heat" && <MapPage tl={tl} />}</div>
+      </div>}
     </div>
   );
 }
