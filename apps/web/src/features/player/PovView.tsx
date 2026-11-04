@@ -127,6 +127,9 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
           }
         }
         rgeo.setDrawRange(0, q * 6); (rgeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true; (rgeo.getAttribute("color") as THREE.BufferAttribute).needsUpdate = true; }
+      { const k = cam.fov / 65; labels.forEach((l, i) => { const g = tanks.get(tl.vehicles[i]!.vid)!.g, d = cam.position.distanceTo(g.position), m = Math.min(1.4, Math.max(0.3, d / 90)); l.scale.set(16 * k * m, 4 * k * m, 1); }); }
+      const wantFov = L.mode === "fp" && L.zoom > 1 && onTarget ? (2 * Math.atan(Math.tan((65 * Math.PI) / 360) / L.zoom) * 180) / Math.PI : 65;
+      if (Math.abs(cam.fov - wantFov) > 0.05) { cam.fov += (wantFov - cam.fov) * 0.18; cam.updateProjectionMatrix(); }
       renderer.render(scene, cam);
     }; loop();
     return () => { cancelAnimationFrame(raf); ro.disconnect(); rgeo.dispose(); (ribbon.material as THREE.Material).dispose(); dom.removeEventListener("pointerdown", down); dom.removeEventListener("pointermove", move); dom.removeEventListener("pointerup", up); dom.removeEventListener("pointercancel", up); dom.removeEventListener("wheel", wheel); dom.removeEventListener("dblclick", reset); for (const g of deco) g.dispose(); for (const m of decoMat) m.dispose(); renderer.dispose(); tgeo.dispose(); for (const l of labels) { (l.material as THREE.SpriteMaterial).map?.dispose(); l.material.dispose(); } geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };
