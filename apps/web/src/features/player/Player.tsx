@@ -7,9 +7,10 @@ import { t } from "../../i18n";
 import { loadMap, type MapBounds } from "../../lib/mapStore";
 import { MapLoader } from "./MapLoader";
 import { MiniMap } from "./MiniMap";
+import { heightImage } from "../../lib/heightImage";
 const PovView = lazy(() => import("./PovView"));
 import { DamageLog } from "./DamageLog";
-import { flankModel, flankState, seriesFor, aimAt } from "@wotrep/analysis";
+import { flankModel, flankState, seriesFor, aimAt, heightField } from "@wotrep/analysis";
 import { goodPlaysAll, dangerSpots, type GoodPlay, type DangerSpot } from "@wotrep/coach";
 import { FindingCard } from "../report/Findings";
 
@@ -44,6 +45,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
     return { x0: x0 - 40, x1: x1 + 40, z0: z0 - 40, z1: z1 + 40 };
   }, [tl]);
   const bounds = mapInfo?.b ?? trackBounds;
+  const [heights, setHeights] = useState(false), hmap = useMemo(() => (heights ? heightImage(heightField(tl, bounds, 25)) : null), [tl, bounds, heights]);
   const wp = useMemo(() => wpSeries(tl, tl.recorder.team, 1), [tl]);
   const kills = useMemo(() => tl.events.flatMap((e) => (e.k === "kill" && e.t >= 0 ? [e] : [])), [tl]);
   const vehicle = useMemo(() => new Map(tl.vehicles.map((v) => [v.vid, v])), [tl]);
@@ -81,7 +83,8 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
     if (o.follow) { const r = by.get(o.sel ?? tl.recorder.vid); if (r && r.known !== "never") { cm.cx = r.x; cm.cz = r.z; } }
     const sx = (x: number) => W / 2 + (x - cm.cx) * cm.s, sy = (z: number) => H / 2 - (z - cm.cz) * cm.s;
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
-    if (mapInfo) { g.globalAlpha = 0.9; g.drawImage(mapInfo.img, sx(mapInfo.b.x0), sy(mapInfo.b.z1), (mapInfo.b.x1 - mapInfo.b.x0) * cm.s, (mapInfo.b.z1 - mapInfo.b.z0) * cm.s); g.globalAlpha = 1; }
+    if (hmap) { g.imageSmoothingEnabled = true; g.globalAlpha = mapInfo ? 0.55 : 0.9; g.drawImage(hmap.canvas, sx(hmap.x0), sy(hmap.z0 + hmap.h), hmap.w * cm.s, hmap.h * cm.s); g.globalAlpha = 1; }
+    if (mapInfo) { g.globalAlpha = hmap ? 0.45 : 0.9; g.drawImage(mapInfo.img, sx(mapInfo.b.x0), sy(mapInfo.b.z1), (mapInfo.b.x1 - mapInfo.b.x0) * cm.s, (mapInfo.b.z1 - mapInfo.b.z0) * cm.s); g.globalAlpha = 1; }
     // grid every 100 m, labels A.. / 1.. like the in-game minimap squares
     g.lineWidth = 1; g.strokeStyle = grid; g.font = "10px system-ui"; g.fillStyle = muted; g.textBaseline = "top";
     const gx0 = Math.floor(bounds.x0 / GRID_M) * GRID_M, gz0 = Math.floor(bounds.z0 / GRID_M) * GRID_M;
@@ -171,7 +174,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
       const i = Math.min(end, Math.floor(T)), cur = ys[i]; q.fillStyle = ink; q.font = "bold 11px system-ui"; q.textBaseline = "top";
       if (cur != null) q.fillText(kind === "wp" || kind === "hit" ? `${Math.round(cur * 100)}%` : Math.round(cur).toLocaleString(), Math.min(cw - 50, X2(T) + 4), 2);
     }
-  }, [tl, bounds, wp, kills, vehicle, end, fit, mapInfo, crew, dot, dangers, dg]);
+  }, [tl, bounds, wp, kills, vehicle, end, fit, mapInfo, crew, dot, dangers, dg, hmap]);
 
   // ---- clock loop ----
   useEffect(() => {
@@ -274,6 +277,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
         <canvas ref={canvas} aria-label={t("player.aria")} role="img" />
         {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} /></Suspense>{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{t("pov.aim")} {a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
         {sv && su && <div className="pinfo"><b>{sv.name}</b> · {vehicleLabel(sv.vehicleType).label}<div>{su.alive ? `${Math.round(su.hp)} / ${sv.maxHealth} HP` : "✕"}{su.known === "ghost" ? ` · ${t("player.lastseen", { s: Math.round(su.ageS ?? 0) })}` : ""}</div></div>}
+        {hmap && <div className="hlegend" onPointerDown={(e) => e.stopPropagation()}><i /><span>{Math.round(hmap.min)} m</span><span>{Math.round(hmap.max)} m</span><small>{t("player.heights.note")}</small></div>}
         <div className="pzoom" onPointerDown={(e) => e.stopPropagation()}><button type="button" onClick={() => zoomBtn(1.4)} aria-label={t("player.zoomin")}>+</button><button type="button" onClick={() => zoomBtn(1 / 1.4)} aria-label={t("player.zoomout")}>−</button><button type="button" onClick={fitUnits} aria-label={t("player.fitunits")} title={t("player.fitunits")}>◎</button><button type="button" onClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); }} aria-label={t("player.fitmap")} title={t("player.fitmap")}>⤢</button><button type="button" onClick={() => setMapPanel(true)} aria-label={t("map.open")} title={t("map.open")}>🗺</button></div>
         {!active && xActive && <div className="pcard" onPointerDown={(e) => e.stopPropagation()}><p>{xActive.text}</p>{!playing && <button type="button" onClick={() => { coachPaused.current = false; setPlaying(true); }}>{t("coach.continue")}</button>}</div>}
         {active && <div className="pcard" onPointerDown={(e) => e.stopPropagation()}><FindingCard f={active} actions={!playing && <><button type="button" onClick={() => setPlaying(true)}>{t("coach.continue")}</button> <button type="button" onClick={() => { setSel(tl.recorder.vid); seek(active.tStart - 4); setView3d("fp"); }}>{t("pov.show")}</button></>} /></div>}
@@ -316,6 +320,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
           <label>{t("pause.resume")} <select value={resumeS} onChange={(e) => setResumeS(Number(e.target.value))}>{[0, 5, 10, 20].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
         </details>}
         <label><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> {t("player.follow")}</label>
+        <label><input type="checkbox" checked={heights} onChange={(e) => setHeights(e.target.checked)} data-testid="heights" /> {t("player.heights")}</label>
         <label><input type="checkbox" checked={logOn} onChange={(e) => setLogOn(e.target.checked)} /> {t("log.toggle")}</label>
         <label><input type="checkbox" checked={names} onChange={(e) => setNames(e.target.checked)} /> {t("player.names")}</label>
         <label><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} /> {t("player.trails")}</label>

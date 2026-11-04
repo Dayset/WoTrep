@@ -378,5 +378,7 @@
   "pov.who": "Watching",
   "pov.me": "You",
   "pov.team": "Teammates",
-  "pov.foes": "Enemies"
+  "pov.foes": "Enemies",
+  "player.heights": "Heights",
+  "player.heights.note": "Estimated from where tanks drove. Solid = tanks were there, hatched = guessed. Not cover."
 }
