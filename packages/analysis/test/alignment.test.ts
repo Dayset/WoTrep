@@ -10,3 +10,14 @@ describe("yawGapDeg", () => {
     expect(yawGapDeg(0, Math.PI)).toBeCloseTo(180);
   });
 });
+
+import { teamCoherence } from "../src/alignment";
+describe("teamCoherence", () => {
+  it("averages pair shares and reports each member", () => {
+    const yaw = new Map<number, (number | null)[]>([[1, [0, 0, 0]], [2, [0, 0, 1]], [3, [3, 3, 3]]]);
+    const r = teamCoherence({ t: [0, 1, 2], yaw }, [1, 2, 3]);
+    expect(r.members.find((m) => m.vid === 3)!.share).toBeCloseTo(0);
+    expect(r.members.find((m) => m.vid === 1)!.share).toBeCloseTo(1 / 3);
+    expect(r.avg).toBeCloseTo((2 / 3 + 0 + 0) / 3);
+  });
+});

@@ -77,8 +77,12 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       const c = document.createElement("canvas"); c.width = 256; c.height = 64; const g2 = c.getContext("2d")!; g2.font = "bold 34px sans-serif"; g2.textAlign = "center"; g2.fillStyle = "rgba(0,0,0,0.55)"; g2.fillRect(0, 8, 256, 48); g2.fillStyle = v.team === tl.recorder.team ? "#9fd0ff" : "#ffb0b0"; g2.fillText(v.name.slice(0, 14), 128, 46);
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true })); sp.scale.set(16, 4, 1); sp.position.y = 6; sp.renderOrder = 5; tanks.get(v.vid)!.g.add(sp); labels.push(sp);
     }
-    const tgeo = new THREE.BufferGeometry(), tpos = new Float32Array(MAXS * 6); tgeo.setAttribute("position", new THREE.BufferAttribute(tpos, 3)); tgeo.setDrawRange(0, 0);
-    const tlines = new THREE.LineSegments(tgeo, new THREE.LineBasicMaterial({ color: 0xffe066, depthTest: false, fog: false })); tlines.frustumCulled = false; tlines.renderOrder = 10; scene.add(tlines);
+    // shot tracers: a thin flat ribbon per shot (not a 1 px line), bright and fading over TRACER_S
+    const TRACER_S = 1.2, TRACER_HALF = 0.35;
+    const tgeo = new THREE.BufferGeometry(), tpos = new Float32Array(MAXS * 18), tcolT = new Float32Array(MAXS * 18);
+    tgeo.setAttribute("position", new THREE.BufferAttribute(tpos, 3)); tgeo.setAttribute("color", new THREE.BufferAttribute(tcolT, 3)); tgeo.setDrawRange(0, 0);
+    const tlines = new THREE.Mesh(tgeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide, fog: false }));
+    tlines.frustumCulled = false; tlines.renderOrder = 10; scene.add(tlines);
     // decoration only (no map data yet): seeded trees, bushes, clouds and far mountains
     let seed = 12345; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     const deco: THREE.BufferGeometry[] = [], decoMat: THREE.Material[] = [];
@@ -164,9 +168,17 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
                 p.scale.setScalar(Math.min(45, 7 + age * 0.35 + j * 2.5)); p.rotation.set(a, a * 0.7, 0); }); } } }
         k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = aim0; (k.g.children[1] as THREE.Group).rotation.y = aim ? sm.h - sm.g : 0; if (u.vid === L.vid) { turretYaw = sm.g; hullYawS = sm.h; onTarget = !!aim?.onTarget; turretPitch = aim ? aim.pitch : 0; }
       }
-      let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; const fpO: [number, number, number] | null = L.mode === "fp" && me && me.known !== "never" ? [me.x, gh(me.x, me.z) + 2.9, -me.z] : null; // first person: tracers start at the camera
-      tpos.set([fpO ? fpO[0] : sh.x0, fpO ? fpO[1] : (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, fpO ? fpO[2] : -sh.z0, sh.x1, (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, -sh.z1], n * 6); n++; }
-      tgeo.setDrawRange(0, n * 2); (tgeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+      let n = 0; const T = clock.current.t; const fpO: [number, number, number] | null = L.mode === "fp" && me && me.known !== "never" ? [me.x, gh(me.x, me.z) + 2.9, -me.z] : null; // first person: tracers start at the camera
+      for (const sh of shots) { if (sh.t > T) break; const age = T - sh.t; if (age > TRACER_S || n >= MAXS) continue;
+        const x0 = fpO ? fpO[0] : sh.x0, y0 = fpO ? fpO[1] : (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, z0 = fpO ? fpO[2] : -sh.z0;
+        const x1 = sh.x1, y1 = (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, z1 = -sh.z1;
+        const dx = x1 - x0, dz = z1 - z0, len = Math.hypot(dx, dz) || 1, px = (-dz / len) * TRACER_HALF, pz = (dx / len) * TRACER_HALF;
+        const fade = Math.max(0, 1 - age / TRACER_S), k = n * 18;
+        tpos.set([x0 - px, y0, z0 - pz, x0 + px, y0, z0 + pz, x1 - px, y1, z1 - pz, x0 + px, y0, z0 + pz, x1 + px, y1, z1 + pz, x1 - px, y1, z1 - pz], k);
+        for (let v = 0; v < 6; v++) tcolT.set([fade, fade * 0.9, fade * 0.4], k + v * 3);
+        n++; }
+      tgeo.setDrawRange(0, n * 6);
+      (tgeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true; (tgeo.getAttribute("color") as THREE.BufferAttribute).needsUpdate = true;
       if (me && me.known !== "never") {
         const p = new THREE.Vector3(me.x, gh(me.x, me.z), -me.z), K = look.current, ay = -(L.mode === "fp" ? turretYaw : hullYawS) + K.yaw, cp = Math.cos(K.pitch);
         pitchNow += (turretPitch - pitchNow) * 0.15;
