@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { validateTimeline, type BattleTimeline, type BattleEvent } from "@wotrep/model";
-import { badTrade, deathRecap, idleWithTargets, isolatedUnderFire, survivedUnusedHp, wonTrade, type Detector } from "../src/index";
+import { badTrade, deathRecap, detectors, idleWithTargets, isolatedUnderFire, runDetectors, survivedUnusedHp, wonTrade, type Detector } from "../src/index";
+import { boldnessAll, playerStats, teamplayAll } from "@wotrep/analysis";
 
 const r = validateTimeline(JSON.parse(readFileSync(new URL("../../../fixtures/timelines/lesta-1.46-overlord-sbm44.timeline.json", import.meta.url), "utf8")));
 if (!r.ok) throw new Error("fixture");
@@ -80,4 +81,47 @@ describe("recaps", () => {
     expect(run(survivedUnusedHp, lost(300, team))).toEqual([]);
   });
 });
-void friends;
+describe("subject: any player, friend or foe", () => {
+  const friend = friends[0]!.vid, foeSub = foes[0]!.vid;
+  const runS = (d: Detector, tl: BattleTimeline, subject: number) => d.detect({ tl, cfg: d.cfg, subject });
+  it("bad-trade: a friend's lost trade is a mistake for the friend, nothing for the recorder", () => {
+    const tl = still(() => [0, 0], [dmg(100, friend, foeSub, 100), dmg(102, foeSub, friend, 800), dmg(104, foeSub, friend, 700)]);
+    const f = runS(badTrade, tl, friend);
+    expect(f).toHaveLength(1); expect(f[0]!.vid).toBe(friend); expect(f[0]!.params).toEqual({ dealt: 100, got: 1500 });
+    expect(run(badTrade, tl)).toEqual([]);
+  });
+  it("isolated-under-fire: an enemy alone among the recorder's team, far from their own allies", () => {
+    const place = (v: { vid: number; team: number }, i: number): [number, number] => {
+      if (v.vid === foeSub) return [0, 0];
+      if (v.team !== team) return [600, i];
+      return [100 + i, 0];
+    };
+    const tl = still(place, [dmg(100, me, foeSub, 200)]);
+    const f = runS(isolatedUnderFire, tl, foeSub);
+    expect(f).toHaveLength(1); expect(f[0]!.vid).toBe(foeSub); expect(f[0]!.params.enemies).toBeGreaterThanOrEqual(3);
+    expect(run(isolatedUnderFire, tl)).toEqual([]);
+  });
+  it("death-recap: an enemy's death names the killer", () => {
+    const tl = still(() => [0, 0], [dmg(150, me, foeSub, 100), dmg(170, me, foeSub, 400), { k: "kill", t: 176, victim: foeSub, killer: me, reason: 0, equipment: 0 }]);
+    const f = runS(deathRecap, tl, foeSub);
+    expect(f).toHaveLength(1); expect(f[0]!.vid).toBe(foeSub); expect(f[0]!.kind).toBe("info");
+    expect(run(deathRecap, tl)).toEqual([]);
+  });
+  it("runDetectors with a subject returns only that player's findings; without one, only the recorder's", () => {
+    const tl = still(() => [0, 0], [dmg(100, friend, foeSub, 100), dmg(102, foeSub, friend, 800), dmg(104, foeSub, friend, 700)]);
+    const sub = runDetectors(tl, detectors, friend);
+    expect(sub.length).toBeGreaterThanOrEqual(1); expect(sub.every((f) => f.vid === friend)).toBe(true);
+    expect(sub.some((f) => f.detector === "bad-trade")).toBe(true);
+    expect(runDetectors(tl, detectors).every((f) => f.vid === me)).toBe(true);
+  });
+  it("unknown subject vid → no findings", () => {
+    const tl = still(() => [0, 0], [dmg(100, friend, foeSub, 100), dmg(102, foeSub, friend, 1500)]);
+    expect(runS(badTrade, tl, 999999)).toEqual([]);
+  });
+  it("stats already cover every player: playerStats, boldnessAll and teamplayAll key all vehicles", () => {
+    const vids = base.vehicles.map((v) => v.vid).sort((a, b) => a - b);
+    expect(playerStats(base).map((p) => p.vid).sort((a, b) => a - b)).toEqual(vids);
+    expect([...boldnessAll(base).keys()].sort((a, b) => a - b)).toEqual(vids);
+    expect([...teamplayAll(base).keys()].sort((a, b) => a - b)).toEqual(vids);
+  });
+});

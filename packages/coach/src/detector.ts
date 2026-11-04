@@ -5,7 +5,13 @@ import type { Finding } from "./finding";
 /** What a detector reads: P positions · H health events · T shots · C camera/aim · R reload · Z map zones · W win probability. */
 export type Need = "P" | "H" | "T" | "C" | "R" | "Z" | "W";
 
-export interface DetectorInput { tl: BattleTimeline; cfg: Cfg }
+export interface DetectorInput {
+  tl: BattleTimeline; cfg: Cfg;
+  /** vid of the player the findings are about. Default: the recorder. Any vehicle works — friend or foe — but only the
+   *  recorder's own data is complete; for anyone else damage taken is partly unseen and positions/visibility are what the
+   *  recorder's side knew (see docs/COACHING.md "Per-player mode"). Unknown vid → no findings. */
+  subject?: number;
+}
 export interface Detector {
   id: string; version: number; needs: Need[];
   detect(input: DetectorInput): Finding[];
@@ -23,6 +29,6 @@ export function defineDetector(d: { id: string; version: number; needs: Need[]; 
   };
 }
 
-export function runDetectors(tl: BattleTimeline, detectors: Detector[]): Finding[] {
-  return detectors.flatMap((d) => d.detect({ tl, cfg: d.cfg }));
+export function runDetectors(tl: BattleTimeline, detectors: Detector[], subject?: number): Finding[] {
+  return detectors.flatMap((d) => d.detect({ tl, cfg: d.cfg, subject }));
 }

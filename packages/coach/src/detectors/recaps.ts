@@ -1,13 +1,13 @@
 import { defineDetector } from "../detector";
 import deathCfg from "../../config/death-recap.json";
 import survCfg from "../../config/survived-unused-hp.json";
-import { recorder } from "./util";
+import { subject } from "./util";
 
-/** Info card when the recorder dies: who killed them and where the damage in the last seconds came from. */
+/** Info card when the subject dies: who killed them and where the damage in the last seconds came from. */
 export const deathRecap = defineDetector({
   id: "death-recap", version: 1, needs: ["H"], config: deathCfg,
-  detect({ tl, cfg }) {
-    const me = recorder(tl); if (!me) return [];
+  detect({ tl, cfg, subject: subjectVid }) {
+    const me = subject(tl, subjectVid); if (!me) return [];
     const k = tl.events.find((e) => e.k === "kill" && e.victim === me.vid); if (!k || k.k !== "kill") return [];
     const hits = tl.events.flatMap((e) => (e.k === "damage" && e.target === me.vid && e.t <= k.t && e.t >= k.t - (cfg.windowS as number) ? [e] : []));
     const by = new Map<number, number>(); for (const h of hits) by.set(h.attacker, (by.get(h.attacker) ?? 0) + h.amount);
@@ -20,11 +20,11 @@ export const deathRecap = defineDetector({
   },
 });
 
-/** Team lost while the recorder survived with most of their HP and dealt little. */
+/** Team lost while the subject survived with most of their HP and dealt little. */
 export const survivedUnusedHp = defineDetector({
   id: "survived-unused-hp", version: 1, needs: ["H"], config: survCfg,
-  detect({ tl, cfg }) {
-    const me = recorder(tl), w = tl.arena.winnerTeam; if (!me || !tl.results || w == null || w === 0 || w === me.team) return [];
+  detect({ tl, cfg, subject: subjectVid }) {
+    const me = subject(tl, subjectVid), w = tl.arena.winnerTeam; if (!me || !tl.results || w == null || w === 0 || w === me.team) return [];
     if (tl.events.some((e) => e.k === "kill" && e.victim === me.vid)) return [];
     const hp = me.maxHealth - tl.events.reduce((s, e) => s + (e.k === "damage" && e.target === me.vid ? e.amount : 0), 0), dealt = tl.results.players[me.vid]?.damageDealt ?? 0;
     if (hp < (cfg.hpShare as number) * me.maxHealth || dealt >= (cfg.dealtShare as number) * me.maxHealth) return [];

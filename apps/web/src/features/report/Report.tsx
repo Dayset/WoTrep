@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
-import { boldnessAll, flankModel, playerMetrics, playerStats, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
+import { boldnessAll, flankModel, playerHeuristics, playerMetrics, playerStats, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
 import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
-import { CompareChart, ImpactChart, TargetChart, WpChart } from "./Charts";
+import { CompareChart, DistChart, ImpactChart, TargetChart, WpChart } from "./Charts";
 import { Debug, debugOn } from "./Debug";
 import { Player } from "../player/Player";
 import { MapPage } from "../map/MapPage";
@@ -68,12 +68,13 @@ function Tile({ c: [k, v, tip, id] }: { c: Card }) {
   );
 }
 
-function Stats({ tl }: { tl: BattleTimeline }) {
-  const h = recorderHeuristics(tl); if (!h) return <p className="muted">—</p>;
-  const plays = goodPlaysAll(tl), al = alignment(plays, tl.recorder.team), mineP = plays.filter((p) => p.vid === tl.recorder.vid), carried = mineP.filter((p) => p.enabled === "carried").length;
-  const fm = flankModel(tl), rf = fm ? reinforce(tl, fm) : null, mineR = rf?.byPlayer.get(tl.recorder.vid) ?? 0, reactions = rf ? rf.episodes.flatMap((e) => (e.reactionS == null ? [] : [e.reactionS])).sort((a, b) => a - b) : [];
-  const bd = boldnessAll(tl).get(tl.recorder.vid), tp = teamplayAll(tl).get(tl.recorder.vid), shape = teamShape(tl, tl.recorder.team);
-  const myRes = tl.results?.players[tl.recorder.vid];
+function Stats({ tl, vid }: { tl: BattleTimeline; vid: number }) {
+  const h = playerHeuristics(tl, vid); if (!h) return <p className="muted">—</p>;
+  const subjTeam = tl.vehicles.find((v) => v.vid === vid)?.team ?? tl.recorder.team;
+  const plays = goodPlaysAll(tl), al = alignment(plays, subjTeam), mineP = plays.filter((p) => p.vid === vid), carried = mineP.filter((p) => p.enabled === "carried").length;
+  const fm = flankModel(tl, subjTeam), rf = fm ? reinforce(tl, fm) : null, mineR = rf?.byPlayer.get(vid) ?? 0, reactions = rf ? rf.episodes.flatMap((e) => (e.reactionS == null ? [] : [e.reactionS])).sort((a, b) => a - b) : [];
+  const bd = boldnessAll(tl).get(vid), tp = teamplayAll(tl).get(vid), shape = teamShape(tl, subjTeam);
+  const myRes = tl.results?.players[vid];
   const sgn = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
   const assist = myRes ? myRes.assistRadio + myRes.assistTrack + myRes.assistStun : 0;
   const impact: Card[] = [
@@ -117,9 +118,12 @@ type Tab = "replay" | "stats" | "coach" | "teams" | "charts";
 export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void }) {
   const [tab, setTab] = useState<Tab>("replay");
   const [tsub, setTsub] = useState<"score" | "ledger" | "danger" | "move">("score"), [side, setSide] = useState<"own" | "enemy">("own");
-  const [csub, setCsub] = useState<"wp" | "impact" | "targets" | "compare" | "heat">("wp");
+  const [csub, setCsub] = useState<"wp" | "impact" | "targets" | "compare" | "dist" | "heat">("wp");
   const [seekTo, setSeekTo] = useState<{ t: number; n: number }>({ t: 0, n: 0 });
-  const findings = useMemo(() => rank(runDetectors(tl, detectors)), [tl]);
+  const [subject, setSubject] = useState(tl.recorder.vid);
+  /** The player the Stats and Coach tabs are about. Falls back to the recorder when the stored vid is not in this battle. */
+  const subjectVid = tl.vehicles.some((v) => v.vid === subject) ? subject : tl.recorder.vid;
+  const findings = useMemo(() => rank(runDetectors(tl, detectors, subjectVid)), [tl, subjectVid]);
   const h = useMemo(() => recorderHeuristics(tl), [tl]);
   const me = tl.vehicles.find((v) => v.isRecorder)!, w = tl.arena.winnerTeam, mr = tl.results?.players[tl.recorder.vid];
   const res = w == null ? t("report.unfinished") : w === 0 ? t("report.draw") : w === tl.recorder.team ? t("report.win") : t("report.loss");
@@ -150,7 +154,17 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
       </nav>
       {/* the player stays mounted so 3D, map and time survive tab switches */}
       <div hidden={tab !== "replay"}><Player tl={tl} findings={findings} seekTo={seekTo} /></div>
-      {tab === "stats" && <><Stats tl={tl} /><FeedbackExport />{debugOn() && <Debug tl={tl} />}</>}
+      {(tab === "stats" || tab === "coach") && (
+        <div className="pane">
+          <label>{t("report.subject")} <select value={subjectVid} onChange={(e) => setSubject(Number(e.target.value))} aria-label={t("report.subject")}>
+            <option value={tl.recorder.vid}>👁 {me.name} ({t("pov.me")})</option>
+            <optgroup label={t("pov.team")}>{tl.vehicles.filter((v) => v.team === tl.recorder.team && !v.isRecorder).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
+            <optgroup label={t("pov.foes")}>{tl.vehicles.filter((v) => v.team !== tl.recorder.team).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
+          </select></label>
+          {subjectVid !== tl.recorder.vid && <p className="muted">{t("report.subjectPartial")}</p>}
+        </div>
+      )}
+      {tab === "stats" && <><Stats tl={tl} vid={subjectVid} /><FeedbackExport />{debugOn() && <Debug tl={tl} />}</>}
       {tab === "coach" && <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => { setSeekTo((s) => ({ t: Math.max(0, f.tStart - f.leadS), n: s.n + 1 })); go("replay"); }} />}
       {tab === "teams" && <div className="pane">
         <Seg value={tsub} set={setTsub} label={t("ui.tab.teams")} items={[["score", t("ui.t.score")], ["ledger", t("ui.t.ledger")], ["danger", t("ui.t.danger")], ["move", t("ui.t.move")]]} />
@@ -158,8 +172,8 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
         {tsub === "ledger" && <Ledger tl={tl} />}{tsub === "danger" && <Danger tl={tl} />}{tsub === "move" && <Movement tl={tl} />}
       </div>}
       {tab === "charts" && <div className="pane">
-        <Seg value={csub} set={setCsub} label={t("ui.tab.charts")} testid="charts" items={[["wp", t("ui.c.wp")], ["impact", t("ui.c.impact")], ["targets", t("ui.c.targets")], ["compare", t("ui.c.compare")], ["heat", t("ui.c.heat")]]} />
-        <div className="charts">{csub === "wp" && <WpChart tl={tl} />}{csub === "impact" && <ImpactChart tl={tl} />}{csub === "targets" && <TargetChart tl={tl} />}{csub === "compare" && <CompareChart tl={tl} />}{csub === "heat" && <MapPage tl={tl} />}</div>
+        <Seg value={csub} set={setCsub} label={t("ui.tab.charts")} testid="charts" items={[["wp", t("ui.c.wp")], ["impact", t("ui.c.impact")], ["targets", t("ui.c.targets")], ["compare", t("ui.c.compare")], ["dist", t("ui.c.dist")], ["heat", t("ui.c.heat")]]} />
+        <div className="charts">{csub === "wp" && <WpChart tl={tl} />}{csub === "impact" && <ImpactChart tl={tl} />}{csub === "targets" && <TargetChart tl={tl} />}{csub === "compare" && <CompareChart tl={tl} />}{csub === "dist" && <DistChart tl={tl} />}{csub === "heat" && <MapPage tl={tl} />}</div>
       </div>}
     </div>
   );

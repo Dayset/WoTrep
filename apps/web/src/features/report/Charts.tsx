@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { BattleTimeline, Team } from "@wotrep/model";
-import { boldnessAll, playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
+import type { BattleTimeline, Team, VehicleInfo } from "@wotrep/model";
+import { boldnessAll, percentileRank, playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
 import { t } from "../../i18n";
 import { Vote } from "./Feedback";
 
@@ -185,6 +185,57 @@ export function CompareChart({ tl }: { tl: BattleTimeline }) {
       </div>
       <div className="how-inline"><p><b>{t("gl.how")}.</b> {t(`gl.${mk}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${mk}.mean`)}</p></div>
       <p className="fbnote muted" style={{ marginTop: 10 }}>{t("viz.cmp.note")}</p>
+    </Frame>
+  );
+}
+
+const PALETTE = ["#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#42d4f4", "#f032e6"];
+
+/** Chart 5 — one metric's distribution across all players: every player is a dot on the value axis, each picked player
+ *  gets a coloured line at their value, labelled with name and percentile (share of players at or below). Percentiles are
+ *  within this battle's players only — there is no global baseline yet (see E11-04). */
+export function DistChart({ tl }: { tl: BattleTimeline }) {
+  const [ref, W] = useWidth(); const [mk, setMk] = useState<MetricKey>("bold"); const [hi, setHi] = useState<number | null>(null);
+  const [sel, setSel] = useState<number[]>([tl.recorder.vid]);
+  const all = useMemo(() => { const st = new Map(playerStats(tl).map((x) => [x.vid, x])); const bd = boldnessAll(tl); return tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid), s: st.get(v.vid)!, b: bd.get(v.vid) })); }, [tl]);
+  const m = METRICS.find((x) => x.key === mk)!;
+  const rows = all.flatMap((r) => { const val = m.get(r); return val == null ? [] : [{ ...r, val, cov: m.exact ? 1 : r.h?.coverage ?? 0 }]; });
+  if (rows.length < 2) return null;
+  const vals = rows.map((r) => r.val), lo = Math.min(...vals), hiV = Math.max(...vals);
+  const x = (v: number) => 10 + (hiV === lo ? 0.5 : (v - lo) / (hiV - lo)) * (W - 20);
+  const picked = sel.flatMap((vid, i) => { const r = rows.find((y) => y.v.vid === vid); return r ? [{ ...r, color: PALETTE[i % PALETTE.length]!, pct: percentileRank(vals, r.val)! }] : []; });
+  const H = 116, axisY = 84;
+  const toggle = (vid: number) => setSel((s) => s.includes(vid) ? s.filter((v) => v !== vid) : s.length >= PALETTE.length ? s : [...s, vid]);
+  const nm = (v: { name: string }) => v.name.length > 14 ? v.name.slice(0, 13) + "…" : v.name;
+  const hov = hi == null ? null : picked.find((p) => p.v.vid === hi) ?? null;
+  const box = (label: string, vs: VehicleInfo[]) => (
+    <div><b>{label}</b> {[...vs].sort((a, b) => a.name.localeCompare(b.name)).map((v) => {
+      const i = sel.indexOf(v.vid);
+      return <label key={v.vid} style={{ whiteSpace: "nowrap" }}><input type="checkbox" checked={i >= 0} disabled={i < 0 && sel.length >= PALETTE.length} onChange={() => toggle(v.vid)} />{i >= 0 && <i style={{ display: "inline-block", width: 10, height: 10, background: PALETTE[i % PALETTE.length]! }} />} {v.name}</label>;
+    })}</div>
+  );
+  return (
+    <Frame id="chart.dist" title={t("viz.dist")} sub={t("viz.dist.sub")}
+      table={<table><thead><tr><th>{t("viz.player")}</th><th>{t(m.label)}</th><th>{t("viz.dist.pct")}</th><th>{t("viz.cmp.seen")}</th></tr></thead><tbody>{picked.map((r) => <tr key={r.v.vid}><td className="nm">{r.v.name}</td><td>{m.fmt(r.val)}</td><td>{r.pct}%</td><td>{Math.round(r.cov * 100)}%</td></tr>)}</tbody></table>}>
+      <div className="seg" role="tablist">{METRICS.map((y) => <button key={y.key} role="tab" aria-selected={mk === y.key} onClick={() => setMk(y.key)}>{t(y.label)}</button>)}</div>
+      <div><b>{t("viz.dist.pick")}</b> {box(t("viz.cmp.allies"), tl.vehicles.filter((v) => v.team === tl.recorder.team))} {box(t("viz.cmp.enemies"), tl.vehicles.filter((v) => v.team !== tl.recorder.team))}</div>
+      <div ref={ref} className="plot" onPointerLeave={() => setHi(null)}>
+        <svg width={W} height={H} role="img" aria-label={t("viz.dist.aria")}>
+          <line x1={10} x2={W - 10} y1={axisY} y2={axisY} className="ref" />
+          {rows.map((r) => <circle key={r.v.vid} cx={x(r.val)} cy={axisY} r={3} fill="#888" opacity={0.7} />)}
+          {picked.map((p, i) => { const lx = Math.min(Math.max(x(p.val), 46), W - 46), ly = 12 + (i % 3) * 16;
+            return <g key={p.v.vid} opacity={hi == null || hi === p.v.vid ? 1 : 0.35} onPointerEnter={() => setHi(p.v.vid)} onPointerDown={() => setHi(p.v.vid)}>
+              <line x1={x(p.val)} x2={x(p.val)} y1={axisY} y2={ly + 10} stroke={p.color} strokeWidth={2} />
+              <circle cx={x(p.val)} cy={axisY} r={5} fill={p.color} />
+              <text x={lx} y={ly} className="ax lbl" textAnchor="middle" style={{ fill: p.color }}>{nm(p.v)} {p.pct}%</text>
+            </g>; })}
+          <text x={10} y={axisY + 18} className="ax">{m.fmt(lo)}</text>
+          <text x={W - 10} y={axisY + 18} className="ax" textAnchor="end">{m.fmt(hiV)}</text>
+        </svg>
+        {hov && <div className="tip" style={{ left: Math.min(Math.max(x(hov.val) - 80, 0), W - 170) }}>
+          <b>{hov.v.name}</b><div>{m.fmt(hov.val)} · {hov.pct}%</div>{!m.exact && <div className="muted">{t("viz.cmp.seen")}: {Math.round(hov.cov * 100)}%</div>}
+        </div>}
+      </div>
     </Frame>
   );
 }

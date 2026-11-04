@@ -78,3 +78,22 @@ Spotted for 14 s before the first hit · nearest ally 64 m
 Your reload when hit: 2.3 s left
 Fix: (top finding's fix)
 ```
+
+## 5. Per-player mode
+
+Detectors take a subject: `d.detect({ tl, cfg, subject: vid })`, or `runDetectors(tl, detectors, vid)`.
+Without `subject` the subject is the recorder, so existing callers are unchanged. Any vehicle works —
+teammate or enemy — and the report's Stats and Coach tabs let the viewer pick the subject. The stats side
+needed no change: `playerHeuristics(tl, vid)`, `boldnessAll`, `teamplayAll` and `playerStats` already key
+every vehicle.
+
+What changes for a non-recorder subject, and what does not:
+
+- Damage dealt *by* the subject is as complete as the replay saw it; damage *taken* is partly unseen
+  (shots outside the recorder's area of interest are missing), so HP costs are lower bounds, not exact.
+- Positions and visibility are the recorder's view of the battle (`stateAt`), not what the subject saw.
+  Principle 3 therefore reads differently here: a finding about an enemy judges them on recorder-visible
+  information, which is not a fair judgment of what the enemy knew. Treat non-recorder findings as
+  best-effort analysis, not coaching verdicts.
+- The report UI shows a partial-data note whenever the subject is not the recorder.
+- `vanishEvents` stays recorder-relative by data necessity: only the recorder's side has a known spotter set.

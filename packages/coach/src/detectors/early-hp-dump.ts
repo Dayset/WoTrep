@@ -1,11 +1,13 @@
 import { defineDetector } from "../detector";
 import config from "../../config/early-hp-dump.json";
+import { subject } from "./util";
 
-/** Lost a large share of own HP in the opening minutes. Cost = the HP itself (exact). Judges the recorder only: other players' damage taken is partly unseen. */
+/** Lost a large share of own HP in the opening minutes. Cost = the HP itself: exact for the recorder, a lower bound for any
+ *  other subject (their damage taken is partly unseen). */
 export const earlyHpDump = defineDetector({
   id: "early-hp-dump", version: 1, needs: ["H"], config,
-  detect({ tl, cfg }) {
-    const me = tl.vehicles.find((v) => v.isRecorder); if (!me || me.maxHealth <= 0) return [];
+  detect({ tl, cfg, subject: subjectVid }) {
+    const me = subject(tl, subjectVid); if (!me || me.maxHealth <= 0) return [];
     const hits = tl.events.flatMap((e) => (e.k === "damage" && e.target === me.vid && e.t < (cfg.beforeS as number) && e.amount > 0 ? [e] : []));
     const lost = hits.reduce((s, e) => s + e.amount, 0);
     if (!hits.length || lost / me.maxHealth < (cfg.hpShare as number)) return [];
