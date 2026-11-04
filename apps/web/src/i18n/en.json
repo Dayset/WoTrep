@@ -345,5 +345,6 @@
   "pov.off": "Top-down",
   "pov.fp": "First person",
   "pov.chase": "Behind the tank",
-  "pov.note": "Simple 3D: flat ground, boxes for tanks. Cover and height are not known yet. Yellow = enemy that hit the followed tank in the last 4 s."
+  "pov.note": "Simple 3D: flat ground, boxes for tanks. Cover and height are not known yet. Yellow = enemy that hit the followed tank in the last 4 s.",
+  "pov.show": "Show from their view"
 }
