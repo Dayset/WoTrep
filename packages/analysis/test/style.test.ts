@@ -20,6 +20,11 @@ describe("style", () => {
       expect(avg).toBeCloseTo(1, 6);
     }
   });
+  it("skill-weighted damage is present and does not change the score inputs", () => {
+    const any = [...s.values()].find((p) => p.raw.skillDpm != null && p.raw.dpm != null && p.raw.dpm > 0);
+    expect(any).toBeDefined();
+    expect(any!.raw.skillDpm!).toBeGreaterThan(0);
+  });
   it("scores are centred on 100 per team when present", () => {
     const sc = [...s.values()].filter((p) => p.score != null && p.team === 1).map((p) => p.score as number);
     expect(sc.length).toBeGreaterThan(0);

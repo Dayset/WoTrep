@@ -1,6 +1,13 @@
 {
   "weights": {
-    "value": { "dpm": 1, "kpm": 1, "exchange": 1, "hitRate": 0.5, "spottedPerMin": 0.5, "assistsPerMin": 0.5 },
+    "value": {
+      "dpm": 1,
+      "kpm": 1,
+      "exchange": 1,
+      "hitRate": 0.5,
+      "spottedPerMin": 0.5,
+      "assistsPerMin": 0.5
+    },
     "why": "initial guess: equal weights for damage and kill speed, half weight for accuracy, spotting and assists. Recalibrate once enough battles exist (same rule as the other configs).",
     "n": 0,
     "date": "2026-11-04"
@@ -20,6 +27,18 @@
   "scale": {
     "value": 100,
     "why": "team average of the score is 100 by construction, so a player's score reads as percent of the team average",
+    "n": 0,
+    "date": "2026-11-04"
+  },
+  "skillMin": {
+    "value": 0.5,
+    "why": "initial guess: lowest skill weight for a target (team-relative style score ÷ 100, clamped). Separate from the threat weight, which is not changed.",
+    "n": 0,
+    "date": "2026-11-04"
+  },
+  "skillMax": {
+    "value": 2,
+    "why": "initial guess: highest skill weight for a target (style score ÷ 100, clamped)",
     "n": 0,
     "date": "2026-11-04"
   }

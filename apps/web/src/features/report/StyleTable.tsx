@@ -5,7 +5,7 @@ import { t } from "../../i18n";
 import { SortTable } from "./SortTable";
 
 /** Team-relative style of every player (analysis style-v0): score and pressure, plus each input as a share of the team average. */
-const COLS: StyleKey[] = ["dpm", "kpm", "exchange", "hitRate", "mPerMin", "stillShare", "survival", "spottedPerMin", "assistsPerMin", "boldRate", "focusShare"];
+const COLS: StyleKey[] = ["dpm", "skillDpm", "kpm", "exchange", "hitRate", "mPerMin", "stillShare", "survival", "spottedPerMin", "assistsPerMin", "boldRate", "focusShare"];
 const pct = (x: number | null) => (x == null ? "—" : `${Math.round(x * 100)}%`);
 
 export function StyleTable({ tl }: { tl: BattleTimeline }) {

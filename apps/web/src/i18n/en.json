@@ -486,6 +486,8 @@
   "style.pressure": "Pressure",
   "style.pressure.tip": "Brave/PVS shape: damage per minute × (shifted exchange)^1.5, relative to the team average (1.00 = average).",
   "style.note": "v0: weights and the slope proxy are initial guesses in packages/analysis/config/style-v0.json. Not a replacement for the in-game iVi.",
+  "style.col.skillDpm": "Skill dmg/min",
+  "style.col.skillDpm.tip": "Damage per minute with each hit weighted by the target's skill (style score), vs team average. Separate from the score.",
   "style.col.dpm": "Dmg/min",
   "style.col.dpm.tip": "Damage per minute vs team average",
   "style.col.kpm": "Kills/min",
