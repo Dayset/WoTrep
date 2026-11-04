@@ -13,7 +13,7 @@ import { heightImage } from "../../lib/heightImage";
 const PovView = lazy(() => import("./PovView"));
 import { DamageLog } from "./DamageLog";
 import { flankModel, flankState, seriesFor, aimAt, heightField, estimateReload, reloadProgress, shotTimes, type ReloadEstimate } from "@wotrep/analysis";
-import { goodPlaysAll, dangerSpots, type GoodPlay, type DangerSpot } from "@wotrep/coach";
+import { goodPlaysAll, dangerSpots, detectors, rank, runDetectors, type GoodPlay, type DangerSpot } from "@wotrep/coach";
 import { FindingCard } from "../report/Findings";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
@@ -39,7 +39,7 @@ function smoke(g: CanvasRenderingContext2D, X: number, Y: number, age: number) {
   g.globalAlpha = 1;
 }
 
-export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; findings: Finding[]; startAt?: number; seekTo?: { t: number; n: number } }) {
+export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleTimeline; findings: Finding[]; subject: number; startAt?: number; seekTo?: { t: number; n: number } }) {
   const OUTRO_S = 10, matchEnd = Math.floor(tl.arena.durationS ?? tl.events.at(-1)?.t ?? 0), end = matchEnd + OUTRO_S;
   // outcome for the outro: the recorder's side won, lost, or the battle was drawn
   const outcome = tl.arena.winnerTeam == null || tl.arena.winnerTeam === 0 ? "draw" : tl.arena.winnerTeam === tl.recorder.team ? "win" : "lose";
@@ -75,7 +75,10 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
   const kills = useMemo(() => tl.events.flatMap((e) => (e.k === "kill" && e.t >= 0 ? [e] : [])), [tl]);
   const vehicle = useMemo(() => new Map(tl.vehicles.map((v) => [v.vid, v])), [tl]);
   opts.current = { follow, names, trails, sel, trainer: trainer ? trainerSel : null, reload: reloadOn };
-  const marks = useMemo(() => findings.filter((f) => f.kind !== "info" || f.tStart > 0).map((f) => ({ f, pt: Math.max(0, f.tStart - f.leadS) })).sort((a, b) => a.pt - b.pt), [findings]);
+  // advisor follows the selected participant (any teammate or foe), not just the one the report was built for
+  const advVid = sel ?? subject;
+  const advFindings = useMemo(() => (advVid === subject ? findings : rank(runDetectors(tl, detectors, advVid))), [tl, findings, subject, advVid]);
+  const marks = useMemo(() => advFindings.filter((f) => f.kind !== "info" || f.tStart > 0).map((f) => ({ f, pt: Math.max(0, f.tStart - f.leadS) })).sort((a, b) => a.pt - b.pt), [advFindings]);
   const crewAll = useMemo(() => goodPlaysAll(tl), [tl]), dangersAll = useMemo(() => dangerSpots(tl), [tl]);
   const xmarks = useMemo(() => {
     const nm = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "";

@@ -126,7 +126,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
         {(["replay", "stats", "coach", "teams", "charts"] as const).map((k) => <button type="button" role="tab" key={k} aria-selected={tab === k} onClick={() => go(k)} data-testid={`tab-${k}`}>{t(`ui.tab.${k}`)}{k === "coach" && nCoach > 0 && <span className="badge">{nCoach}</span>}</button>)}
       </nav>
       {/* the player stays mounted so 3D, map and time survive tab switches */}
-      <div hidden={tab !== "replay"}><Player tl={tl} findings={findings} seekTo={seekTo} /></div>
+      <div hidden={tab !== "replay"}><Player tl={tl} findings={findings} subject={subjectVid} seekTo={seekTo} /></div>
       {(tab === "stats" || tab === "coach") && (
         <div className="pane">
           <label>{t("report.subject")} <select value={subjectVid} onChange={(e) => setSubject(Number(e.target.value))} aria-label={t("report.subject")}>
