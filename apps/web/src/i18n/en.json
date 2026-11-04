@@ -77,6 +77,8 @@
   "viz.cmp.aria": "Bar chart comparing the selected measure across all players",
   "viz.cmp.note": "Dashed bars with ~ are partial: the replay only records hits that happened where the recorder could see, so we saw under 75% of that player's damage. Win-probability swing for others is measured from their own team's side.",
   "viz.place": "Place in team (1 = highest)",
+  "viz.side.all": "All",
+  "viz.zoom": "Zoom",
   "viz.dist": "Metric distribution",
   "viz.dist.sub": "Pick players: each gets a coloured line at their value and a percentile among all players in the battle.",
   "viz.dist.aria": "Distribution of the metric across all players, with a coloured line per picked player",

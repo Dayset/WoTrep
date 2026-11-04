@@ -72,41 +72,66 @@ export function WpChart({ tl }: { tl: BattleTimeline }) {
 }
 
 /** Chart 2 — what each of the recorder's hits did to win probability, and the running Impact total. */
+type Side = "all" | "ally" | "enemy";
+const SIDES: [Side, string][] = [["all", "viz.side.all"], ["ally", "viz.cmp.allies"], ["enemy", "viz.cmp.enemies"]];
+function SideSeg({ value, set }: { value: Side; set: (s: Side) => void }) {
+  return <div className="seg" role="tablist">{SIDES.map(([k, l]) => <button key={k} role="tab" aria-selected={value === k} onClick={() => set(k)}>{t(l)}</button>)}</div>;
+}
+
+/** Who the impact view follows: the recorder, a whole side, or one named player. */
+type ImpactMode = "you" | "ally" | "enemy" | number;
+type ImpactHit = { t: number; who: string; target: number; amount: number; threat: number; dWpPts: number; cumPts: number };
+/** Hits for the chosen mode, time-ordered. For a group the running total is the sum of each member's win-probability change. */
+function impactHits(tl: BattleTimeline, mode: ImpactMode): ImpactHit[] {
+  const nameOf = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
+  if (mode === "you") {
+    return (recorderHeuristics(tl)?.hits ?? []).map((d) => ({ ...d, who: nameOf(tl.recorder.vid) }));
+  }
+  const members = tl.vehicles.filter((v) => typeof mode === "number" ? v.vid === mode : mode === "ally" ? v.team === tl.recorder.team : v.team !== tl.recorder.team);
+  const evs = members.flatMap((v) => (playerHeuristics(tl, v.vid)?.hits ?? []).map((d) => ({ ...d, who: v.name }))).sort((a, b) => a.t - b.t);
+  let cum = 0;
+  return evs.map((d) => { cum += d.dWpPts; return { ...d, cumPts: Math.round(cum * 100) / 100 }; });
+}
+
 export function ImpactChart({ tl }: { tl: BattleTimeline }) {
-  const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null);
-  const h = recorderHeuristics(tl); if (!h || !h.hits.length) return null;
-  const H = 210, end = tl.arena.durationS ?? h.hits.at(-1)!.t;
-  const vals = [0, ...h.hits.flatMap((d) => [d.dWpPts, d.cumPts])];
+  const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null); const [mode, setMode] = useState<ImpactMode>("you");
+  const hits = useMemo(() => impactHits(tl, mode), [tl, mode]);
+  if (!hits.length) return null;
+  const H = 210, end = tl.arena.durationS ?? hits.at(-1)!.t;
+  const vals = [0, ...hits.flatMap((d) => [d.dWpPts, d.cumPts])];
   const lo = Math.min(...vals), hiV = Math.max(1, ...vals);
   const x = (v: number) => M.l + (v / end) * (W - M.l - M.r), y = (v: number) => M.t + (1 - (v - lo) / (hiV - lo)) * (H - M.t - M.b);
   let path = `M${x(0)},${y(0)}`, last = 0;
-  for (const d of h.hits) { path += `L${x(d.t).toFixed(1)},${y(last).toFixed(1)}L${x(d.t).toFixed(1)},${y(d.cumPts).toFixed(1)}`; last = d.cumPts; }
+  for (const d of hits) { path += `L${x(d.t).toFixed(1)},${y(last).toFixed(1)}L${x(d.t).toFixed(1)},${y(d.cumPts).toFixed(1)}`; last = d.cumPts; }
   path += `L${x(end)},${y(last)}`;
   const nm = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
-  const hh = hi == null ? null : h.hits[hi]!;
+  const hh = hi == null ? null : hits[hi]!;
   return (
     <Frame id="chart.impact" title={t("viz.impact")} sub={t("viz.impact.sub")} legend={[["--c-you", t("viz.impact.up")], ["--c-foe", t("viz.impact.down")], ["--c-ink", t("viz.impact.total")]]}
-      table={<table><thead><tr><th>{t("viz.time")}</th><th>{t("viz.target")}</th><th>dmg</th><th>×</th><th>Δ WP</th><th>Σ</th></tr></thead><tbody>{h.hits.map((d, i) => <tr key={i}><td>{mmss(d.t)}</td><td>{nm(d.target)}</td><td>{d.amount}</td><td>{d.threat}</td><td>{sgn(d.dWpPts)}</td><td>{sgn(d.cumPts)}</td></tr>)}</tbody></table>}>
+      table={<table><thead><tr><th>{t("viz.time")}</th><th>{t("viz.player")}</th><th>{t("viz.target")}</th><th>dmg</th><th>×</th><th>Δ WP</th><th>Σ</th></tr></thead><tbody>{hits.map((d, i) => <tr key={i}><td>{mmss(d.t)}</td><td>{d.who}</td><td>{nm(d.target)}</td><td>{d.amount}</td><td>{d.threat}</td><td>{sgn(d.dWpPts)}</td><td>{sgn(d.cumPts)}</td></tr>)}</tbody></table>}>
+      <label><select value={String(mode)} onChange={(e) => { const v = e.target.value; setMode(v === "you" || v === "ally" || v === "enemy" ? v : Number(v)); setHi(null); }}>
+        <option value="you">{t("report.you")}</option>
+        <option value="ally">{t("viz.cmp.allies")}</option>
+        <option value="enemy">{t("viz.cmp.enemies")}</option>
+        {tl.vehicles.map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}
+      </select></label>
       <div ref={ref} className="plot" onPointerLeave={() => setHi(null)}>
         <svg width={W} height={H} role="img" aria-label={t("viz.impact.aria")}>
           {[...new Set([lo, 0, hiV])].map((v) => <g key={v}><line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} className={v === 0 ? "ref" : "grid"} /><text x={M.l - 6} y={y(v) + 4} className="ax" textAnchor="end">{v === 0 ? "0" : sgn(v)}</text></g>)}
           {Array.from({ length: Math.floor(end / 120) + 1 }, (_, i) => i * 120).map((v) => <text key={v} x={x(v)} y={H - 6} className="ax" textAnchor="middle">{mmss(v)}</text>)}
-          {h.hits.map((d, i) => { const top = Math.min(y(0), y(d.dWpPts)), hgt = Math.max(2, Math.abs(y(d.dWpPts) - y(0)));
+          {hits.map((d, i) => { const top = Math.min(y(0), y(d.dWpPts)), hgt = Math.max(2, Math.abs(y(d.dWpPts) - y(0)));
             return <rect key={i} x={x(d.t) - 2.5} width={5} y={top} height={hgt} rx={2} className={d.dWpPts >= 0 ? "bup" : "bdn"} opacity={hi == null || hi === i ? 1 : 0.35} />; })}
           <path d={path} className="cumline" />
-          {h.hits.map((d, i) => <rect key={i} x={x(d.t) - 9} width={18} y={M.t} height={H - M.t - M.b} fill="transparent" onPointerEnter={() => setHi(i)} onPointerDown={() => setHi(i)} />)}
+          {hits.map((d, i) => <rect key={i} x={x(d.t) - 9} width={18} y={M.t} height={H - M.t - M.b} fill="transparent" onPointerEnter={() => setHi(i)} onPointerDown={() => setHi(i)} />)}
         </svg>
         {hh && <div className="tip" style={{ left: Math.min(Math.max(x(hh.t) - 80, 0), W - 170) }}>
-          <b>{mmss(hh.t)}</b> · {nm(hh.target)}<div>{hh.amount} dmg · ×{hh.threat}</div><div>Δ WP {sgn(hh.dWpPts)} · Σ {sgn(hh.cumPts)}</div>
+          <b>{mmss(hh.t)}</b> · {hh.who} → {nm(hh.target)}<div>{hh.amount} dmg · ×{hh.threat}</div><div>Δ WP {sgn(hh.dWpPts)} · Σ {sgn(hh.cumPts)}</div>
         </div>}
       </div>
     </Frame>
   );
 }
 
-/** Chart 3 — damage by target; bar length is raw damage, the notch is threat-weighted damage. */
-/** Damage dealt to enemies, weighted by how threatening each target was. "All" lists every player's totals; picking a
- *  player breaks their damage down by target. */
 export function TargetChart({ tl }: { tl: BattleTimeline }) {
   const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null);
   const [sel, setSel] = useState<number | "all">("all");
@@ -178,6 +203,8 @@ const PARTIAL = 0.75;
 export function CompareChart({ tl }: { tl: BattleTimeline }) {
   const [ref, W] = useWidth();
   const [mk, setMk] = useState<MetricKey>("bold");
+  const [side, setSide] = useState<Side>("all");
+  const [z, setZ] = useState(1);
   const all = useMemo(() => { const st = new Map(playerStats(tl).map((x) => [x.vid, x])); const bd = boldnessAll(tl); return tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid), s: st.get(v.vid)!, b: bd.get(v.vid) })); }, [tl]);
   const m = METRICS.find((x) => x.key === mk)!;
   const base = all.flatMap((r) => { const val = m.get(r); return val == null ? [] : [{ ...r, val, cov: m.exact ? 1 : r.h?.coverage ?? 0, mine: r.v.isRecorder, ally: r.v.team === tl.recorder.team }]; });
@@ -187,17 +214,23 @@ export function CompareChart({ tl }: { tl: BattleTimeline }) {
   const lo = Math.min(0, ...vals), hiV = Math.max(1, ...vals);
   const barW = (v: number) => `${Math.max(0, ((v - lo) / (hiV - lo)) * 100)}%`;
   const teamPos = new Map<number, string>();
-  for (const side of [true, false]) { const side_ = rows.filter((r) => r.ally === side); side_.forEach((r, i) => teamPos.set(r.v.vid, `#${i + 1}/${side_.length}`)); }
+  for (const sd of [true, false]) { const grp = rows.filter((r) => r.ally === sd); grp.forEach((r, i) => teamPos.set(r.v.vid, `#${i + 1}/${grp.length}`)); }
   const rank = rows.findIndex((r) => r.mine) + 1, nAlly = rows.filter((r) => r.ally).length, myAllyRank = rows.filter((r) => r.ally).findIndex((r) => r.mine) + 1;
   const sub = rank ? `${t("viz.cmp.you")} #${rank}/${rows.length} · ${t("viz.cmp.allies")} #${myAllyRank}/${nAlly}` : t("viz.cmp.sub");
+  const shown = rows.filter((r) => side === "all" || (side === "ally") === r.ally);
+  // Strip: x-axis is the same for every zoom level; zoom stretches it and the container scrolls sideways on phones.
+  const Wz = Math.max(W, Math.round(W * z)), HS = 100, AX = 84;
+  const sx = (v: number) => 10 + ((v - lo) / (hiV - lo || 1)) * (Wz - 20);
+  const placed = [...shown].sort((a, b) => sx(a.val) - sx(b.val)).map((r, i) => ({ r, x: sx(r.val), lane: i % 4 }));
   return (
     <figure className="chart">
       <figcaption><b>{t("viz.cmp")}</b><span className="muted"> · {sub}</span> <Vote id="chart.compare" /></figcaption>
       <div className="seg" role="tablist">{METRICS.map((x) => <button key={x.key} role="tab" aria-selected={mk === x.key} onClick={() => setMk(x.key)}>{t(x.label)}</button>)}</div>
+      <SideSeg value={side} set={setSide} />
       <div className="tablewrap">
         <table>
           <thead><tr><th>{t("viz.player")}</th><th>{t(m.label)}</th><th>{t("viz.dist.pct")}</th><th>{t("viz.place")}</th><th>{t("viz.cmp.seen")}</th></tr></thead>
-          <tbody>{rows.map((r) => (
+          <tbody>{shown.map((r) => (
             <tr key={r.v.vid} className={r.mine ? "me" : ""}>
               <td className="nm">{r.v.name}{r.mine ? ` (${t("report.you")})` : ""}</td>
               <td><span className={`bar ${r.ally ? "bup" : "bdn"}`} style={{ width: barW(r.val), display: "inline-block", height: 8, borderRadius: 4, verticalAlign: "middle", marginRight: 6 }} />{(r.cov < PARTIAL ? "~" : "") + m.fmt(r.val)}</td>
@@ -207,12 +240,19 @@ export function CompareChart({ tl }: { tl: BattleTimeline }) {
             </tr>))}</tbody>
         </table>
       </div>
-      <div ref={ref} className="plot" aria-hidden="true">
-        <svg width={W} height={56} role="img" aria-label={t("viz.dist.aria")}>
-          <line x1={10} x2={W - 10} y1={34} y2={34} className="ref" />
-          {rows.map((r) => <circle key={r.v.vid} cx={10 + ((r.val - lo) / (hiV - lo || 1)) * (W - 20)} cy={34} r={r.mine ? 5 : 3} fill={r.mine ? "var(--c-ink)" : r.ally ? "var(--c-you)" : "var(--c-foe)"} opacity={0.8} />)}
-          <text x={10} y={52} className="ax">{m.fmt(lo)}</text>
-          <text x={W - 10} y={52} className="ax" textAnchor="end">{m.fmt(hiV)}</text>
+      <div className="seg" role="tablist" aria-label={t("viz.zoom")}>{[1, 2, 4, 8].map((k) => <button key={k} role="tab" aria-selected={z === k} onClick={() => setZ(k)}>×{k}</button>)}</div>
+      <div ref={ref} className="plot" style={{ overflowX: "auto" }} aria-hidden="true">
+        <svg width={Wz} height={HS} role="img" aria-label={t("viz.dist.aria")}>
+          <line x1={10} x2={Wz - 10} y1={AX} y2={AX} className="ref" />
+          {placed.map(({ r, x, lane }) => { const ly = 12 + lane * 14, col = r.mine ? "var(--c-ink)" : r.ally ? "var(--c-you)" : "var(--c-foe)";
+            const lx = Math.min(Math.max(x, 40), Wz - 40), nm = r.v.name.length > 12 ? r.v.name.slice(0, 11) + "…" : r.v.name;
+            return <g key={r.v.vid}>
+              <line x1={x} x2={x} y1={ly + 3} y2={AX} stroke={col} strokeWidth={1} opacity={0.6} />
+              <circle cx={x} cy={AX} r={r.mine ? 5 : 3.5} fill={col} />
+              <text x={lx} y={ly} className="ax lbl" textAnchor="middle" style={{ fill: col }}>{nm} {r.pct}%</text>
+            </g>; })}
+          <text x={10} y={HS - 2} className="ax">{m.fmt(lo)}</text>
+          <text x={Wz - 10} y={HS - 2} className="ax" textAnchor="end">{m.fmt(hiV)}</text>
         </svg>
       </div>
       <div className="how-inline"><p><b>{t("gl.how")}.</b> {t(`gl.${mk}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${mk}.mean`)}</p></div>
