@@ -128,3 +128,6 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 ## Danger spots (2026-11-03)
 - Lesta fixture: 32 danger spots over all players (alone 12, crossfire 10, outtraded 9, early 1). Recorder: one, at 4:13, 421 lost / 51 dealt, nearest ally 49 m, so "outtraded".
 - Ideas not done: danger heat layer on the map page (deaths + danger spots by cell), line-of-sight/cover reasoning (needs map geometry), "should have retreated" check using the retreat path, danger markers on the player timeline, per-class thresholds.
+
+## Unsupported-mode banner (2026-11-03)
+Report shows a banner when battleType != 1 or vehicle count != 30 (tundra 14 players, epic 60 seen in local WG replays). Numbers are not rescaled; only flagged.

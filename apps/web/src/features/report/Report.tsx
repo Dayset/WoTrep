@@ -105,6 +105,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
       <div className="sub">{tl.arena.startedAt} · {tl.source.server} · v{tl.source.clientVersion}
         {tl.arena.durationS != null && <> · {t("report.duration")} {mmss(tl.arena.durationS)}</>}</div>
       {tl.source.manifest.confidence !== "defs" && <div className="banner">{t("report.partial")}</div>}
+      {(tl.arena.battleType !== 1 || tl.vehicles.length !== 30) && <div className="banner" data-testid="modebanner">{t("report.mode")}</div>}
       <CoverageBadge tl={tl} />
       <Advanced tl={tl} />
       <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => setWatching(Math.max(0, f.tStart - f.leadS))} />
