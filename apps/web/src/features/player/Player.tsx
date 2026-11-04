@@ -48,7 +48,8 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
   const [coach, setCoach] = useState(false), [seenIds, setSeenIds] = useState<string[]>([]);
   const [pauseOn, setPauseOn] = useState<string[]>(["mistake", "good", "info"]), [resumeS, setResumeS] = useState(0), [resumeGoodS, setResumeGoodS] = useState(8), [slowS, setSlowS] = useState(6), coachPaused = useRef<string | false>(false);
   const [view3d, setView3d] = useState<"off" | "fp" | "chase">("chase"), [scope, setScope] = useState(6), [lockView, setLockView] = useState(false), [resync, setResync] = useState(0), [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [logOn, setLogOn] = useState(() => window.matchMedia?.("(min-width: 1100px)").matches === true), [setOpen, setSetOpen] = useState(false), [sel, setSel] = useState<number | null>(null);
-  const [reloadOn, setReloadOn] = useState(true);
+  // reload spinners are always on (averaged chamber reload from the shot gaps)
+  const reloadOn = true;
   const reloadData = useMemo(() => new Map(tl.vehicles.map((v) => { const ts = shotTimes(tl, v.vid); return [v.vid, { ts, est: estimateReload(ts) }] as const; })), [tl]);
   const reloadRef = useRef(reloadData); reloadRef.current = reloadData;
   const [sfxOn, setSfxOn] = useState(true), sfxRef = useRef(true), sfxLast = useRef(0), [trainer, setTrainer] = useState(false), [trainerSel, setTrainerSel] = useState<TrainerSel>("all");
@@ -365,7 +366,6 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
             <optgroup label={t("pov.foes")}>{tl.vehicles.filter((v) => v.team !== tl.recorder.team).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
           </select>
           {sel != null && <button type="button" onClick={() => setSel(null)} data-testid="backme" title={t("pov.me")} aria-label={t("pov.me")}>↩</button>}
-          <button type="button" aria-pressed={reloadOn} onClick={() => setReloadOn(!reloadOn)} data-testid="reloadbtn">⏱ {t("player.reload")}</button>
           <button type="button" aria-pressed={trainer} onClick={() => setTrainer(!trainer)} data-testid="trainerbtn">🎯 {t("player.trainer")}</button>
           {trainer && <label><select className="pick" value={String(trainerSel)} onChange={(e) => { const v = e.target.value; setTrainerSel(v === "all" || v === "ally" || v === "enemy" ? v : Number(v)); }} data-testid="trainersel">
             <option value="all">{t("viz.side.all")}</option><option value="ally">{t("viz.cmp.allies")}</option><option value="enemy">{t("viz.cmp.enemies")}</option>
