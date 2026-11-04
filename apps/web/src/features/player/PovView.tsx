@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
-import { tracerLines, aimAt } from "@wotrep/analysis";
+import { tracerLines, aimAt, heightField, heightAt } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
 
 /** Low-poly 3D view of the replay on flat ground (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
@@ -17,10 +17,18 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom }: {
     const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); el.appendChild(renderer.domElement); renderer.domElement.style.cssText = "width:100%;height:100%;display:block";
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0xbcd4e6); scene.fog = new THREE.Fog(0xbcd4e6, 300, 1400);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x667766, 1.1)); const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(-200, 400, 150); scene.add(sun);
-    const W = bounds.x1 - bounds.x0, D = bounds.z1 - bounds.z0, geo = new THREE.PlaneGeometry(W, D); geo.rotateX(-Math.PI / 2);
+    const W = bounds.x1 - bounds.x0, D = bounds.z1 - bounds.z0, field = heightField(tl, bounds, 25), gh = (x: number, z: number) => heightAt(field, x, z);
+    let hMin = Infinity, hMax = -Infinity; for (const v of field.h) { hMin = Math.min(hMin, v); hMax = Math.max(hMax, v); }
+    if (!Number.isFinite(hMin)) { hMin = 0; hMax = 1; }
+    const geo = new THREE.BufferGeometry(), nv = field.cols * field.rows, pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), col = new Float32Array(nv * 3), idx: number[] = [];
+    for (let r = 0; r < field.rows; r++) for (let c = 0; c < field.cols; c++) {
+      const i = r * field.cols + c, x = field.x0 + c * field.cell, z = field.z0 + r * field.cell, y = field.h[i]!, k = (y - hMin) / Math.max(1, hMax - hMin);
+      pos.set([x, y, -z], i * 3); uv.set([(x - bounds.x0) / W, (z - bounds.z0) / D], i * 2); col.set([0.33 + 0.30 * k, 0.55 + 0.08 * k, 0.30 + 0.12 * k], i * 3);
+      if (r < field.rows - 1 && c < field.cols - 1) idx.push(i, i + 1, i + field.cols, i + 1, i + field.cols + 1, i + field.cols);
+    }
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
     let tex: THREE.Texture | null = null; if (img) { tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true; }
-    const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: tex ? 0xffffff : 0x8fae8a, map: tex })); ground.position.set((bounds.x0 + bounds.x1) / 2, 0, -(bounds.z0 + bounds.z1) / 2); scene.add(ground);
-    if (!tex) { const grid = new THREE.GridHelper(Math.max(W, D), Math.round(Math.max(W, D) / 50), 0x55704f, 0x7d9a77); grid.position.copy(ground.position); grid.position.y = 0.05; scene.add(grid); }
+    const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff, map: tex, vertexColors: !tex, flatShading: true })); scene.add(ground);
     const hull = new THREE.BoxGeometry(3.2, 1.5, 6.4), tur = new THREE.BoxGeometry(2, 0.9, 2.4), gun = new THREE.BoxGeometry(0.25, 0.25, 3.6);
     const tanks = new Map<number, { g: THREE.Group; mat: THREE.MeshLambertMaterial }>();
     for (const v of tl.vehicles) {
@@ -42,14 +50,14 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom }: {
     const rx = () => bounds.x0 + rnd() * W, rz = () => -(bounds.z0 + rnd() * D);
     const trunk = new THREE.CylinderGeometry(0.4, 0.5, 3, 5); trunk.translate(0, 1.5, 0); const crown = new THREE.ConeGeometry(2.6, 7, 6); crown.translate(0, 6, 0);
     const trees = Array.from({ length: 220 }, () => ({ x: rx(), z: rz(), k: 0.8 + rnd() * 0.7 }));
-    const treeAt = (i: number) => (o: THREE.Object3D) => { const t = trees[i]!; o.position.set(t.x, 0, t.z); o.scale.setScalar(t.k); };
+    const treeAt = (i: number) => (o: THREE.Object3D) => { const t = trees[i]!; o.position.set(t.x, gh(t.x, -t.z), t.z); o.scale.setScalar(t.k); };
     for (const [g, c] of [[trunk, 0x6b4a2b], [crown, 0x2f6b34]] as const) { let i = 0; place(g, new THREE.MeshLambertMaterial({ color: c, flatShading: true }), trees.length, (o) => treeAt(i++)(o)); }
     const bush = new THREE.IcosahedronGeometry(1.4, 0); bush.translate(0, 0.9, 0);
-    place(bush, new THREE.MeshLambertMaterial({ color: 0x3f7a3c, flatShading: true }), 260, (o) => { o.position.set(rx(), 0, rz()); o.scale.set(0.8 + rnd(), 0.6 + rnd() * 0.6, 0.8 + rnd()); });
+    place(bush, new THREE.MeshLambertMaterial({ color: 0x3f7a3c, flatShading: true }), 260, (o) => { { const x = rx(), z = rz(); o.position.set(x, gh(x, -z), z); } o.scale.set(0.8 + rnd(), 0.6 + rnd() * 0.6, 0.8 + rnd()); });
     const cloud = new THREE.IcosahedronGeometry(1, 1);
-    place(cloud, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, fog: false }), 28, (o) => { o.position.set(bounds.x0 - 400 + rnd() * (W + 800), 220 + rnd() * 120, -(bounds.z0 - 400 + rnd() * (D + 800))); o.scale.set(40 + rnd() * 60, 10 + rnd() * 8, 25 + rnd() * 30); });
+    place(cloud, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, fog: false }), 28, (o) => { o.position.set(bounds.x0 - 400 + rnd() * (W + 800), hMax + 160 + rnd() * 120, -(bounds.z0 - 400 + rnd() * (D + 800))); o.scale.set(40 + rnd() * 60, 10 + rnd() * 8, 25 + rnd() * 30); });
     const mount = new THREE.ConeGeometry(1, 1, 5);
-    place(mount, new THREE.MeshLambertMaterial({ color: 0x6f7f95, flatShading: true, fog: false }), 26, (o) => { const a = rnd() * Math.PI * 2, R = Math.max(W, D) * (0.95 + rnd() * 0.5), h = 120 + rnd() * 220; o.position.set((bounds.x0 + bounds.x1) / 2 + Math.cos(a) * R, h / 2 - 5, -(bounds.z0 + bounds.z1) / 2 + Math.sin(a) * R); o.scale.set(h * 1.6, h, h * 1.6); });
+    place(mount, new THREE.MeshLambertMaterial({ color: 0x6f7f95, flatShading: true, fog: false }), 26, (o) => { const a = rnd() * Math.PI * 2, R = Math.max(W, D) * (0.95 + rnd() * 0.5), h = 120 + rnd() * 220; o.position.set((bounds.x0 + bounds.x1) / 2 + Math.cos(a) * R, hMin + h / 2 - 5, -(bounds.z0 + bounds.z1) / 2 + Math.sin(a) * R); o.scale.set(h * 1.6, h, h * 1.6); });
     const cam = new THREE.PerspectiveCamera(65, 1, 0.5, 4000);
     const size = () => { const w = el.clientWidth || 640, h = el.clientHeight || 360; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); };
     const dom = renderer.domElement, ptr = new Map<number, { x: number; y: number }>(); let pinch = 0; dom.style.touchAction = "none"; dom.style.cursor = "grab";
@@ -62,27 +70,23 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom }: {
     const reset = () => { look.current = { yaw: 0, pitch: 0.28, dist: 16 }; };
     dom.addEventListener("pointerdown", down); dom.addEventListener("pointermove", move); dom.addEventListener("pointerup", up); dom.addEventListener("pointercancel", up); dom.addEventListener("wheel", wheel, { passive: false }); dom.addEventListener("dblclick", reset);
     size(); const ro = new ResizeObserver(size); ro.observe(el);
-    let raf = 0; const loop = () => {
-      raf = requestAnimationFrame(loop); let turretYaw = 0, onTarget = false; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
+    let pitchNow = 0, raf = 0; const loop = () => {
+      raf = requestAnimationFrame(loop); let turretYaw = 0, turretPitch = 0, onTarget = false; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
       const hit = new Set<number>(); for (const e of tl.events) if (e.k === "damage" && e.target === L.vid && e.t <= clock.current.t && e.t >= clock.current.t - 4) hit.add(e.attacker);
       for (const u of s.units) {
         const k = tanks.get(u.vid)!; k.g.visible = u.known !== "never" && !(L.mode === "fp" && u.vid === L.vid && u.alive);
-        k.g.position.set(u.x, 0, -u.z); k.g.rotation.y = -u.yaw; k.mat.opacity = !u.alive ? 0.5 : u.known === "ghost" ? 0.3 : 1;
+        k.g.position.set(u.x, gh(u.x, u.z), -u.z); k.g.rotation.y = -u.yaw; k.mat.opacity = !u.alive ? 0.5 : u.known === "ghost" ? 0.3 : 1;
         k.mat.color.copy(!u.alive ? new THREE.Color(0x444444) : hit.has(u.vid) ? new THREE.Color(0xffd23f) : u.team === tl.recorder.team ? ally : foe);
-        k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = u.alive ? aimAt(tl, u.vid, clock.current.t) : null; (k.g.children[1] as THREE.Group).rotation.y = aim ? u.yaw - aim.yaw : 0; if (u.vid === L.vid) { turretYaw = aim ? aim.yaw : u.yaw; onTarget = !!aim?.onTarget; }
+        k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = u.alive ? aimAt(tl, u.vid, clock.current.t) : null; (k.g.children[1] as THREE.Group).rotation.y = aim ? u.yaw - aim.yaw : 0; if (u.vid === L.vid) { turretYaw = aim ? aim.yaw : u.yaw; onTarget = !!aim?.onTarget; turretPitch = aim ? aim.pitch : 0; }
       }
-      let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; tpos.set([sh.x0, 2.6, -sh.z0, sh.x1, 2.6, -sh.z1], n * 6); n++; }
+      let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; tpos.set([sh.x0, (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, -sh.z0, sh.x1, (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, -sh.z1], n * 6); n++; }
       tgeo.setDrawRange(0, n * 2); (tgeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
       if (me && me.known !== "never") {
-        const f = new THREE.Vector3(Math.sin(me.yaw), 0, -Math.cos(me.yaw)), p = new THREE.Vector3(me.x, 0, -me.z);
-        const K = look.current, ay = -(L.mode === "fp" ? turretYaw : me.yaw) + K.yaw, cp = Math.cos(K.pitch);
-        if (L.mode === "fp") { cam.position.set(p.x, 2.9, p.z); cam.lookAt(p.x - Math.sin(ay) * 50, 2.9 - (K.pitch - 0.28) * 50, p.z - Math.cos(ay) * 50); }
-        else { cam.position.set(p.x + Math.sin(ay) * cp * K.dist, Math.max(1, 1.5 + Math.sin(K.pitch) * K.dist), p.z + Math.cos(ay) * cp * K.dist); cam.lookAt(p.x, 2, p.z); }
-        void f;
+        const p = new THREE.Vector3(me.x, gh(me.x, me.z), -me.z), K = look.current, ay = -(L.mode === "fp" ? turretYaw : me.yaw) + K.yaw, cp = Math.cos(K.pitch);
+        pitchNow += (turretPitch - pitchNow) * 0.15;
+        if (L.mode === "fp") { cam.position.set(p.x, p.y + 2.9, p.z); cam.lookAt(p.x - Math.sin(ay) * 50, p.y + 2.9 + Math.tan(pitchNow) * 50 - (K.pitch - 0.28) * 50, p.z - Math.cos(ay) * 50); }
+        else { const cx = p.x + Math.sin(ay) * cp * K.dist, cz = p.z + Math.cos(ay) * cp * K.dist; cam.position.set(cx, Math.max(gh(cx, -cz) + 1.2, p.y + 1.5 + Math.sin(K.pitch) * K.dist), cz); cam.lookAt(p.x, p.y + 2, p.z); }
       }
-      { const k = cam.fov / 65; for (const l of labels) l.scale.set(16 * k, 4 * k, 1); }
-      const wantFov = L.mode === "fp" && L.zoom > 1 && onTarget ? (2 * Math.atan(Math.tan((65 * Math.PI) / 360) / L.zoom) * 180) / Math.PI : 65;
-      if (Math.abs(cam.fov - wantFov) > 0.05) { cam.fov += (wantFov - cam.fov) * 0.18; cam.updateProjectionMatrix(); }
       renderer.render(scene, cam);
     }; loop();
     return () => { cancelAnimationFrame(raf); ro.disconnect(); dom.removeEventListener("pointerdown", down); dom.removeEventListener("pointermove", move); dom.removeEventListener("pointerup", up); dom.removeEventListener("pointercancel", up); dom.removeEventListener("wheel", wheel); dom.removeEventListener("dblclick", reset); for (const g of deco) g.dispose(); for (const m of decoMat) m.dispose(); renderer.dispose(); tgeo.dispose(); for (const l of labels) { (l.material as THREE.SpriteMaterial).map?.dispose(); l.material.dispose(); } geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };

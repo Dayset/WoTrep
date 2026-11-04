@@ -356,5 +356,19 @@
   "pov.aim": "Aim",
   "pov.turning": "turret turning",
   "pov.scope": "Scope",
-  "pov.scope.off": "No scope"
+  "pov.scope.off": "No scope",
+  "pause.title": "Pause options",
+  "pause.mistake": "Your mistakes",
+  "pause.good": "Your good plays",
+  "pause.info": "Other notes",
+  "pause.danger": "Danger spots (all players)",
+  "pause.crew": "Teammates' good plays",
+  "pause.death": "Before you are destroyed",
+  "pause.slow": "Slow down before a pause",
+  "pause.resume": "Resume automatically after",
+  "pause.off": "Off",
+  "pause.deathCard": "You are destroyed in 5 s",
+  "mini.aria": "Mini map",
+  "mini.size": "Mini map size",
+  "mini.near": "Near"
 }

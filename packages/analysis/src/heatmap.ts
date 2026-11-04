@@ -62,18 +62,21 @@ export function heatGrid(tl: BattleTimeline, layer: HeatLayer, o: HeatOpts): Hea
   return { cols, rows, cellM: cell, values, total, max, unit: layer === "presence" || layer === "routes" ? "s" : layer === "dmgdealt" || layer === "dmgrecv" ? "hp" : "count" };
 }
 
-export interface Tracer { t: number; shooter: number; team: number; x0: number; z0: number; x1: number; z1: number }
+export interface Tracer { t: number; shooter: number; team: number; x0: number; z0: number; x1: number; z1: number;
+  /** height of the shooter (track) and of the shell end point; y1 is null when the end height is missing (the game reports 0) */
+  y0: number | null; y1: number | null }
 /** Shot lines: from where the shooter stood when firing to where the projectile ended (docs/MAPPAGE.md "tracers"). Only shots with a known end point and a known shooter position. */
 export function tracerLines(tl: BattleTimeline, o: Pick<HeatOpts, "team" | "t0" | "t1" | "vid">): Tracer[] {
-  const rec = tl.recorder.team, team = new Map(tl.vehicles.map((v) => [v.vid, v.team])), end = new Map<number, { x: number; z: number }>();
-  for (const e of tl.events) if (e.k === "projectileEnd") end.set(e.shotId, { x: e.x, z: e.z });
+  const rec = tl.recorder.team, team = new Map(tl.vehicles.map((v) => [v.vid, v.team])), end = new Map<number, { x: number; y: number; z: number }>();
+  for (const e of tl.events) if (e.k === "projectileEnd") end.set(e.shotId, { x: e.x, y: e.y, z: e.z });
   const out: Tracer[] = [];
   for (const e of tl.events) {
     if (e.k !== "shot" || e.shotId == null || e.t < (o.t0 ?? 0) || e.t > (o.t1 ?? Infinity)) continue;
     const tm = team.get(e.shooter); if (tm == null || (o.vid != null && e.shooter !== o.vid)) continue;
     if ((o.team === "own" && tm !== rec) || (o.team === "enemy" && tm === rec)) continue;
     const to = end.get(e.shotId), from = posAt(tl.tracks[e.shooter], e.t); if (!to || !from) continue;
-    out.push({ t: e.t, shooter: e.shooter, team: tm, x0: from[0], z0: from[1], x1: to.x, z1: to.z });
+    const tr = tl.tracks[e.shooter]!, k = Math.max(0, Math.min(tr.t.length - 1, tr.t.findIndex((v) => v >= e.t))), y0 = tr.y[k] ?? null;
+    out.push({ t: e.t, shooter: e.shooter, team: tm, x0: from[0], z0: from[1], x1: to.x, z1: to.z, y0, y1: Math.abs(to.y) < 1 || y0 == null || Math.abs(to.y - y0) > 150 ? null : to.y });
   }
   return out;
 }

@@ -14,3 +14,4 @@ export * from "./coverage";
 export * from "./movement";
 export * from "./vanish";
 export * from "./aim";
+export * from "./terrain";
