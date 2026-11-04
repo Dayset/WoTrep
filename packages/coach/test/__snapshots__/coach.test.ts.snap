@@ -1,0 +1,22 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`dummy detector (#71 acceptance) > stamps schema, id, detector and version, and its output snapshots 1`] = `
+[
+  {
+    "confidence": 1,
+    "cost": {},
+    "detector": "dummy",
+    "detectorVersion": 1,
+    "evidence": [],
+    "id": "dummy:1:0.0",
+    "kind": "info",
+    "leadS": 0,
+    "messageKey": "dummy",
+    "params": {},
+    "schema": "wotrep.finding/1",
+    "tEnd": 0,
+    "tStart": 0,
+    "vid": 1,
+  },
+]
+`;

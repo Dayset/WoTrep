@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "test": "pnpm -r test",
     "build": "pnpm -r build",
-    "dev": "pnpm --filter @wotrep/web dev"
+    "dev": "pnpm --filter @wotrep/web dev",
+    "corpus": "tsx tools/corpus/src/cli.ts"
   },
   "devDependencies": {
     "@eslint/js": "9.17.0",
@@ -20,6 +21,7 @@
     "eslint-import-resolver-typescript": "3.7.0",
     "eslint-plugin-boundaries": "5.0.1",
     "prettier": "3.4.2",
+    "tsx": "^4.0.0",
     "typescript": "5.7.2",
     "typescript-eslint": "8.18.2",
     "vitest": "2.1.8"

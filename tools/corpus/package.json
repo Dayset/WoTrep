@@ -1,0 +1,1 @@
+{"dependencies":{"@wotrep/analysis":"workspace:^","@wotrep/coach":"workspace:^","@wotrep/model":"workspace:^","@wotrep/parser":"workspace:^","tsx":"^4.0.0"},"name":"@wotrep/corpus","private":true,"scripts":{"corpus":"tsx src/cli.ts","test":"vitest run --passWithNoTests","typecheck":"tsc -p ."},"type":"module","version":"0.0.0"}

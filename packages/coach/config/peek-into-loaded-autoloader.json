@@ -1,0 +1,1 @@
+{"minConfidence":{"date":"2026-11-04","n":0,"value":0.5,"why":"initial guess, recalibrate in E13 (reload estimate from thin enemy data cannot support a blame finding)"},"minHits":{"date":"2026-11-04","n":0,"value":2,"why":"COACHING.md wave 1: took ≥ 2 hits from one autoloader within its clip window"}}

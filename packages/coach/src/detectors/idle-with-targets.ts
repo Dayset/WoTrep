@@ -1,16 +1,24 @@
 import { defineDetector } from "../detector";
 import config from "../../config/idle-with-targets.json";
 import { around, subject } from "./util";
-import { playerMetrics } from "@wotrep/analysis";
+import { estimateReload, playerMetrics, reloadStateAt } from "@wotrep/analysis";
 
 type Detection = ReturnType<Parameters<typeof defineDetector>[0]["detect"]>[number];
 
-/** Alive, no shot and almost no movement for a long stretch while an enemy was visible nearby. Cost = damage missed at the player's own average pace (an estimate, so confidence stays low). */
+/** Alive, no shot and almost no movement for a long stretch while an enemy was visible nearby. Cost = damage missed at the player's own average pace (an estimate, so confidence stays low).
+ *  Reloading time is excluded (#80 scope): a second spent reloading flushes the stretch like a shot
+ *  does, and no stretch starts mid-reload — a reload always follows shots, and shots already flush,
+ *  so this is exactly equivalent to subtracting reload seconds from the stretch. The exclusion needs
+ *  a trustworthy autoloader estimate, so it is skipped for single-shot guns and low-confidence
+ *  estimates (those subjects keep the old behaviour). The scope's spotting exclusion is still
+ *  vacuous: no spot events exist in v1 data. */
 export const idleWithTargets = defineDetector({
-  id: "idle-with-targets", version: 1, needs: ["P", "T"], config,
+  id: "idle-with-targets", version: 1, needs: ["P", "T", "R"], config,
   detect({ tl, cfg, subject: subjectVid }) {
     const me = subject(tl, subjectVid); if (!me) return [];
     const end = Math.floor(tl.arena.durationS ?? 0), shots = tl.events.flatMap((e) => (e.k === "shot" && e.shooter === me.vid && e.t >= 0 ? [e.t] : []));
+    const est = estimateReload(shots);
+    const reloadKnown = est.clipSize > 1 && est.confidence >= (cfg.minConfidence as number) && est.reloadS != null;
     const dpm = playerMetrics(tl).find((p) => p.vid === me.vid)?.dpm ?? 0, out: Detection[] = [];
     let start = -1, anchor: { x: number; z: number } | null = null, lastSeen = -1;
     const flush = (until: number) => {
@@ -25,8 +33,9 @@ export const idleWithTargets = defineDetector({
     for (let t = 0; t <= end; t++) {
       const a = around(tl, t, cfg.viewM as number, me.vid); if (!a || !a.me.alive) { flush(t); continue; }
       const shot = shots.some((s) => s > t - 1 && s <= t), moved = anchor ? Math.hypot(a.me.x - anchor.x, a.me.z - anchor.z) > (cfg.moveM as number) : false;
-      if (shot || moved) { flush(t); }
-      if (start < 0) { start = t; anchor = { x: a.me.x, z: a.me.z }; }
+      const reloading = reloadKnown && reloadStateAt(shots, est, t).state === "reloading";
+      if (shot || moved || reloading) { flush(t); }
+      if (start < 0 && !reloading) { start = t; anchor = { x: a.me.x, z: a.me.z }; }
       if (a.enemies.length) lastSeen = t;
     }
     flush(end); return out;

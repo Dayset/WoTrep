@@ -26,6 +26,10 @@ Public numbers are defined in `METRICS.md`; this file is where they come from an
 | 2026-11-03 | On the fixture only `won-trade` fires (2 good plays at 2:03 and 2:55, +2.6 and +1.8 pts win chance); no mistake detector fires for the recorder, who took 7 hits in total and survived. Positive cases are covered by synthetic timelines. Needs more replays to see the detectors' real rates. | coach snapshot |
 | 2026-11-03 | Buttons placed inside the map container never got `click` because the container captured the pointer on pointerdown; overlay controls must stop pointerdown propagation. | zoom buttons did nothing in the browser test |
 
+| 2026-11-04 | Damage events timestamp up to ~0.3 s after their shot (flight + packet skew; e.g. the 125.30 pen from a 125.2 shot). Clip damage attribution therefore uses a 1 s window past the clip's last shot; windows still never overlap because clips are separated by reload gaps. | fixture pens vs shots |
+| 2026-11-04 | **Correction to the 11-03 correction:** the shortest-gap reload estimate is NOT always an upper bound — a mid-clip pause longer than intraMax splits one clip into two bursts, and the gap between them reads as a reload far shorter than the true one (fixture TDM-54: 5.3 s estimated vs ~14 s true). So a reload-timing detector must require the previous burst to be a FULL clip before it claims a reload happened; `peek-into-loaded-autoloader` does exactly that, plus a confidence gate. | fixture TDM-54 shots: 6-shot burst, 5.3 s pause, 2 more shots, all inside one 10-shell clip |
+| 2026-11-04 | `peek-into-loaded-autoloader` fires on the fixture: 1 mistake at 4:13 vs the TDM-54, −421 HP (5 hits). The won-trade duel at 2:03 stays clean — no peek finding there, so the two detectors do not contradict on the same moment. | coach snapshot |
+
 ## 2. Hidden (debug) values
 
 Like PS2 Elite's debug columns: intermediate numbers that feed the public ones. Open the report with `?debug=1` to see them (per-player coverage, threat weight,

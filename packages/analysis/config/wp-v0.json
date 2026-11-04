@@ -2,5 +2,6 @@
   "a": { "value": 1.6, "why": "initial guess: log-strength gain in the win-probability logistic; recalibrate in E13 (#124)", "n": 0, "date": "2026-11-03" },
   "cleanupWp": { "value": 0.9, "why": "initial guess: garbage time starts when own win probability >= 0.9", "n": 0, "date": "2026-11-03" },
   "threatMin": { "value": 0.25, "why": "initial guess: clamp for threat weight", "n": 0, "date": "2026-11-03" },
-  "threatMax": { "value": 3, "why": "initial guess: clamp for threat weight", "n": 0, "date": "2026-11-03" }
+  "threatMax": { "value": 3, "why": "initial guess: clamp for threat weight", "n": 0, "date": "2026-11-03" },
+  "clutchWp": { "value": 0.4, "why": "METRICS §3.6: clutch = share of Impact earned while own win probability < 0.40", "n": 0, "date": "2026-11-04" }
 }

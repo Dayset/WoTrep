@@ -9,7 +9,7 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export interface Decoded { events: BattleEvent[]; t0: number | null }
 
-function updateArena(a: Uint8Array): { type: number; value: any } | null {
+export function updateArena(a: Uint8Array): { type: number; value: any } | null {
   try {
     const [s] = readBwString(a, 1);
     return { type: a[0]!, value: unpickle(s[0] === 0x78 ? unzlibSync(s) : s) };

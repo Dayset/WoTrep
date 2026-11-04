@@ -7,11 +7,15 @@
   "scripts": {
     "typecheck": "tsc -p .",
     "test": "vitest run --passWithNoTests",
+    "bench": "tsx bench/bench.ts",
     "build": "tsc -p ."
   },
   "dependencies": {
     "@wotrep/defs": "workspace:^",
     "@wotrep/model": "workspace:^",
     "fflate": "0.8.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
   }
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
-import { boldnessAll, flankModel, playerHeuristics, playerMetrics, playerStats, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
+import { boldnessAll, flankModel, playerHeuristics, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
 import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
 import { AimChart, CompareChart, ImpactChart, TargetChart, WpChart } from "./Charts";
@@ -12,6 +12,7 @@ import { Danger } from "./Danger";
 import { Movement } from "./Movement";
 import { CoverageBadge } from "./CoverageBadge";
 import { FindingsPanel } from "./Findings";
+import { Scoreboard } from "./Scoreboard";
 import { alignment, detectors, goodPlaysAll, rank, runDetectors } from "@wotrep/coach";
 import { Vote, FeedbackExport } from "./Feedback";
 
@@ -24,34 +25,6 @@ export function Seg<T extends string>({ value, set, items, label, testid }: { va
     <div className="segbar" role="tablist" aria-label={label} data-testid={testid}>
       {items.map(([k, l]) => <button type="button" role="tab" key={k} aria-selected={value === k} onClick={() => set(k)}>{l}</button>)}
     </div>
-  );
-}
-
-type PlayerResultLike = NonNullable<BattleTimeline["results"]>["players"][number];
-
-function Team({ tl, team }: { tl: BattleTimeline; team: 1 | 2 }) {
-  const dpm = new Map(playerMetrics(tl).map((p) => [p.vid, p.dpm]));
-  const st = new Map(playerStats(tl).map((p) => [p.vid, p]));
-  const pc = (x: number | null | undefined) => (x == null ? "—" : `${Math.round(x * 100)}%`);
-  const [sort, setSort] = useState<{ k: string; dir: 1 | -1 }>({ k: "dmg", dir: -1 });
-  const val: Record<string, (v: VehicleInfo, r?: PlayerResultLike) => number | string> = {
-    name: (v) => v.name.toLowerCase(), tank: (v) => tank(v), dmg: (_, r) => r?.damageDealt ?? -1, dpm: (v, r) => (r ? dpm.get(v.vid) ?? -1 : -1),
-    assist: (_, r) => (r ? r.assistRadio + r.assistTrack + r.assistStun : -1), blocked: (_, r) => r?.blocked ?? -1, kills: (_, r) => r?.kills ?? -1,
-    shots: (_, r) => r?.shots ?? -1, acc: (v) => st.get(v.vid)?.accuracy ?? -1, pen: (v) => st.get(v.vid)?.penRate ?? -1, life: (_, r) => r?.lifeTimeS ?? -1, received: (_, r) => r?.damageReceived ?? -1,
-  };
-  const rows = tl.vehicles.filter((v) => v.team === team).map((v) => ({ v, r: tl.results?.players[v.vid] })).sort((a, b) => {
-    const x = val[sort.k]!(a.v, a.r), y = val[sort.k]!(b.v, b.r); return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
-  });
-  return (
-    <div className="tablewrap tall" data-testid={`team${team}`}><table>
-      <thead><tr>{["name", "tank", "dmg", "dpm", "assist", "blocked", "kills", "shots", "acc", "pen", "life", "received"].map((c) => <th key={c} aria-sort={sort.k === c ? (sort.dir === 1 ? "ascending" : "descending") : "none"}><button type="button" className="sortbtn" onClick={() => setSort({ k: c, dir: sort.k === c ? (sort.dir === 1 ? -1 : 1) : c === "name" || c === "tank" ? 1 : -1 })}>{t(`col.${c}`)}{sort.k === c ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button></th>)}</tr></thead>
-      <tbody>{rows.map(({ v, r }) => (
-        <tr key={v.vid} className={v.isRecorder ? "me" : ""}>
-          <td className="nm">{v.name}</td><td className="tk">{tank(v)}</td>
-          <td>{r?.damageDealt ?? "—"}</td><td>{r ? dpm.get(v.vid) : "—"}</td><td>{r ? r.assistRadio + r.assistTrack + r.assistStun : "—"}</td><td>{r?.blocked ?? "—"}</td>
-          <td>{r?.kills ?? "—"}</td><td>{r ? `${r.shots} / ${r.hits} / ${r.pens}` : "—"}</td><td>{pc(st.get(v.vid)?.accuracy)}</td><td>{pc(st.get(v.vid)?.penRate)}</td><td title={pc(st.get(v.vid)?.lifeShare)}>{r ? mmss(r.lifeTimeS) : "—"}</td><td>{r?.damageReceived ?? "—"}</td>
-        </tr>))}</tbody>
-    </table></div>
   );
 }
 
@@ -145,7 +118,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
         <dl className="kpis">{kpis.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
         <div className="notes">
           <CoverageBadge tl={tl} />
-          {tl.source.manifest.confidence !== "defs" && <details className="covbadge partial"><summary>{t("ui.partial")}</summary><p>{t("report.partial")}</p></details>}
+          {tl.source.manifest.confidence !== "defs" && <details className="covbadge partial"><summary>{t("ui.partial")}</summary><p>{t(tl.source.manifest.confidence === "fingerprint" ? "parser.partialSupport" : "report.partial")}</p></details>}
           {(tl.arena.battleType !== 1 || tl.vehicles.length !== 30) && <details className="covbadge partial" data-testid="modebanner"><summary>{t("ui.mode")}</summary><p>{t("report.mode")}</p></details>}
         </div>
       </div>
@@ -168,7 +141,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
       {tab === "coach" && <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => { setSeekTo((s) => ({ t: Math.max(0, f.tStart - f.leadS), n: s.n + 1 })); go("replay"); }} />}
       {tab === "teams" && <div className="pane">
         <Seg value={tsub} set={setTsub} label={t("ui.tab.teams")} items={[["score", t("ui.t.score")], ["ledger", t("ui.t.ledger")], ["danger", t("ui.t.danger")], ["move", t("ui.t.move")]]} />
-        {tsub === "score" && <><Seg value={side} set={setSide} label={t("ui.t.score")} items={[["own", t("report.allies")], ["enemy", t("report.enemies")]]} /><Team key={side} tl={tl} team={side === "own" ? tl.recorder.team : tl.recorder.team === 1 ? 2 : 1} /></>}
+        {tsub === "score" && <><Seg value={side} set={setSide} label={t("ui.t.score")} items={[["own", t("report.allies")], ["enemy", t("report.enemies")]]} /><Scoreboard key={side} tl={tl} team={side === "own" ? tl.recorder.team : tl.recorder.team === 1 ? 2 : 1} /></>}
         {tsub === "ledger" && <Ledger tl={tl} />}{tsub === "danger" && <Danger tl={tl} />}{tsub === "move" && <Movement tl={tl} />}
       </div>}
       {tab === "charts" && <div className="pane">

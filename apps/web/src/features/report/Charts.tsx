@@ -275,7 +275,6 @@ export function AimChart({ tl }: { tl: BattleTimeline }) {
   const samples = useMemo(() => aimSamples(tl, 2), [tl]);
   const rows = useMemo(() => tl.vehicles.filter((v) => v.vid !== who).map((v) => ({ v, ...alignWith(samples, who, v.vid), ally: v.team === tl.recorder.team }))
     .filter((r) => r.share != null && r.n >= 5).sort((a, b) => b.share! - a.share!), [tl, samples, who]);
-  const nm = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
   const short = (n: string) => (n.length > 14 ? n.slice(0, 13) + "…" : n);
   if (!rows.length) return null;
   const lab = Math.min(120, Math.floor(W * 0.32)), bh = 13, gap = 7, H = rows.length * (bh + gap) + 4, aw = Math.max(40, W - lab - 60);

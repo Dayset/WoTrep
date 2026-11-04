@@ -59,13 +59,28 @@ The fixture parses to exactly the end of the stream: 120,261 packets, last one t
 | 0x08 | 3,046 | Entity method call: `u32 entity, u32 methodIdx, u32 len, args` | V |
 | 0x0A | 55,202 | Position update (§4) | V |
 | 0x18 | 1 | Client version string (`u32 len, ascii` → `1.46.0.0`) | V |
-| 0x1A | 3,613 | Recorder vehicle / camera: 15 × f32 — position (3), ?, position (3), aim direction (3), … | O |
+| 0x1A | 3,613 | Recorder camera/aim: 15 × f32 — `[aim point (3), a, b, camera pos (3), aim dir (3, unit), c, -1, -1, -1]` | O |
 | 0x1B | 46 | Camera mode string: `arcade`, `sniper`, `strategic`… | V |
-| 0x1C / 0x1D | 3,085 / 2,491 | 1 × f32 each, ~10 Hz — likely gun/turret control axes | ? |
-| 0x20 | 15 | 2 × f32 | ? |
+| 0x1C / 0x1D | 3,085 / 2,491 | 1 × f32 each, ~10 Hz, no entity field (recorder's own channel) — likely gun/turret control axes; ranges 0x1C (−1.32, 1.92), 0x1D (−0.19, 0.14) | ? |
+| 0x20 | 15 | 2 × f32: pre-battle `(0.0, -1.0)` then 7 pairs `(0.0, 11.813)` / `(-11.813, 11.813)` ~11.7 s apart; no kill correlation | ? |
 | 0x23 | 4 | Chat message, HTML (`<font color=…>Name[CLAN] (Tank)&nbsp;: </font>text`) | V |
-| 0x24 | 955 | Small per-entity records (11–19 B) | ? |
-| 0x26 | 3,491 | 10 × f32 — camera/aim state | ? |
+| 0x24 | 955 | Per-entity method records: `[u32 id, 01, method u8, 00 00 00, payload]`; methods 02/04/05/06 on a non-vehicle id space, 09/10 duplicate Vehicle method 10 (see §5) | O |
+| 0x26 | 3,491 | 10 × f32 — recorder aim/hull state: `[?, dir (3, ~unit), ?, ?, ?, ?, 0.0, ?]`; direction differs from 0x1A aim dir | O |
+
+0x1A, decoded further (verified geometrically at three clocks): `[5:8]` is the camera position and
+`[0:3]` is the aim point — `normalize([0:3] − [5:8])` equals `[8:11]` to 0.001, and `[8:11]` has unit
+norm at every sampled clock, so `[8:11]` is the aim direction. `[12:15]` is always `(-1, -1, -1)`
+(3,613/3,613). `[3]`, `[4]` and `[11]` are angle-like fields with `[3] ≥ [4]` and gap ≤ 0.225 rad;
+their exact meanings are open. 0x26 `[1:4]` has norm 0.99–1.00 (a direction, not the 0x1A aim
+direction — consistent with hull direction, unverified against 0x0A yaw); `[8]` is 0.0 at sampled
+clocks. 0x20's pairs are event-triggered, not periodic across the battle; three of its clocks
+(158.56, 287.25, 322.05) coincide exactly with Avatar method 60 calls — an unexplained lead, not
+a claim. 0x24 methods 09 (23 records) and 10 (397) join 420/420 with a Vehicle method 10 call on
+the same target at the same clock [V], so they are target-side duplicates of showDamageFromShot; the
+153 method 10 calls without a 0x24 duplicate may be out-of-AoI hits (unverified). 0x24 methods
+02/04/05/06 (14/77/429/15 records) carry ids in `0xbfc10d–0xc06aXX`, distinct from vehicle ids —
+a second entity space, unverified; method 05's count (429) equals the health-change count by
+coincidence (only 25/429 share a clock within 0.06 s).
 | 0x31 | 308 | Named client events, pickled args: `client_vehicle_state_32`, `applyZoom`… | O |
 | 0x11 | 1 | End of battle (pickled) | ? |
 
@@ -93,7 +108,7 @@ never interpolate across a gap (the straight red lines in `docs/img/first-replay
 | 30 | stopTracer | `u32 shotId, f32[3] endPoint` (16 B) | V: 584 of 761 shots on the fixture; every end matches a shot; shot-to-end distance median ~100 m, p90 ~224 m, max ~470 m |
 | 62 | explodeProjectile | `u32 shotId, …` (31 B) | ? |
 | 66 | updateArena | `u8 updateType, BWString pickle` (zlib when it starts with `x`) | V |
-| 60 | onBattleEvents (personal events: damage/spot/assist) | list | ? |
+| 60 | onBattleEvents (personal shot-event log) | `u8 count, count × [u32 target, u8 flag, u8 flag, u16 0x0010]` | V: 15 calls, 50 records; per-target totals equal the recorder's Vehicle method 10 totals for all 5 targets, and every call's records share one target with clocks clustered on that target's bursts |
 | 73 | quest progress (`regular_4_3_13`…) | pickle | O |
 
 `updateArena` types seen: `3` period `(period, endTime, length, …)` — **period 3 = battle start**, fixture
@@ -106,14 +121,32 @@ match results]; `7` avatar ready; `8` base/team info; `4` vehicle list; `24`, `2
 |---|---|---|---|
 | 3 | onHealthChanged | `i16 newHealth, i16 oldHealth, u32 attackerId, u8 attackReason` | V — recorder's 28 events sum to 1,362 = results `damageDealt` |
 | 1 | showShooting | `u8 burstCount, u8 gunIndex` | O |
-| 10 | showDamageFromShot | `u32 attackerId, …` (16 B) | ? |
+| 10 | showDamageFromShot | `u32 attackerId, u8 type (01 = 16 B, 02 = 24 B), …` | O: 573 calls; fires for damaging and non-damaging hits alike (about a quarter have no same-clock health change), i.e. every shot that reached the target — the client-side armour-hit marker feed. Attacker = recorder for 50 calls, exactly the Avatar method 60 record count; 420/573 have a target-side 0x24 duplicate |
 | 8 | (collision / ramming?) | 36 B | ? |
 
-Vehicle properties: `15` health (i16, 429 updates = 429 health calls) [O], `14` gun angles packed (u16) [?],
-`16` (u16) [?], `6` crew/alive flag [?], `4` stun/state [?].
+Vehicle properties: `15` health (i16) [V: 429 updates, every one equal to its health call's newHealth at
+the same clock and entity], `14` gun angles packed (u16) [?: 28,723 updates on 29 vehicles; values do not
+track 0x1C/0x1D at matched clocks], `16` (u16) [vehicle: 2-byte state — `(0,0)` = dead (entity set equals
+the killed set, clocks within ±0.2 s of the kills), `(1,0)` = initial state (battle start and just before
+death), other `(a, b)` states with `a` in 1–3 and `b` in 0–10 open; avatar: a different 8-byte property at
+10 Hz, open], `6` (u8) [O: recorder-only spotted indicator — 16 toggles 01/00, and both recorder
+damage bursts fall inside 01 periods; the old crew/alive guess is refuted (it toggles while the recorder
+survives, and only the recorder's client knows his own spotted state)], `4` (u8) [O: a 4-state mode flag
+seen almost only on two Swedish vehicles — S41_Bofors_Pagod_TK105 cycles 03→00→01→02 (77 updates),
+S22_Strv_S1 once (00); the old stun guess is refuted (no SPGs, no stun in results)], `36` (u8) [V: death
+marker, value 0 — entity set equals the killed set, clocks within ±0.2 s of the kills].
 
-Open questions (good first issues): recorder has **61** `showTracer` vs **59** `shots` in results; meaning of
-0x1C/0x1D/0x20/0x24/0x26; showDamageFromShot payload (hit points → armour-hit markers); spotting events.
+Other properties seen but undecoded: `1` (vehicle, 1 B, toggles 00/01 ~1 Hz while driving, not
+speed-correlated), `9` (avatar, 1 B, 5 states 00–04), `17` (vehicle, 4 B, 16 updates all value 0, entities
+a subset of the killed set, clocks not at kills), `23` (vehicle, 4 B, one vehicle, two ~15 s nonzero
+windows separated by 0).
+
+Open questions (good first issues): recorder has **61** `showTracer` vs **59** `shots` in results; 0x1C/0x1D
+axes; 0x20's 11.813 s pairs; 0x24 methods 02/04/05/06 and their id space; showDamageFromShot's type-01 vs
+type-02 distinction and its packed hit-point bytes; method 60's two flag bytes (same flags appear for
+damaging and bouncing hits, so they are not damage/bounce); 0x1A fields `[3]`/`[4]`/`[11]`; 0x26 fields
+other than the direction; Vehicle prop 16's `(a, b)` states; Avatar prop 16 (8 B); props 1/9/17/23;
+Vehicle method 8 (36 B); Avatar method 62 explodeProjectile (why only 113 for 761 tracers).
 
 ## 6. Version manifests (how production code must handle indices)
 
@@ -128,6 +161,16 @@ Indices change between client versions and between WG and Lesta. Never hard-code
 - **Fallback:** a fingerprint matcher that guesses indices for an unknown version from payload shapes
   (e.g. 9-byte vehicle method whose health deltas sum to results `damageDealt` = onHealthChanged). It produces a
   *draft* manifest flagged `confidence: "fingerprint"`; the UI shows "partially supported version".
+- **Fingerprint heuristics (E1-14, `packages/defs/src/fingerprint.ts`, wired in `parseReplay` when no
+  manifest resolves):** onHealthChanged = the 9-byte vehicle method whose recorder-attacker health
+  deltas sum exactly to results `damageDealt`; showTracer = the 51-byte avatar method starting with a
+  vehicle id; updateArena = the variable-length avatar method whose payloads decode as bwstring+pickle
+  (on the fixture it decodes 25/25; every other variable-length avatar method decodes 0/25). Arena
+  types come from decoded values: vehicleKilled = values that are arrays of 4+ starting with two
+  vehicle ids; period = the type whose values run 1, 2, 3. The draft carries only those three methods
+  plus those arena types (`vehicleProperties` empty) and is flagged `confidence: "fingerprint"`; the UI
+  banner uses `parser.partialSupport`. Any heuristic failing means no draft: parsing falls back to the
+  old no-manifest behavior (container meta, results, positions, camera, chat only).
 - A replay with no manifest still gets: container meta, battle results, positions (0x0A is stable), camera, chat.
 
 ## 7. Safety rules for parsing

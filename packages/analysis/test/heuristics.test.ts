@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { validateTimeline } from "@wotrep/model";
+import { validateTimeline, type BattleTimeline, type PlayerResult } from "@wotrep/model";
 import { boldnessAll, estimateReload, reloadStateAt, shotTimes, playerHeuristics, playerMetrics, playerStats, recorderHeuristics, wpOf, wpSeries } from "../src/index";
 import { stateAt } from "@wotrep/model";
 
@@ -72,8 +72,80 @@ describe("analysis on the fixture", () => {
     for (const x of b.values()) { expect(x.rewarded + x.costly + x.flat).toBe(x.taken); expect(x.flat).toBeGreaterThanOrEqual(0); if (x.style === "safe") expect(x.rate!).toBeLessThan(0.35); if (x.rate == null) expect(x.style).toBeNull(); }
     console.log("BOLD", JSON.stringify([...b.values()].map((x) => [x.vid === tl.recorder.vid ? "ME" : x.vid % 100, x.episodes, x.taken, x.rewarded, x.costly, x.style])));
   });
+  it("fixture: clutch share is finite", () => {
+    const h = recorderHeuristics(tl)!;
+    expect(Number.isFinite(h.clutchShare)).toBe(true);
+    console.log("FIXTURE-65", JSON.stringify({ cleanup: h.cleanupShare, threat: h.threatWeighted, threatPer: h.threatWeightedPerDamage, clutch: h.clutchShare, impact: h.impactPts }));
+  });
   it("a continuously firing gun (no burst structure, sub-second gaps) never gets a trusted reload", () => {
     const ts = Array.from({ length: 40 }, (_, i) => i * 0.4 + (i % 7 === 0 ? 0.05 : 0));
     expect(estimateReload(ts).confidence).toBeLessThanOrEqual(0.2);
   });
 });
+
+type MiniVeh = { vid: number; team: 1 | 2; maxHealth: number; dmg: number; lifeS: number };
+const pres = (dmg: number, lifeS: number): PlayerResult => ({ damageDealt: dmg, assistRadio: 0, assistTrack: 0, assistStun: 0, blocked: 0, kills: 0, spotted: 0, shots: 0, hits: 0, pens: 0, damageReceived: 0, lifeTimeS: lifeS, deathReason: 0, killerVid: null, mileageM: 0, xp: 0, capturePoints: 0, droppedCapturePoints: 0 });
+const mini = (vehs: MiniVeh[], events: BattleTimeline["events"]): BattleTimeline => ({
+  schema: "wotrep.timeline/1",
+  source: { realm: "lesta", regionCode: "eu", server: "eu", clientVersion: "1.0", manifest: { id: "x", confidence: "none" }, hasMods: false, sha256: "x" },
+  arena: { arenaUniqueId: "x", map: "x", mapDisplayName: "x", gameplay: "x", battleType: 0, startedAt: "x", durationS: 60, winnerTeam: 2, finishReason: 0, battleStartClock: 0 },
+  recorder: { vid: 1, team: 1, name: "Rec" },
+  vehicles: vehs.map((v) => ({ vid: v.vid, team: v.team, name: `V${v.vid}`, anonymized: false, vehicleType: "HT", maxHealth: v.maxHealth, isRecorder: v.vid === 1 })),
+  tracks: {},
+  events,
+  camera: { t: [], mode: [] },
+  results: { players: Object.fromEntries(vehs.map((v) => [v.vid, pres(v.dmg, v.lifeS)])) },
+  diagnostics: { unknownPacketTypes: {}, warnings: [] },
+});
+const dmg = (t: number, attacker: number, target: number, amount: number, hpBefore: number, hpAfter: number): BattleTimeline["events"][number] =>
+  ({ k: "damage", t, target, attacker, amount, hpBefore, hpAfter, reason: 0 });
+
+describe("synthetic timelines: cleanup, threat, clutch", () => {
+  it("cleanup: a hit at WP 0.99 counts, a hit at WP 0.50 does not", () => {
+    const strong = mini(
+      [{ vid: 1, team: 1, maxHealth: 1500, dmg: 100, lifeS: 300 }, { vid: 2, team: 2, maxHealth: 100, dmg: 0, lifeS: 300 }],
+      [dmg(10, 1, 2, 50, 100, 50)],
+    );
+    const even = mini(
+      [{ vid: 1, team: 1, maxHealth: 1500, dmg: 100, lifeS: 300 }, { vid: 2, team: 2, maxHealth: 1500, dmg: 0, lifeS: 300 }],
+      [dmg(10, 1, 2, 500, 1500, 1000)],
+    );
+    expect(playerHeuristics(strong, 1)!.cleanupShare).toBe(1);
+    expect(playerHeuristics(even, 1)!.cleanupShare).toBe(0);
+  });
+  it("threat: weight follows (dpm × hp) vs the foes' median, not dpm alone", () => {
+    // A: dpm 2400, B: dpm 600. Hit 1: both at full HP, median (dpm×hp) = 2,250,000 → w_A = 1.6.
+    // Hit 2: A is down to 1000 HP, median = 1,650,000 → w_B = 0.55 (dpm-only would give 0.40).
+    const t = mini(
+      [
+        { vid: 1, team: 1, maxHealth: 1500, dmg: 1000, lifeS: 300 },
+        { vid: 2, team: 2, maxHealth: 1500, dmg: 12000, lifeS: 300 },
+        { vid: 3, team: 2, maxHealth: 1500, dmg: 3000, lifeS: 300 },
+      ],
+      [dmg(10, 1, 2, 500, 1500, 1000), dmg(20, 1, 3, 500, 1500, 1000)],
+    );
+    const h = playerHeuristics(t, 1)!;
+    expect(h.hits.map((x) => x.threat)).toEqual([1.6, 0.55]);
+    expect(h.threatWeighted).toBe(1073);
+    expect(h.shareOnThreats).toBe(0.5);
+  });
+  it("clutch: only Impact earned below WP 0.40 counts", () => {
+    // WP before the three hits: 0.013, 0.024, 0.50 — the first two are clutch, the third is not.
+    const t = mini(
+      [{ vid: 1, team: 1, maxHealth: 100, dmg: 1500, lifeS: 300 }, { vid: 2, team: 2, maxHealth: 1500, dmg: 0, lifeS: 300 }],
+      [dmg(10, 1, 2, 500, 1500, 1000), dmg(20, 1, 2, 900, 1000, 100), dmg(30, 1, 2, 100, 100, 0)],
+    );
+    const h = playerHeuristics(t, 1)!;
+    const d = (x: number) => (wpOf(stateAt(t, x), 1) - wpOf(stateAt(t, x - 0.001), 1)) * 100;
+    const expected = (d(10) + d(20)) / (d(10) + d(20) + d(30));
+    expect(h.clutchShare).toBeGreaterThan(0);
+    expect(h.clutchShare).toBeLessThan(1);
+    expect(h.clutchShare).toBeCloseTo(expected, 9);
+    const even = mini(
+      [{ vid: 1, team: 1, maxHealth: 1500, dmg: 100, lifeS: 300 }, { vid: 2, team: 2, maxHealth: 1500, dmg: 0, lifeS: 300 }],
+      [dmg(10, 1, 2, 500, 1500, 1000)],
+    );
+    expect(playerHeuristics(even, 1)!.clutchShare).toBe(0);
+  });
+});
+

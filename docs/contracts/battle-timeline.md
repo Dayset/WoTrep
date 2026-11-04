@@ -112,3 +112,25 @@ interface Snapshot {
 ```
 `ReloadState` comes from game data (reload time, autoloader clip/intra-clip) plus observed shots: it is an
 *estimate* with `confidence`. Detectors must treat it as such (see COACHING.md).
+
+## Compact codec (`packages/model/src/codec.ts`, E2-05)
+
+`encodeTimeline` / `decodeTimeline` serialise a timeline to the binary `WTC1` format: magic + version,
+then sections in fixed order (source, arena, recorder, vehicles, tracks, events, camera, aim?,
+results?, diagnostics). Integers are LEB128 varints (zigzag for signed/delta values); strings are
+length-prefixed UTF-8; genuinely fractional numbers (battleStartClock, capture points, personal
+values, results numbers) are f64 and round-trip exactly. Integer fields must be integers — encode
+throws otherwise.
+
+Quantisation (the only lossy part; everything else is exact):
+
+| Field | Step | Max error |
+| --- | --- | --- |
+| Times (track/event/camera t, visible intervals) | 0.01 s | 0.01 s |
+| Track positions and projectileEnd coordinates | 0.1 m | 0.1 m |
+| Track yaw / gunYaw | 0.01 rad | 0.01 rad |
+
+Time series are delta-coded. On the fixture (`lesta-1.46-overlord-sbm44`, 1.8 MB as JSON) the codec
+produces 281 KB (6.3× smaller, under the 400 KB budget) and decodes in ~9 ms (budget 50 ms).
+Decode does NOT run zod validation — that would dominate the budget on 250k track samples; callers
+that need a validity proof run `validateTimeline` on the result separately.

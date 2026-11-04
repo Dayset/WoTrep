@@ -8,6 +8,8 @@ export const costText = (f: Finding) => [
   f.cost.winProbDelta ? t("coach.cost.wp", { n: `${f.cost.winProbDelta > 0 ? "+" : "−"}${Math.abs(f.cost.winProbDelta * 100).toFixed(1)}` }) : "",
 ].filter(Boolean).join(" · ");
 
+/** The guide badge is intentionally not a link: there is no guide page yet (#99) — it shows which
+ *  guide applies so the reader can find it in docs/GUIDES.md. When #99 lands, this becomes the link. */
 export function FindingCard({ f, onShow, actions }: { f: Finding; onShow?: () => void; actions?: React.ReactNode }) {
   const tag = f.kind === "mistake" ? t("coach.mistake") : f.kind === "good" ? t("coach.good") : t("coach.info");
   return (
@@ -17,7 +19,7 @@ export function FindingCard({ f, onShow, actions }: { f: Finding; onShow?: () =>
       <p>{t(`${f.messageKey}.body`, f.params)}</p>
       {costText(f) && <p className="cost">{costText(f)}</p>}
       <p className="fix"><b>{f.kind === "mistake" ? t("coach.fix") : t("coach.note")}:</b> {t(`${f.messageKey}.fix`, f.params)}</p>
-      <div className="factions">{onShow && <button type="button" onClick={onShow}>{t("coach.show")}</button>}{actions}</div>
+      <div className="factions">{onShow && <button type="button" onClick={onShow}>{t("coach.show")}</button>}{f.guide && <span className="guide" title={t("coach.guide")}>📖 {f.guide}</span>}{actions}</div>
     </article>
   );
 }

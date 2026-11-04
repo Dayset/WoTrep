@@ -1,0 +1,1 @@
+{"minConfidence":{"date":"2026-11-04","n":0,"value":0.5,"why":"reload estimate must be trustworthy; below 0.5 the window is a guess (same guard as peek-into-loaded-autoloader)"},"minRemainingS":{"date":"2026-11-04","n":0,"value":3,"why":"COACHING.md wave 1: dealt damage while the target's estimated reload had ≥ 3 s left"}}

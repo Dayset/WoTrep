@@ -67,3 +67,17 @@ describe("fixture harness", () => {
     for (const x of out) { expect(MESSAGE_KEYS as readonly string[]).toContain(x.messageKey); expect(x.confidence).toBeGreaterThanOrEqual(0); expect(x.confidence).toBeLessThanOrEqual(1); if (x.kind === "mistake") expect(Object.keys(x.cost).length).toBeGreaterThan(0); }
   });
 });
+
+describe("dummy detector (#71 acceptance)", () => {
+  const dummy = defineDetector({
+    id: "dummy", version: 1, needs: [], config: {},
+    detect: () => [{ vid: 1, kind: "info", tStart: 0, tEnd: 0, leadS: 0, cost: {}, confidence: 1, evidence: [], messageKey: "dummy", params: {} }],
+  });
+  it("stamps schema, id, detector and version, and its output snapshots", () => {
+    const tl = load(fixtures[0]!);
+    const out = runDetectors(tl, [dummy]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ schema: "wotrep.finding/1", id: "dummy:1:0.0", detector: "dummy", detectorVersion: 1 });
+    expect(out).toMatchSnapshot();
+  });
+});

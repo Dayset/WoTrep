@@ -14,9 +14,11 @@ export type Manifest = z.infer<typeof manifestSchema>;
 const BUILT_IN: Manifest[] = [manifestSchema.parse(lesta1460), manifestSchema.parse(wg2410)];
 export type Resolution = { manifest: Manifest; exact: boolean } | { manifest: null; reason: string };
 
-/** Exact match first; then same major.minor of the same realm, flagged `confidence: "fallback"`. Never throws. */
-export function resolveManifest(realm: "wg" | "lesta", version: string, extra: Manifest[] = []): Resolution {
-  const all = [...BUILT_IN, ...extra].filter((m) => m.realm === realm);
+/** Exact match first; then same major.minor of the same realm, flagged `confidence: "fallback"`. Never throws.
+ *  `opts.builtIns` replaces the built-in set (an empty set means "manifest removed", which is how
+ *  the fingerprint fallback is tested); by default the built-ins always apply. */
+export function resolveManifest(realm: "wg" | "lesta", version: string, extra: Manifest[] = [], opts: { builtIns?: Manifest[] } = {}): Resolution {
+  const all = [...(opts.builtIns ?? BUILT_IN), ...extra].filter((m) => m.realm === realm);
   const exact = all.find((m) => m.version === version);
   if (exact) return { manifest: exact, exact: true };
   const mm = (v: string) => v.split(".").slice(0, 2).join(".");

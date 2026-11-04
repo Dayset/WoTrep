@@ -5,6 +5,10 @@
     "n": 0,
     "date": "2026-11-03"
   },
+  "minConfidence": {
+    "value": 0.5,
+    "why": "reload exclusion needs a trustworthy estimate; below 0.5 the reload windows are guesses, so no exclusion (same guard as peek/punished-reload/exposed)"
+  },
   "moveM": {
     "value": 20,
     "why": "initial guess, recalibrate in E13 (moved less than this)",

@@ -5,10 +5,12 @@ import cfg from "../config/wp-v0.json";
 export interface PlayerMetrics { vid: number; dpm: number; damage: number; lifeMin: number; share: number }
 export interface RecorderHeuristics {
   damage: number; dpm: number; teamShare: number;
-  /** damage weighted by how dangerous each target was (its own damage per minute vs its team's median), 1.0 = average target */
+  /** damage weighted by how dangerous each target was ((target dpm × target hp) vs the foes' median at that moment, clamped to [threatMin, threatMax]); 1.0 = average target */
   threatWeighted: number; threatWeightedPerDamage: number; shareOnThreats: number;
   /** damage dealt while own win probability was already >= cleanupWp */
   cleanupShare: number;
+  /** share of Impact earned while own win probability was < clutchWp (§3.6); 0 when Impact is 0 */
+  clutchShare: number;
   /** sum of win-probability change credited to the recorder's damage, in percentage points */
   impactPts: number; impactPerKDamage: number;
   best: { t: number; targetVid: number; dWpPts: number } | null;
@@ -40,23 +42,26 @@ export function playerHeuristics(tl: BattleTimeline, vid: number): RecorderHeuri
   const team = vi.team as Team, foe = (team === 1 ? 2 : 1) as Team;
   const teamOf = new Map(tl.vehicles.map((v) => [v.vid, v.team]));
   const pm = new Map(playerMetrics(tl).map((p) => [p.vid, p]));
-  const med = median(tl.vehicles.filter((v) => v.team === foe).map((v) => pm.get(v.vid)!.dpm).filter((x) => x > 0)) || 1;
-  const w = (v: number) => Math.min(cfg.threatMax.value, Math.max(cfg.threatMin.value, (pm.get(v)?.dpm ?? 0) / med));
   const hits: RecorderHeuristics["hits"] = [];
-  let dmg = 0, tw = 0, onThreat = 0, clean = 0, impact = 0; let best: RecorderHeuristics["best"] = null;
+  let dmg = 0, tw = 0, onThreat = 0, clean = 0, impact = 0, clutch = 0; let best: RecorderHeuristics["best"] = null;
   for (const e of tl.events) {
     if (e.k !== "damage" || e.attacker !== me || teamOf.get(e.target) !== foe || e.amount <= 0) continue;
-    const before = wpOf(stateAt(tl, e.t - 0.001), team), after = wpOf(stateAt(tl, e.t), team);
-    dmg += e.amount; tw += e.amount * w(e.target); if (w(e.target) >= 1) onThreat += e.amount;
+    const snap = stateAt(tl, e.t - 0.001);
+    const before = wpOf(snap, team), after = wpOf(stateAt(tl, e.t), team);
+    // §3.4 exactly: (target dpm × target hp_before) vs the median (dpm × hp) over foes alive at that moment.
+    const med = median(snap.units.filter((u) => u.team === foe && u.alive).map((u) => (pm.get(u.vid)?.dpm ?? 0) * u.hp).filter((x) => x > 0)) || 1;
+    const wv = Math.min(cfg.threatMax.value, Math.max(cfg.threatMin.value, ((pm.get(e.target)?.dpm ?? 0) * e.hpBefore) / med));
+    dmg += e.amount; tw += e.amount * wv; if (wv >= 1) onThreat += e.amount;
     if (before >= cfg.cleanupWp.value) clean += e.amount;
     const d = (after - before) * 100; impact += d;
-    hits.push({ t: e.t, target: e.target, amount: e.amount, threat: Math.round(w(e.target) * 100) / 100, dWpPts: Math.round(d * 100) / 100, cumPts: Math.round(impact * 100) / 100 });
+    if (before < cfg.clutchWp.value) clutch += d;
+    hits.push({ t: e.t, target: e.target, amount: e.amount, threat: Math.round(wv * 100) / 100, dWpPts: Math.round(d * 100) / 100, cumPts: Math.round(impact * 100) / 100 });
     if (!best || d > best.dWpPts) best = { t: e.t, targetVid: e.target, dWpPts: Math.round(d * 100) / 100 };
   }
   const mine = pm.get(me)!, official = tl.results.players[me]?.damageDealt ?? 0;
   return {
     damage: dmg, dpm: mine.dpm, teamShare: mine.share, threatWeighted: Math.round(tw), threatWeightedPerDamage: dmg ? tw / dmg : 0,
-    shareOnThreats: dmg ? onThreat / dmg : 0, cleanupShare: dmg ? clean / dmg : 0, impactPts: Math.round(impact * 100) / 100,
+    shareOnThreats: dmg ? onThreat / dmg : 0, cleanupShare: dmg ? clean / dmg : 0, clutchShare: impact !== 0 ? clutch / impact : 0, impactPts: Math.round(impact * 100) / 100,
     impactPerKDamage: dmg ? Math.round((impact / dmg) * 1000 * 100) / 100 : 0, best, hits,
     impactPerMin: Math.round((impact / mine.lifeMin) * 100) / 100,
     coverage: official > 0 ? Math.min(1, dmg / official) : dmg > 0 ? 1 : 0,

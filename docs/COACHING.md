@@ -21,8 +21,7 @@ Data needs: **P** positions · **H** health events · **T** tracers/shots · **C
 · **Z** map zones · **W** win-probability model.
 
 ### Status (2026-11-03)
-Shipped (all data we decode today, no gun data): `early-hp-dump`, `isolated-under-fire`, `bad-trade`, `won-trade` (good), `idle-with-targets`, `death-recap` (info), `survived-unused-hp` (info).
-Blocked on real gun data (#42), because reload timing cannot be proven from shots alone (the estimate is an upper bound, FINDINGS.md): `peek-into-loaded-autoloader`, `punished-reload`, `exposed-while-reloading`, `low-yield-clip`.
+Shipped (all data we decode today, no gun data): `early-hp-dump`, `isolated-under-fire`, `bad-trade`, `won-trade` (good), `idle-with-targets`, `death-recap` (info), `survived-unused-hp` (info), `low-yield-clip`, `punished-reload` (good), `exposed-while-reloading`, `peek-into-loaded-autoloader` (estimate-based: full previous clip + confidence gate), `shooting-on-the-move`.
 Not started: `shooting-on-the-move`, `sniper-tunnel-vision`, `killshot-missed` (need aim/camera decoding #26/#30 or alpha from gun data).
 The player shows findings as flags on the timeline, a card when you reach one, Coach mode (slows 6 s before, pauses `leadS` before, Continue), N / Shift+N to jump.
 
