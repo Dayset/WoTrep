@@ -8,7 +8,7 @@ import { loadMap, type MapBounds } from "../../lib/mapStore";
 import { MapLoader } from "./MapLoader";
 import { DamageLog } from "./DamageLog";
 import { flankModel, flankState, seriesFor } from "@wotrep/analysis";
-import { goodPlaysAll, type GoodPlay } from "@wotrep/coach";
+import { goodPlaysAll, dangerSpots, type GoodPlay, type DangerSpot } from "@wotrep/coach";
 import { FindingCard } from "../report/Findings";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
@@ -30,7 +30,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
   const canvas = useRef<HTMLCanvasElement>(null), tline = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
   const maxHp = useMemo(() => { const m = { 1: 0, 2: 0 }; for (const v of tl.vehicles) m[v.team] += v.maxHealth; return m; }, [tl]);
   const curveKind = useRef<"wp" | "dmg" | "dpm" | "hit" | "flank">("wp");
-  const crew = useMemo(() => goodPlaysAll(tl).filter((p) => p.vid !== tl.recorder.vid), [tl]), [dot, setDot] = useState<GoodPlay | null>(null);
+  const crew = useMemo(() => goodPlaysAll(tl).filter((p) => p.vid !== tl.recorder.vid), [tl]), [dot, setDot] = useState<GoodPlay | null>(null), dangers = useMemo(() => dangerSpots(tl).filter((d) => d.vid !== tl.recorder.vid), [tl]), [dg, setDg] = useState<DangerSpot | null>(null);
   const flank = useMemo(() => flankModel(tl), [tl]), flankRef = useRef(flank); flankRef.current = flank;
   const [curve, setCurve] = useState<"wp" | "dmg" | "dpm" | "hit" | "flank">("wp"), curveCv = useRef<HTMLCanvasElement>(null), curveVidRef = useRef(tl.recorder.vid);
   const [mapInfo, setMapInfo] = useState<{ img: HTMLImageElement; b: MapBounds } | null>(null), [mapPanel, setMapPanel] = useState(false), [mapTick, setMapTick] = useState(0);
@@ -129,6 +129,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
       k.strokeStyle = grid; k.beginPath(); k.moveTo(0, th * 0.5); k.lineTo(tw, th * 0.5); k.stroke();
       k.strokeStyle = you; k.lineWidth = 2; k.beginPath(); wp.t.forEach((v, i) => { const y = 4 + (1 - wp.wp[i]!) * (th - 18); i ? k.lineTo(X(v), y) : k.moveTo(X(v), y); }); k.stroke();
       for (const p of crew) { const ally = p.team === tl.recorder.team, y = ally ? th - 31 : th - 20; k.globalAlpha = 0.35 + 0.65 * p.coverage; k.fillStyle = ally ? you : foe; k.beginPath(); k.arc(X(p.tStart), y, 3.5, 0, 7); k.fill(); k.globalAlpha = 1; if (p.enabled === "carried") { k.strokeStyle = ink; k.lineWidth = 1.5; k.beginPath(); k.arc(X(p.tStart), y, 6, 0, 7); k.stroke(); } if (dot === p) { k.strokeStyle = accent; k.lineWidth = 2; k.beginPath(); k.arc(X(p.tStart), y, 9, 0, 7); k.stroke(); } }
+      for (const d of dangers) { const ally = d.team === tl.recorder.team, y = ally ? th - 31 : th - 20, x = X(d.tStart); k.globalAlpha = 0.35 + 0.65 * d.coverage; k.strokeStyle = ally ? you : foe; k.lineWidth = 2; k.beginPath(); k.moveTo(x - 3.5, y - 3.5); k.lineTo(x + 3.5, y + 3.5); k.moveTo(x + 3.5, y - 3.5); k.lineTo(x - 3.5, y + 3.5); k.stroke(); k.globalAlpha = 1; if (dg === d) { k.strokeStyle = accent; k.beginPath(); k.arc(x, y, 9, 0, 7); k.stroke(); } }
       for (const e of kills) { const victimTeam = vehicle.get(e.victim)?.team; k.fillStyle = victimTeam === tl.recorder.team ? foe : you; k.beginPath(); k.arc(X(e.t), th - 7, 3.5, 0, 7); k.fill(); }
       k.font = "bold 11px system-ui"; k.textBaseline = "top"; for (const { f } of coachRef.current.marks) { k.fillStyle = f.kind === "mistake" ? foe : f.kind === "good" ? you : muted; k.fillRect(X(f.tStart) - 6, 1, 12, 13); k.fillStyle = bg; k.fillText(f.kind === "mistake" ? "!" : f.kind === "good" ? "✓" : "i", X(f.tStart) - 2.5, 2); }
       k.strokeStyle = ink; k.lineWidth = 2; k.beginPath(); k.moveTo(X(T), 0); k.lineTo(X(T), th); k.stroke();
@@ -157,7 +158,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
       const i = Math.min(end, Math.floor(T)), cur = ys[i]; q.fillStyle = ink; q.font = "bold 11px system-ui"; q.textBaseline = "top";
       if (cur != null) q.fillText(kind === "wp" || kind === "hit" ? `${Math.round(cur * 100)}%` : Math.round(cur).toLocaleString(), Math.min(cw - 50, X2(T) + 4), 2);
     }
-  }, [tl, bounds, wp, kills, vehicle, end, fit, mapInfo, crew, dot]);
+  }, [tl, bounds, wp, kills, vehicle, end, fit, mapInfo, crew, dot, dangers, dg]);
 
   // ---- clock loop ----
   useEffect(() => {
@@ -257,8 +258,9 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
         {!mapInfo && <div className="pnote">{t("player.nomap")}</div>}
         {mapPanel && <MapLoader mapName={tl.arena.map} onSaved={() => setMapTick((x) => x + 1)} onClose={() => setMapPanel(false)} />}
       </div>
-      <canvas ref={tline} className="ptimeline" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); const r = e.currentTarget.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; const hit = crew.find((p) => Math.abs((p.tStart / Math.max(1, end)) * r.width - x) <= 9 && Math.abs((p.team === tl.recorder.team ? r.height - 31 : r.height - 20) - y) <= 9); if (hit) { setDot(hit); seek(hit.tStart - 3); } else { setDot(null); scrub(e); } }} onPointerMove={scrub} aria-label={t("player.timeline")} role="slider" aria-valuemin={0} aria-valuemax={end} aria-valuenow={Math.round(uiT)} />
+      <canvas ref={tline} className="ptimeline" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); const r = e.currentTarget.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; const hit = crew.find((p) => Math.abs((p.tStart / Math.max(1, end)) * r.width - x) <= 9 && Math.abs((p.team === tl.recorder.team ? r.height - 31 : r.height - 20) - y) <= 9); const dh = hit ? undefined : dangers.find((d) => Math.abs((d.tStart / Math.max(1, end)) * r.width - x) <= 9 && Math.abs((d.team === tl.recorder.team ? r.height - 31 : r.height - 20) - y) <= 9); if (hit) { setDot(hit); setDg(null); seek(hit.tStart - 3); } else if (dh) { setDg(dh); setDot(null); seek(dh.tStart - 3); } else { setDot(null); setDg(null); scrub(e); } }} onPointerMove={scrub} aria-label={t("player.timeline")} role="slider" aria-valuemin={0} aria-valuemax={end} aria-valuenow={Math.round(uiT)} />
       {dot && <div className="pdot" onPointerDown={(e) => e.stopPropagation()}><b className={dot.team === tl.recorder.team ? "ally" : "enemy"}>{vehicle.get(dot.vid)?.name}</b> · {t("crew.play", { dealt: String(dot.dealt), got: String(dot.got) })} · <b>{t(`crew.${dot.enabled}`)}</b>{dot.absorbedHp > 0 ? ` · ${t("crew.absorbed", { hp: String(dot.absorbedHp) })}` : ""}{dot.sacrificed.length ? ` · ${t("crew.sacrificed", { n: String(dot.sacrificed.length) })}` : ""}{dot.coverage < 0.75 ? ` · ${t("crew.lowcov", { p: String(Math.round(dot.coverage * 100)) })}` : ""}</div>}
+      {dg && <div className="pdot" onPointerDown={(e) => e.stopPropagation()}><b className={dg.team === tl.recorder.team ? "ally" : "enemy"}>{vehicle.get(dg.vid)?.name}</b> · {t("dg.spot", { got: String(dg.got), dealt: String(dg.dealt) })} · <b>{t(`dg.cause.${dg.cause}`)}</b> · {t(`dg.do.${dg.cause}`)}{dg.coverage < 0.75 ? ` · ${t("crew.lowcov", { p: String(Math.round(dg.coverage * 100)) })}` : ""}</div>}
       <p className="muted pdotleg">{t("crew.legend")}</p>
       <div className="pcurve">
         <div className="pcurvebar" onPointerDown={(e) => e.stopPropagation()}>
