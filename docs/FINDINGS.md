@@ -141,3 +141,8 @@ Report shows a banner when battleType != 1 or vehicle count != 30 (tundra 14 pla
 ## Game fundamentals to reverse engineer into heuristics (2026-11-03, owner request: "whatever is important in the game")
 Done: assist per minute + share (card "support"); damage trades; positioning vs allies; crossfire; opening.
 Next, by value: (1) spot quality and spot-to-damage link (needs 0x37 / #26); (2) vanish-event layer and aggregated cover map; (3) peek-and-retreat / exposure time; (4) class roles (heavy holds, medium flanks, scout spots, TD ambush) needs class data (#42); (5) reload and gun uptime (#42); (6) base capture / reset timing; (7) HP-pool trading (who has more HP left) at key moments; (8) tier and matchmaking context.
+
+## Movement and exposure (2026-11-03)
+- Fixture medians (recorder team / enemy): m/min 333 / 194, standing still 20% / 27%, under 2+ enemies at 150 m 16% / 73%. The enemy figure is inflated by the spotting bias, so compare within a team.
+- Packets: 0x37 (kill message on WG) still not decoded; needs a packet-layout pass. Spot-to-damage link and exact assists remain blocked on #26/#30.
+- Next: line-of-sight from aggregated vanish events; pair "under 2+ enemies" with the danger spots to separate daredevils who got away from those who paid.

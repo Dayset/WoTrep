@@ -1,0 +1,7 @@
+{
+  "rangeM": { "value": 150, "why": "initial guess, recalibrate in E13 (hostile tanks this close count as able to shoot you; no line of sight or gun data yet; chosen after trying 150, 200 and 300 m on the fixture: 300 m made 97% of the time look exposed)", "n": 0, "date": "2026-11-03" },
+  "stillMps": { "value": 1, "why": "initial guess, recalibrate in E13 (slower than this counts as standing still)", "n": 0, "date": "2026-11-03" },
+  "quietS": { "value": 10, "why": "initial guess, recalibrate in E13 (no hostile in range for this long before a new contact)", "n": 0, "date": "2026-11-03" },
+  "acquireMaxS": { "value": 20, "why": "initial guess, recalibrate in E13 (a first shot later than this is not counted as a reaction to the contact)", "n": 0, "date": "2026-11-03" },
+  "multi": { "value": 2, "why": "initial guess, recalibrate in E13 (this many hostiles in range at once = exposed to several shooters)", "n": 0, "date": "2026-11-03" }
+}

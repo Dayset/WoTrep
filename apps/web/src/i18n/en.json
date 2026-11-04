@@ -329,5 +329,16 @@
   "adv.support": "Support per minute (share)",
   "adv.support.tip": "Assisted damage (spotting, tracks, stuns) per minute alive, and its share of damage dealt plus assisted",
   "gl.support.how": "Assisted damage from the battle results: damage your teammates did to enemies you spotted (radio), tracked or stunned. We divide it by the minutes you were alive. The share is assisted ÷ (assisted + your own damage).",
-  "gl.support.mean": "Scouts and support tanks create damage that never shows in their own damage. A high share means your value came from enabling others. We cannot yet say which spots led to which damage, or how good each spot was."
+  "gl.support.mean": "Scouts and support tanks create damage that never shows in their own damage. A high share means your value came from enabling others. We cannot yet say which spots led to which damage, or how good each spot was.",
+  "mv.title": "Movement and exposure (your team)",
+  "mv.speed": "m/min",
+  "mv.still": "Standing still",
+  "mv.multi": "Under 2+ enemies",
+  "mv.multi.tip": "Share of visible time with at least two enemy tanks within 150 m",
+  "mv.peak": "Most enemies at once",
+  "mv.acq": "Time to first shot",
+  "mv.acq.tip": "Median seconds from a new enemy contact (none within 150 m for 10 s before) to your next shot",
+  "mv.median": "Team median",
+  "gl.movement.how": "Once per second we take every tank we can see. Speed is metres travelled per minute, standing still is the share of seconds under 1 m/s. Exposure is the share of seconds with two or more living enemies within 150 m. Time to first shot is the median wait from a new contact (no enemy within 150 m for 10 s) to that player's next shot, ignoring waits over 20 s.",
+  "gl.movement.mean": "A very mobile player who is rarely under several enemies is probably working flanks; a high exposure share is the daredevil pattern that the danger spots table punishes. A slow first shot after contact may be hesitation or reload, we cannot tell yet. Enemy positions are known only while spotted, so compare players of the same team only. No line of sight yet, so 'within 150 m' can include enemies behind cover."
 }

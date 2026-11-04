@@ -9,6 +9,7 @@ import { Player } from "../player/Player";
 import { MapPage } from "../map/MapPage";
 import { Ledger } from "./Ledger";
 import { Danger } from "./Danger";
+import { Movement } from "./Movement";
 import { CoverageBadge } from "./CoverageBadge";
 import { FindingsPanel } from "./Findings";
 import { alignment, detectors, goodPlaysAll, rank, runDetectors } from "@wotrep/coach";
@@ -88,6 +89,7 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
       <div className="cards">{cards.map(([k, v, tip, id]) => <div className="card" key={k}><div className="k">{k} <Vote id={`card.${id}`} /></div><div className="v">{v}</div>{tip && <div className="tip">{tip}</div>}<details className="how"><summary>{t("gl.how")} · {t("gl.mean")}</summary><p><b>{t("gl.how")}.</b> {t(`gl.${id}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${id}.mean`)}</p></details></div>)}</div>
       <Ledger tl={tl} />
       <Danger tl={tl} />
+      <Movement tl={tl} />
     </details>
   );
 }
