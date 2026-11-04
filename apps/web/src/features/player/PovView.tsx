@@ -3,13 +3,14 @@ import * as THREE from "three";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
 import { tracerLines, aimAt, heightField, heightAt } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
+import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, trainerMatch, type TrainerSel } from "./viewConfig";
 
 /** Low-poly 3D view of the replay on flat ground (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
  *  Heights and cover are not known yet, so ground is flat and nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
-export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync, trails }: {
-  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number; trails: boolean;
+export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync, trails, trainer }: {
+  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number; trails: boolean; trainer: { on: boolean; sel: TrainerSel };
 }) {
-  const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom, lock, trails }); live.current = { vid, mode, zoom, lock, trails };
+  const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom, lock, trails, trainer }); live.current = { vid, mode, zoom, lock, trails, trainer };
   useEffect(() => { look.current = { yaw: 0, pitch: 0.28, dist: look.current.dist }; }, [resync, lock]);
   useEffect(() => {
     const el = host.current; if (!el) return;
@@ -36,6 +37,18 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       const mat = new THREE.MeshLambertMaterial({ color: v.team === tl.recorder.team ? ally : foe, flatShading: true, transparent: true }), g = new THREE.Group();
       const h = new THREE.Mesh(hull, mat); h.position.y = 1.1; const tu = new THREE.Mesh(tur, mat); tu.position.set(0, 2.25, 0.3); const gn = new THREE.Mesh(gun, mat); gn.position.set(0, 2.3, -2.2);
       const tg = new THREE.Group(); tg.add(tu, gn); g.add(h, tg); g.visible = false; scene.add(g); tanks.set(v.vid, { g, mat });
+    }
+    // trainer cones: a pie slice (FOV) and a range ring per vehicle, reshaped each frame around the tank's heading
+    const CN = 24, RN = 64, vcones = new Map<number, { fan: THREE.Mesh; fanPos: Float32Array; ring: THREE.LineLoop; ringPos: Float32Array }>();
+    const fanIdx: number[] = []; for (let i = 0; i < CN; i++) fanIdx.push(0, i + 1, i + 2);
+    for (const v of tl.vehicles) {
+      const c = v.team === tl.recorder.team ? ally : foe;
+      const fanPos = new Float32Array((CN + 2) * 3), fg = new THREE.BufferGeometry(); fg.setAttribute("position", new THREE.BufferAttribute(fanPos, 3)); fg.setIndex(fanIdx);
+      const fan = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: VIEW_ALPHA.value, depthWrite: false, side: THREE.DoubleSide }));
+      const ringPos = new Float32Array(RN * 3), rg = new THREE.BufferGeometry(); rg.setAttribute("position", new THREE.BufferAttribute(ringPos, 3));
+      const ring = new THREE.LineLoop(rg, new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: VIEW_ALPHA.value }));
+      fan.visible = ring.visible = false; fan.frustumCulled = ring.frustumCulled = false; fan.renderOrder = 2; scene.add(fan, ring);
+      vcones.set(v.vid, { fan, fanPos, ring, ringPos });
     }
     const labels: THREE.Sprite[] = [], shots = tracerLines(tl, {}), MAXS = 80;
     for (const v of tl.vehicles) {
@@ -100,6 +113,18 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
         const k = tanks.get(u.vid)!; k.g.visible = u.known !== "never" && !(L.mode === "fp" && u.vid === L.vid && u.alive);
         k.g.position.set(u.x, gh(u.x, u.z), -u.z); const aim0 = u.alive ? aimAt(tl, u.vid, clock.current.t) : null, sm = smY.get(u.vid) ?? { h: u.yaw, g: aim0 ? aim0.yaw : u.yaw }; if (jump || !smY.has(u.vid)) { sm.h = u.yaw; sm.g = aim0 ? aim0.yaw : u.yaw; } else { sm.h += wrap(u.yaw - sm.h) * kS; sm.g += wrap((aim0 ? aim0.yaw : u.yaw) - sm.g) * kS; } smY.set(u.vid, sm); k.g.rotation.y = -sm.h; k.mat.opacity = !u.alive ? 0.5 : u.known === "ghost" ? 0.3 : 1;
         k.mat.color.copy(!u.alive ? new THREE.Color(0x444444) : hit.has(u.vid) ? new THREE.Color(0xffd23f) : u.team === tl.recorder.team ? ally : foe);
+        { const cn = vcones.get(u.vid)!, show = L.trainer.on && u.known === "live" && u.alive && trainerMatch(L.trainer.sel, u.vid, u.team, tl.recorder.team);
+          cn.fan.visible = cn.ring.visible = show;
+          if (show) {
+            const R = VIEW_RANGE_M.value, half = (VIEW_FOV_DEG.value * Math.PI) / 360;
+            // heading convention as in the 2D view: a point at angle a sits at (x + R sin a, z - R cos a); 3D z is -z
+            const pt = (a: number, r: number, out: Float32Array, at: number) => { const px = u.x + r * Math.sin(a), pz = u.z - r * Math.cos(a); out[at] = px; out[at + 1] = gh(px, pz) + 0.4; out[at + 2] = -pz; };
+            pt(0, 0, cn.fanPos, 0); cn.fanPos[0] = u.x; cn.fanPos[1] = gh(u.x, u.z) + 0.4; cn.fanPos[2] = -u.z;
+            for (let i = 0; i <= CN; i++) pt(u.yaw - half + (2 * half * i) / CN, R, cn.fanPos, (i + 1) * 3);
+            for (let j = 0; j < RN; j++) pt((2 * Math.PI * j) / RN, R, cn.ringPos, j * 3);
+            (cn.fan.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+            (cn.ring.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+          } }
         k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = aim0; (k.g.children[1] as THREE.Group).rotation.y = aim ? sm.h - sm.g : 0; if (u.vid === L.vid) { turretYaw = sm.g; hullYawS = sm.h; onTarget = !!aim?.onTarget; turretPitch = aim ? aim.pitch : 0; }
       }
       let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; tpos.set([sh.x0, (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, -sh.z0, sh.x1, (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, -sh.z1], n * 6); n++; }

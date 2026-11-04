@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
-import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M } from "./viewConfig";
+import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, trainerMatch, type TrainerSel } from "./viewConfig";
 import { sfxStart, sfxShot, type ShotKind } from "./sfx";
 import { stateAt, type BattleTimeline, type Unit } from "@wotrep/model";
 import { vehicleLabel } from "@wotrep/gamedata";
@@ -45,11 +45,11 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
   const [coach, setCoach] = useState(false), [seenIds, setSeenIds] = useState<string[]>([]);
   const [pauseOn, setPauseOn] = useState<string[]>(["mistake", "good", "info"]), [resumeS, setResumeS] = useState(0), [resumeGoodS, setResumeGoodS] = useState(8), [slowS, setSlowS] = useState(6), coachPaused = useRef<string | false>(false);
   const [view3d, setView3d] = useState<"off" | "fp" | "chase">("off"), [scope, setScope] = useState(6), [lockView, setLockView] = useState(false), [resync, setResync] = useState(0), [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [logOn, setLogOn] = useState(() => window.matchMedia?.("(min-width: 1100px)").matches === true), [setOpen, setSetOpen] = useState(false), [sel, setSel] = useState<number | null>(null);
-  const [sfxOn, setSfxOn] = useState(false), sfxRef = useRef(false), sfxLast = useRef(0), [trainer, setTrainer] = useState(false);
+  const [sfxOn, setSfxOn] = useState(false), sfxRef = useRef(false), sfxLast = useRef(0), [trainer, setTrainer] = useState(false), [trainerSel, setTrainerSel] = useState<TrainerSel>("all");
   const shotList = useMemo(() => { const tm = new Map(tl.vehicles.map((v) => [v.vid, v.team])); return tl.events.flatMap((e) => e.k === "shot" ? [{ t: e.t, kind: (e.shooter === tl.recorder.vid ? "own" : tm.get(e.shooter) === tl.recorder.team ? "ally" : "enemy") as ShotKind }] : []).sort((a, b) => a.t - b.t); }, [tl]);
   const shotsRef = useRef(shotList); shotsRef.current = shotList;
   const deathT = useMemo(() => { const d = new Map<number, number>(); for (const e of tl.events) if (e.k === "kill" && e.t >= 0 && !d.has(e.victim)) d.set(e.victim, e.t); return d; }, [tl]);
-  const clock = useRef({ t: Math.max(0, startAt ?? 0), playing: false, speed: 1 }), cam = useRef<Cam | null>(null), opts = useRef({ follow: false, names: true, trails: true, sel: null as number | null, trainer: false });
+  const clock = useRef({ t: Math.max(0, startAt ?? 0), playing: false, speed: 1 }), cam = useRef<Cam | null>(null), opts = useRef({ follow: false, names: true, trails: true, sel: null as number | null, trainer: null as TrainerSel | null });
   const canvas = useRef<HTMLCanvasElement>(null), tline = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
   const maxHp = useMemo(() => { const m = { 1: 0, 2: 0 }; for (const v of tl.vehicles) m[v.team] += v.maxHealth; return m; }, [tl]);
   const curveKind = useRef<"wp" | "dmg" | "dpm" | "hit" | "flank">("wp");
@@ -68,7 +68,7 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
   const wp = useMemo(() => wpSeries(tl, tl.recorder.team, 1), [tl]);
   const kills = useMemo(() => tl.events.flatMap((e) => (e.k === "kill" && e.t >= 0 ? [e] : [])), [tl]);
   const vehicle = useMemo(() => new Map(tl.vehicles.map((v) => [v.vid, v])), [tl]);
-  opts.current = { follow, names, trails, sel, trainer };
+  opts.current = { follow, names, trails, sel, trainer: trainer ? trainerSel : null };
   const marks = useMemo(() => findings.filter((f) => f.kind !== "info" || f.tStart > 0).map((f) => ({ f, pt: Math.max(0, f.tStart - f.leadS) })).sort((a, b) => a.pt - b.pt), [findings]);
   const crewAll = useMemo(() => goodPlaysAll(tl), [tl]), dangersAll = useMemo(() => dangerSpots(tl), [tl]);
   const xmarks = useMemo(() => {
@@ -124,8 +124,8 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
       g.lineWidth = 2; g.strokeStyle = col(u.team); if (fill) { g.fillStyle = col(u.team); g.fill(); } g.stroke(); g.globalAlpha = 1;
     };
     // trainer: view range circle and field-of-view cone for every known live tank, friend or foe, at 20% opacity
-    if (o.trainer) for (const u of snap.units) {
-      if (u.known !== "live" || !u.alive) continue;
+    if (o.trainer !== null) for (const u of snap.units) {
+      if (u.known !== "live" || !u.alive || !trainerMatch(o.trainer, u.vid, u.team, tl.recorder.team)) continue;
       const X = sx(u.x), Y = sy(u.z), R = VIEW_RANGE_M.value * cm.s, half = (VIEW_FOV_DEG.value * Math.PI) / 360, mid = u.yaw - Math.PI / 2;
       g.globalAlpha = VIEW_ALPHA.value; g.fillStyle = col(u.team); g.strokeStyle = col(u.team); g.lineWidth = 1;
       g.beginPath(); g.moveTo(X, Y); g.arc(X, Y, R, mid - half, mid + half); g.closePath(); g.fill();
@@ -318,7 +318,7 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
       </div>
       <div className="pmap" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} onDoubleClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); setFollow(false); }}>
         <canvas ref={canvas} aria-label={t("player.aria")} role="img" />
-        {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} /></Suspense>{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
+        {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView trainer={{ on: trainer, sel: trainerSel }} tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} /></Suspense>{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
         <div className="pviewsw" role="group" aria-label={t("pov.view")} onPointerDown={(e) => e.stopPropagation()}>{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)} title={t(`pov.${m}`)} data-testid={`v3d-${m}`}>{t(`ui.v.${m}`)}</button>)}</div>
         {view3dCtl}
         {sv && su && <div className="pinfo"><b>{sv.name}</b> · {vehicleLabel(sv.vehicleType).label}<div>{su.alive ? `${Math.round(su.hp)} / ${sv.maxHealth} HP` : "✕"}{su.known === "ghost" ? ` · ${t("player.lastseen", { s: Math.round(su.ageS ?? 0) })}` : ""}</div></div>}
@@ -348,6 +348,10 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
           </select>
           {sel != null && <button type="button" onClick={() => setSel(null)} data-testid="backme" title={t("pov.me")} aria-label={t("pov.me")}>↩</button>}
           <button type="button" aria-pressed={trainer} onClick={() => setTrainer(!trainer)} data-testid="trainerbtn">🎯 {t("player.trainer")}</button>
+          {trainer && <label><select value={String(trainerSel)} onChange={(e) => { const v = e.target.value; setTrainerSel(v === "all" || v === "ally" || v === "enemy" ? v : Number(v)); }} data-testid="trainersel">
+            <option value="all">{t("viz.side.all")}</option><option value="ally">{t("viz.cmp.allies")}</option><option value="enemy">{t("viz.cmp.enemies")}</option>
+            {tl.vehicles.map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}
+          </select></label>}
           <button type="button" aria-pressed={sfxOn} onClick={() => { const on = !sfxOn; if (on) sfxStart(); sfxRef.current = on; setSfxOn(on); }} data-testid="sfxbtn">🔊 {t("player.sound")}</button>
           <button type="button" aria-pressed={coach} onClick={() => setCoach(!coach)} data-testid="coachbtn">🎓 {t("ui.coach")}</button>
           <button type="button" aria-pressed={setOpen} onClick={() => setSetOpen(!setOpen)} aria-label={t("ui.settings")} title={t("ui.settings")} data-testid="settings">⚙</button>
