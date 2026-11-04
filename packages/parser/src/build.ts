@@ -68,15 +68,25 @@ export async function parseReplay(bytes: Uint8Array, fileName?: string, opts?: {
     if (fromPk.length || derived.length) { events.push(...fromPk, ...derived); events.sort((a, b) => a.t - b.t); }
   }
   const rec = vehicles.find((v) => v.isRecorder)!;
+  const tracks = buildTracks(walk.packets, vehicleIds, T0);
+  // No results block (some replays end without one): estimate the length from the last recorded event or position.
+  let durationS: number | null = nr?.common.duration ?? null;
+  if (durationS == null) {
+    const lastEvent = events.reduce((m, e) => Math.max(m, e.t), 0);
+    const lastTrack = Object.values(tracks).reduce((m, tr) => Math.max(m, tr.t.at(-1) ?? 0), 0);
+    durationS = Math.max(lastEvent, lastTrack);
+    if (durationS > 0) warnings.push(`duration estimated from the last recorded sample: ${Math.round(durationS)} s`);
+    else durationS = null;
+  }
   const tl: BattleTimeline = {
     schema: "wotrep.timeline/1",
     source: { realm, regionCode: b0.regionCode, server: b0.serverName, clientVersion: version,
       manifest: { id: manifest?.id ?? "none", confidence: !manifest ? "none" : manifest.confidence === "defs" ? "defs" : "fingerprint" },
       ...(fileName ? { fileName } : {}), hasMods: !!b0.hasMods, sha256: await sha256(bytes) },
     arena: { arenaUniqueId: String(b0.arenaUniqueID), map: b0.mapName, mapDisplayName: b0.mapDisplayName, gameplay: b0.gameplayID, battleType: b0.battleType,
-      startedAt: b0.dateTime, durationS: nr?.common.duration ?? null, winnerTeam: nr?.common.winnerTeam ?? null, finishReason: nr?.common.finishReason ?? null, battleStartClock: T0 },
+      startedAt: b0.dateTime, durationS, winnerTeam: nr?.common.winnerTeam ?? null, finishReason: nr?.common.finishReason ?? null, battleStartClock: T0 },
     recorder: { vid: av.recorderVid, team: rec.team, name: b0.playerName },
-    vehicles, tracks: buildTracks(walk.packets, vehicleIds, T0), events, camera: decodeCamera(walk.packets, T0),
+    vehicles, tracks, events, camera: decodeCamera(walk.packets, T0),
     ...(nr ? { results: nr.results } : {}),
     diagnostics: { unknownPacketTypes: unknown, warnings },
   };
