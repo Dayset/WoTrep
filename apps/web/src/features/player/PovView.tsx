@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
+import { tracerLines } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
 
 /** Low-poly 3D view of the replay on flat ground (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
- *  Heights and cover are not known yet, so ground is flat and nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). */
+ *  Heights and cover are not known yet, so ground is flat and nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
 export default function PovView({ tl, clock, vid, mode, img, bounds }: {
   tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds;
 }) {
@@ -27,6 +28,13 @@ export default function PovView({ tl, clock, vid, mode, img, bounds }: {
       const h = new THREE.Mesh(hull, mat); h.position.y = 1.1; const tu = new THREE.Mesh(tur, mat); tu.position.set(0, 2.25, 0.3); const gn = new THREE.Mesh(gun, mat); gn.position.set(0, 2.3, -2.2);
       g.add(h, tu, gn); g.visible = false; scene.add(g); tanks.set(v.vid, { g, mat });
     }
+    const labels: THREE.Sprite[] = [], shots = tracerLines(tl, {}), MAXS = 80;
+    for (const v of tl.vehicles) {
+      const c = document.createElement("canvas"); c.width = 256; c.height = 64; const g2 = c.getContext("2d")!; g2.font = "bold 34px sans-serif"; g2.textAlign = "center"; g2.fillStyle = "rgba(0,0,0,0.55)"; g2.fillRect(0, 8, 256, 48); g2.fillStyle = v.team === tl.recorder.team ? "#9fd0ff" : "#ffb0b0"; g2.fillText(v.name.slice(0, 14), 128, 46);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true })); sp.scale.set(16, 4, 1); sp.position.y = 6; sp.renderOrder = 5; tanks.get(v.vid)!.g.add(sp); labels.push(sp);
+    }
+    const tgeo = new THREE.BufferGeometry(), tpos = new Float32Array(MAXS * 6); tgeo.setAttribute("position", new THREE.BufferAttribute(tpos, 3)); tgeo.setDrawRange(0, 0);
+    const tlines = new THREE.LineSegments(tgeo, new THREE.LineBasicMaterial({ color: 0xffe066 })); tlines.frustumCulled = false; scene.add(tlines);
     const cam = new THREE.PerspectiveCamera(65, 1, 0.5, 1500);
     const size = () => { const w = el.clientWidth || 640, h = el.clientHeight || 360; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); };
     size(); const ro = new ResizeObserver(size); ro.observe(el);
@@ -37,8 +45,10 @@ export default function PovView({ tl, clock, vid, mode, img, bounds }: {
         const k = tanks.get(u.vid)!; k.g.visible = u.known !== "never" && !(L.mode === "fp" && u.vid === L.vid && u.alive);
         k.g.position.set(u.x, 0, -u.z); k.g.rotation.y = -u.yaw; k.mat.opacity = !u.alive ? 0.5 : u.known === "ghost" ? 0.3 : 1;
         k.mat.color.copy(!u.alive ? new THREE.Color(0x444444) : hit.has(u.vid) ? new THREE.Color(0xffd23f) : u.team === tl.recorder.team ? ally : foe);
-        k.g.scale.y = u.alive ? 1 : 0.5;
+        k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[3]!.visible = u.vid !== L.vid;
       }
+      let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; tpos.set([sh.x0, 2.6, -sh.z0, sh.x1, 2.6, -sh.z1], n * 6); n++; }
+      tgeo.setDrawRange(0, n * 2); (tgeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
       if (me && me.known !== "never") {
         const f = new THREE.Vector3(Math.sin(me.yaw), 0, -Math.cos(me.yaw)), p = new THREE.Vector3(me.x, 0, -me.z);
         if (L.mode === "fp") { cam.position.copy(p).setY(2.9); cam.lookAt(p.clone().addScaledVector(f, 50).setY(2.5)); }
@@ -46,7 +56,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds }: {
       }
       renderer.render(scene, cam);
     }; loop();
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); renderer.dispose(); geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); renderer.dispose(); tgeo.dispose(); for (const l of labels) { (l.material as THREE.SpriteMaterial).map?.dispose(); l.material.dispose(); } geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };
   }, [tl, img, bounds, clock]);
   return <div ref={host} className="povhost" data-testid="pov" data-mode={mode} />;
 }
