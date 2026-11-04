@@ -176,6 +176,7 @@ const PARTIAL = 0.75;
 
 
 export function CompareChart({ tl }: { tl: BattleTimeline }) {
+  const [ref, W] = useWidth();
   const [mk, setMk] = useState<MetricKey>("bold");
   const all = useMemo(() => { const st = new Map(playerStats(tl).map((x) => [x.vid, x])); const bd = boldnessAll(tl); return tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid), s: st.get(v.vid)!, b: bd.get(v.vid) })); }, [tl]);
   const m = METRICS.find((x) => x.key === mk)!;
@@ -205,6 +206,14 @@ export function CompareChart({ tl }: { tl: BattleTimeline }) {
               <td>{Math.round(r.cov * 100)}%</td>
             </tr>))}</tbody>
         </table>
+      </div>
+      <div ref={ref} className="plot" aria-hidden="true">
+        <svg width={W} height={56} role="img" aria-label={t("viz.dist.aria")}>
+          <line x1={10} x2={W - 10} y1={34} y2={34} className="ref" />
+          {rows.map((r) => <circle key={r.v.vid} cx={10 + ((r.val - lo) / (hiV - lo || 1)) * (W - 20)} cy={34} r={r.mine ? 5 : 3} fill={r.mine ? "var(--c-ink)" : r.ally ? "var(--c-you)" : "var(--c-foe)"} opacity={0.8} />)}
+          <text x={10} y={52} className="ax">{m.fmt(lo)}</text>
+          <text x={W - 10} y={52} className="ax" textAnchor="end">{m.fmt(hiV)}</text>
+        </svg>
       </div>
       <div className="how-inline"><p><b>{t("gl.how")}.</b> {t(`gl.${mk}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${mk}.mean`)}</p></div>
       <p className="fbnote muted" style={{ marginTop: 10 }}>{t("viz.cmp.note")}</p>
