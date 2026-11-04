@@ -34,7 +34,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     const geo = new THREE.BufferGeometry(), nv = field.cols * field.rows, pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), col = new Float32Array(nv * 3), idx: number[] = [];
     for (let r = 0; r < field.rows; r++) for (let c = 0; c < field.cols; c++) {
       const i = r * field.cols + c, x = field.x0 + c * field.cell, z = field.z0 + r * field.cell, y = field.h[i]!, k = (y - hMin) / Math.max(1, hMax - hMin);
-      pos.set([x, y, -z], i * 3); uv.set([(x - bounds.x0) / W, (z - bounds.z0) / D], i * 2); col.set([0.5 * (0.33 + 0.30 * k) + 0.5 * (0.29 + 0.02 * k), 0.5 * (0.55 + 0.08 * k) + 0.5 * (0.29 + 0.02 * k), 0.5 * (0.30 + 0.12 * k) + 0.5 * (0.30 + 0.02 * k)], i * 3); // earlier earth tones, halfway back
+      pos.set([x, y, -z], i * 3); uv.set([(x - bounds.x0) / W, (z - bounds.z0) / D], i * 2); col.set([0.75 * (0.33 + 0.30 * k) + 0.25 * (0.29 + 0.02 * k), 0.75 * (0.55 + 0.08 * k) + 0.25 * (0.29 + 0.02 * k), 0.75 * (0.30 + 0.12 * k) + 0.25 * (0.30 + 0.02 * k)], i * 3); // earlier earth tones, halfway back
       if (r < field.rows - 1 && c < field.cols - 1) idx.push(i, i + 1, i + field.cols, i + 1, i + field.cols + 1, i + field.cols);
     }
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
