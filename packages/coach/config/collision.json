@@ -4,5 +4,11 @@
     "why": "initial guess, recalibrate later (ramming hits closer than this belong to one collision)",
     "n": 0,
     "date": "2026-11-04"
+  },
+  "minRatio": {
+    "value": 2,
+    "why": "initial guess, recalibrate later (a ram on a foe is good when dealt is at least this multiple of damage taken)",
+    "n": 0,
+    "date": "2026-11-04"
   }
 }
