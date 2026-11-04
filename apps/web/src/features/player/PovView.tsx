@@ -103,7 +103,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([...pa, ...pb]), 3)); g.setIndex([...Array.from(ia), ...Array.from(ib, (i) => i + n)]); return g; })();
     const bushMat = new THREE.MeshBasicMaterial({ color: 0x9ccc6e, transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthWrite: false });
     const bushIm = new THREE.InstancedMesh(cross, bushMat, BUSHES_N), bo = new THREE.Object3D();
-    bushes.forEach((b, i) => { bo.position.set(b.x, b.y, -b.z); bo.rotation.set(0, rnd() * Math.PI, 0); bo.scale.set(b.sx * 1.4, b.sy * 0.7, b.sz * 1.4); bo.updateMatrix(); bushIm.setMatrixAt(i, bo.matrix); });
+    bushes.forEach((b, i) => { bo.position.set(b.x, b.y, b.z); bo.rotation.set(0, rnd() * Math.PI, 0); bo.scale.set(b.sx * 1.4, b.sy * 0.7, b.sz * 1.4); bo.updateMatrix(); bushIm.setMatrixAt(i, bo.matrix); });
     bushIm.frustumCulled = false; scene.add(bushIm); deco.push(cross); decoMat.push(bushMat);
     const updateFade = (camPos: THREE.Vector3, fwd: THREE.Vector3, halfFovH: number) => {
       const fl = Math.hypot(fwd.x, fwd.z) || 1, fx = fwd.x / fl, fz = fwd.z / fl, cosMax = Math.cos(halfFovH + 0.17);
