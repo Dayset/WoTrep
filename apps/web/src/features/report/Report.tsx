@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
-import { boldnessAll, playerMetrics, playerStats, recorderHeuristics, teamShape, teamplayAll } from "@wotrep/analysis";
+import { boldnessAll, coverage, flankModel, playerMetrics, playerStats, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
 import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
 import { HeuristicCharts } from "./Charts";
@@ -8,6 +8,7 @@ import { Debug, debugOn } from "./Debug";
 import { Player } from "../player/Player";
 import { MapPage } from "../map/MapPage";
 import { Ledger } from "./Ledger";
+import { CoverageBadge } from "./CoverageBadge";
 import { FindingsPanel } from "./Findings";
 import { alignment, detectors, goodPlaysAll, rank, runDetectors } from "@wotrep/coach";
 import { Vote, FeedbackExport } from "./Feedback";
@@ -49,6 +50,7 @@ const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 function Advanced({ tl }: { tl: BattleTimeline }) {
   const h = recorderHeuristics(tl); if (!h) return null;
   const plays = goodPlaysAll(tl), al = alignment(plays, tl.recorder.team), mineP = plays.filter((p) => p.vid === tl.recorder.vid), carried = mineP.filter((p) => p.enabled === "carried").length;
+  const fm = flankModel(tl), rf = fm ? reinforce(tl, fm) : null, mineR = rf?.byPlayer.get(tl.recorder.vid) ?? 0, reactions = rf ? rf.episodes.flatMap((e) => (e.reactionS == null ? [] : [e.reactionS])).sort((a, b) => a - b) : [];
   const bd = boldnessAll(tl).get(tl.recorder.vid), tp = teamplayAll(tl).get(tl.recorder.vid), shape = teamShape(tl, tl.recorder.team);
   const sgn = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
   const cards: [string, string, string, string][] = [
@@ -70,6 +72,10 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
       [t("adv.rank"), tp.frontRank == null ? "—" : pct(tp.frontRank), "", "rank"],
       [t("adv.spread"), shape.spreadM == null ? "—" : `${shape.spreadM} m`, "", "spread"],
       [t("adv.align"), al.share == null ? "—" : `${pct(al.share)} (${al.aligned}/${al.plays})`, "", "align"],
+      ...(rf ? ([
+        [t("adv.reinforce"), rf.episodes.length ? `${rf.answered}/${rf.episodes.length}${reactions.length ? ` · ${reactions[reactions.length >> 1]} s` : ""}` : "—", "", "reinforce"],
+        [t("adv.reinforced"), rf.episodes.length ? String(mineR) : "—", "", "reinforced"],
+      ] as [string, string, string, string][]) : []),
       [t("adv.enabled"), mineP.length ? `${carried}/${mineP.length}` : "—", "", "enabled"],
     ] as [string, string, string, string][]) : []),
   ];
@@ -97,6 +103,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
       <div className="sub">{tl.arena.startedAt} · {tl.source.server} · v{tl.source.clientVersion}
         {tl.arena.durationS != null && <> · {t("report.duration")} {mmss(tl.arena.durationS)}</>}</div>
       {tl.source.manifest.confidence !== "defs" && <div className="banner">{t("report.partial")}</div>}
+      <CoverageBadge tl={tl} />
       <Advanced tl={tl} />
       <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => setWatching(Math.max(0, f.tStart - f.leadS))} />
       <HeuristicCharts tl={tl} />

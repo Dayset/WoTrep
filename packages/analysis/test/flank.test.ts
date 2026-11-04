@@ -23,3 +23,17 @@ describe("flankModel", () => {
   });
   it("states", () => { expect(flankState(0.9)).toBe("ahead"); expect(flankState(0.5)).toBe("even"); expect(flankState(0.1)).toBe("behind"); expect(flankState(null)).toBeNull(); });
 });
+
+import { reinforce } from "../src/index";
+describe("reinforce", () => {
+  it("finds episodes with consistent fields on the fixture", () => {
+    const fm = flankModel(tl)!, r = reinforce(tl, fm);
+    expect(r.answered).toBeLessThanOrEqual(r.episodes.length);
+    for (const e of r.episodes) { expect(e.minRatio).toBeLessThan(0.4); expect(e.responders.length === 0 ? e.reactionS === null : e.reactionS! > 0).toBe(true); }
+    expect([...r.byPlayer.values()].reduce((a, b) => a + b, 0)).toBe(r.episodes.reduce((s, e) => s + e.responders.length, 0));
+  });
+  it("a flank that never falls behind yields no episodes (synthetic ratios)", () => {
+    const fm = flankModel(tl)!, calm = { ...fm, ratio: fm.ratio.map((a) => a.map(() => 0.8)) as typeof fm.ratio };
+    expect(reinforce(tl, calm).episodes.length).toBe(0);
+  });
+});

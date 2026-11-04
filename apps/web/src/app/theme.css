@@ -120,3 +120,5 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .dlogrow.future { opacity: 0.45; } .dlogrow.cur { background: var(--bg); outline: 1px solid var(--accent); } .dlogrow.mine .dwho { font-weight: 600; } .dlogrow .ally { color: var(--ally); } .dlogrow .enemy { color: var(--enemy); } .dlogrow .dn { color: var(--muted); font-variant-numeric: tabular-nums; }
 .dlognote { margin: 0; padding: 4px 8px; font-size: 12px; }
 .pdot { border: 1px solid var(--line); background: var(--panel); padding: 4px 8px; font-size: 13px; } .pdot .ally { color: var(--accent); } .pdot .enemy { color: var(--enemy); } .pdotleg { margin: 0; font-size: 12px; }
+.covbadge { border: 1px solid var(--line); background: var(--panel); padding: 4px 10px; margin: 8px 0; font-size: 13px; } .covbadge summary { cursor: pointer; }
+.covbadge.good { border-left: 4px solid var(--ally); } .covbadge.partial { border-left: 4px solid var(--me); } .covbadge.low { border-left: 4px solid var(--enemy); } .covbadge ul { margin: 4px 0; padding-left: 18px; } .covbadge p { margin: 4px 0; color: var(--muted); }

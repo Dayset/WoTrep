@@ -10,3 +10,4 @@ export * from "./series";
 export * from "./heatmap";
 export * from "./teamplay";
 export * from "./flank";
+export * from "./coverage";

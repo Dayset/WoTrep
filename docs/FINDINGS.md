@@ -119,3 +119,8 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 - Fixture ledger (own team): top helpers absorbed 748 HP (2 plays), 452 HP (1 died for it), 343 HP; the recorder helped nobody. Own plays enabled: 3/3 for the top helper (a helper who also cashes in).
 - Flank model, own HP share left/centre/right: fixture 34/31/35 (enemy seen 22/29/49), WG Overlord 62/21/17 (enemy seen 49/29/22), Prohorovka 40/21/39 (enemy seen 0/18/82: mostly unseen), Lakeville 70/17/13. The enemy side is a lower bound everywhere.
 - Candidate next: **reinforce score** = after a flank's ratio falls below 40% for 15 s, did any teammate move toward it within 30 s? Per-player credit for the mover, and a team-level "reaction time". Needs lane geometry to be fair on maps with one-sided lanes.
+
+## Reinforce and coverage on real replays (2026-11-03)
+- Reinforce (episodes answered/total): Lesta fixture 4/4 (reaction 15-30 s), WG Overlord 2/2, Prohorovka 1/4, Lakeville 2/3. Epic battle (60 players): 2/3 but not meaningful, the flank model assumes 15v15.
+- Coverage: Lesta fixture damage 89%, own positions 90%, enemy 39% -> "partial"; WG Overlord 67% / 65% / 19%; Lakeville 70% / 77% / 19%; Epic Battle 84% / 31% / 4%. Nothing reached "good" yet because the enemy is rarely visible for 40% of its time; the 40% threshold is a guess, recalibrate when more replays exist (E13).
+- Epic Battle (60 players, battleType 27) and Tundra (14) are not supported by the coach or flank model: the badge is the only honest signal for now. Candidate: a "mode not supported" banner from `battleType`.

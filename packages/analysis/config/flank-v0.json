@@ -3,5 +3,8 @@
   "refWindowS": { "value": 90, "why": "initial guess, recalibrate in E13 (where the enemy was seen in the first seconds defines the attack axis when its spawn was not tracked)", "n": 0, "date": "2026-11-03" },
   "ghostMaxS": { "value": 20, "why": "initial guess, recalibrate in E13 (an enemy last seen longer ago than this is not counted on any flank)", "n": 0, "date": "2026-11-03" },
   "even": { "value": 0.1, "why": "initial guess, recalibrate in E13 (own HP share within 50% +- this on a flank counts as an even fight)", "n": 0, "date": "2026-11-03" },
-  "minForce": { "value": 600, "why": "initial guess (below this much total HP on a flank nobody is really there)", "n": 0, "date": "2026-11-03" }
+  "minForce": { "value": 600, "why": "initial guess (below this much total HP on a flank nobody is really there)", "n": 0, "date": "2026-11-03" },
+  "behindRatio": { "value": 0.4, "why": "initial guess, recalibrate in E13 (own HP share below this on a flank means that flank is being lost)", "n": 0, "date": "2026-11-03" },
+  "behindForS": { "value": 15, "why": "initial guess, recalibrate in E13 (the flank must stay behind this long to count as an episode, so single hits do not)", "n": 0, "date": "2026-11-03" },
+  "respondWithinS": { "value": 30, "why": "initial guess, recalibrate in E13 (a teammate who reaches the flank within this long after the episode starts counts as a responder)", "n": 0, "date": "2026-11-03" }
 }
