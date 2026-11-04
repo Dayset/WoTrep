@@ -345,7 +345,7 @@
   "pov.off": "Top-down",
   "pov.fp": "First person",
   "pov.chase": "Behind the tank",
-  "pov.note": "Simple 3D: flat ground, boxes for tanks. Cover and height are not known yet. Yellow = enemy that hit the followed tank in the last 4 s.",
+  "pov.note": "Simple 3D: drag to look around, wheel or pinch to zoom, double-click to reset. Flat ground, boxes for tanks; trees, bushes, clouds and mountains are decoration only and do not show real cover. Yellow = enemy that hit the followed tank in the last 4 s.",
   "pov.show": "Show from their view",
   "mp.l.vanish": "Enemy vanishes",
   "mp.l.vanish.how": "Each time an enemy tank that is still alive leaves our team's vision, it is counted in the cell where it was last seen. Short flickers and deaths are left out.",
