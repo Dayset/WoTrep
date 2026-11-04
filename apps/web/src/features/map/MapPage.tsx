@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { heatGrid, tracerLines, type HeatLayer } from "@wotrep/analysis";
+import { heatGrid, tracerLines, type HeatLayer, type HeatGrid } from "@wotrep/analysis";
+import { dangerSpots } from "@wotrep/coach";
 import type { BattleTimeline } from "@wotrep/model";
 import { t } from "../../i18n";
 import { loadMap, type MapBounds } from "../../lib/mapStore";
 import { MapLoader } from "../player/MapLoader";
 
-type Layer = HeatLayer | "tracers";
-const LAYERS: Layer[] = ["presence", "dmgdealt", "dmgrecv", "deaths", "routes", "spots", "tracers"];
+type Layer = HeatLayer | "tracers" | "danger";
+const LAYERS: Layer[] = ["presence", "dmgdealt", "dmgrecv", "deaths", "routes", "spots", "danger", "tracers"];
 const TEAMS = ["both", "own", "enemy"] as const, WINDOWS = ["all", "open", "mid", "end"] as const;
 const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
@@ -30,8 +31,20 @@ export function MapPage({ tl, onClose }: { tl: BattleTimeline; onClose: () => vo
   }, [tl, img]);
   const cell = Math.max(10, Math.round((bounds.x1 - bounds.x0) / 56 / 5) * 5);
   const span = useMemo(() => (win === "open" ? { t0: 0, t1: 60 } : win === "mid" ? { t0: 60, t1: Math.max(60, end - 60) } : win === "end" ? { t0: Math.max(0, end - 60), t1: end } : layer === "routes" ? { t0: 0, t1: 60 } : {}), [win, layer, end]);
-  const hl: HeatLayer = layer === "tracers" ? "presence" : layer;
-  const grid = useMemo(() => heatGrid(tl, hl, { bounds, cellM: cell, team: layer === "spots" ? "enemy" : team, vid: onlyMe ? tl.recorder.vid : undefined, ...span }), [tl, hl, layer, team, span, onlyMe, bounds, cell]);
+  const hl: HeatLayer = layer === "tracers" || layer === "danger" ? "presence" : layer;
+  const grid = useMemo((): HeatGrid => {
+    const base = { bounds, cellM: cell, team: layer === "spots" ? "enemy" as const : team, vid: onlyMe ? tl.recorder.vid : undefined, ...span };
+    if (layer !== "danger") return heatGrid(tl, hl, base);
+    const cols = Math.max(1, Math.ceil((bounds.x1 - bounds.x0) / cell)), rows = Math.max(1, Math.ceil((bounds.z1 - bounds.z0) / cell)), values = new Float32Array(cols * rows); let total = 0, max = 0;
+    for (const d of dangerSpots(tl)) {
+      if (d.x == null || d.z == null || d.tStart < (span.t0 ?? 0) || d.tStart > (span.t1 ?? Infinity)) continue;
+      if (onlyMe && d.vid !== tl.recorder.vid) continue;
+      if (team !== "both" && (team === "own") !== (d.team === tl.recorder.team)) continue;
+      const c = Math.floor((d.x - bounds.x0) / cell), r = Math.floor((d.z - bounds.z0) / cell); if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+      const k = r * cols + c; values[k] = values[k]! + 1; total++; max = Math.max(max, values[k]!);
+    }
+    return { cols, rows, cellM: cell, values, total, max, unit: "count" };
+  }, [tl, hl, layer, team, span, onlyMe, bounds, cell]);
   const shots = useMemo(() => (layer === "tracers" ? tracerLines(tl, { team, vid: onlyMe ? tl.recorder.vid : undefined, ...span }) : []), [tl, layer, team, onlyMe, span]);
 
   const aspect = (bounds.z1 - bounds.z0) / (bounds.x1 - bounds.x0);

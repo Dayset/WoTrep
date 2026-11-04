@@ -321,5 +321,8 @@
   "dg.do.outtraded": "Don't keep trading when you lose the exchange: back out after the first bad hits and re-peek when the enemy reloads.",
   "gl.danger.how": "The same rule as the bad-trade detector, applied to every player: an engagement (hits within 8 s) where the player received at least 25% of max HP and dealt less than half of that. The cause is the first that fits: Alone (nearest living ally farther than 120 m at the start), Crossfire (two or more different enemies hit them), Opening (before 1:00), otherwise Out-traded. We show each player's worst engagement.",
   "gl.danger.mean": "It points at the moment and the likely reason, not at a verdict. Hits on players the recording did not see are missing, so other players' numbers can be too low, and the thresholds are first guesses.",
-  "report.mode": "This is not a 15v15 random battle. Win probability, trades and teamplay numbers assume 15v15 random, so treat them as rough."
+  "report.mode": "This is not a 15v15 random battle. Win probability, trades and teamplay numbers assume 15v15 random, so treat them as rough.",
+  "mp.l.danger": "Danger spots",
+  "mp.l.danger.how": "Each player's heavy losing exchanges (the Danger spots table in the report) are placed at the cell where that player stood when the exchange began.",
+  "mp.l.danger.mean": "Where players lose fights they should not take. Bright cells are places many players got hurt; a bright cell on your own side is a spot to avoid or cover with a teammate."
 }

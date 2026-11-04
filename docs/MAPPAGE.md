@@ -66,3 +66,5 @@ Page structure: tabs **stats / heatmaps / top games / specs**, plus an upload bo
 - Tracers: **done** (stopTracer decoded, "Shot lines" layer on the map page). See FINDINGS.md.
 - Assisted-damage layers: need the personal/assist events, also undecoded (#26/#30). Not started.
 - Next buildable: zoom/pan on the map page, per-player picker, finish-reason card from `arena.finishReason` for the loaded battle.
+
+Map page: layer 'Danger spots' (count of §3.15 spots by start cell; respects team, window and only-me filters).
