@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BattleTimeline, Team } from "@wotrep/model";
-import { aimSamples, alignWith, boldnessAll, percentileRank, playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
+import { aimSamples, alignWith, teamCoherence, boldnessAll, percentileRank, playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
 import { t } from "../../i18n";
 import { Vote } from "./Feedback";
 
@@ -269,37 +269,51 @@ export function CompareChart({ tl }: { tl: BattleTimeline }) {
   );
 }
 
-/** Same aim: for the selected player, how often each other player's turret pointed within sameDirDeg of theirs while both were alive. */
+/** Same aim: for one player, how often each other player's turret pointed within sameDirDeg of theirs while both were alive.
+ *  Picking a side shows how coherent that whole side is: each member's mean share with the rest of the side. */
 export function AimChart({ tl }: { tl: BattleTimeline }) {
-  const [ref, W] = useWidth(); const [who, setWho] = useState<number>(tl.recorder.vid);
+  const [ref, W] = useWidth(); const [who, setWho] = useState<number | "ally" | "enemy">(tl.recorder.vid);
   const samples = useMemo(() => aimSamples(tl, 2), [tl]);
-  const rows = useMemo(() => tl.vehicles.filter((v) => v.vid !== who).map((v) => ({ v, ...alignWith(samples, who, v.vid), ally: v.team === tl.recorder.team }))
-    .filter((r) => r.share != null && r.n >= 5).sort((a, b) => b.share! - a.share!), [tl, samples, who]);
-  const nm = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
+  const allyIds = useMemo(() => tl.vehicles.filter((v) => v.team === tl.recorder.team).map((v) => v.vid), [tl]);
+  const foeIds = useMemo(() => tl.vehicles.filter((v) => v.team !== tl.recorder.team).map((v) => v.vid), [tl]);
+  const name = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
+  const teamMode = who === "ally" || who === "enemy";
+  const ids = who === "ally" ? allyIds : who === "enemy" ? foeIds : null;
+  const rows = useMemo(() => {
+    if (ids) { const c = teamCoherence(samples, ids); return c.members.filter((m) => m.share != null).map((m) => ({ vid: m.vid, share: m.share!, n: 0, gap: null as number | null })).sort((a, b) => b.share - a.share); }
+    return tl.vehicles.filter((v) => v.vid !== who).map((v) => ({ v, ...alignWith(samples, who as number, v.vid) })).filter((r) => r.share != null && r.n >= 5)
+      .map((r) => ({ vid: r.v.vid, share: r.share!, n: r.n, gap: r.meanGapDeg })).sort((a, b) => b.share - a.share);
+  }, [tl, samples, who]); // eslint-disable-line react-hooks/exhaustive-deps
+  const teamAvg = { ally: teamCoherence(samples, allyIds).avg, enemy: teamCoherence(samples, foeIds).avg };
+  const ally = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.team === tl.recorder.team;
   const short = (n: string) => (n.length > 14 ? n.slice(0, 13) + "…" : n);
-  if (!rows.length) return null;
-  const lab = Math.min(120, Math.floor(W * 0.32)), bh = 13, gap = 7, H = rows.length * (bh + gap) + 4, aw = Math.max(40, W - lab - 60);
+  const lab = Math.min(120, Math.floor(W * 0.32)), bh = 13, gap = 7, H = Math.max(1, rows.length) * (bh + gap) + 4, aw = Math.max(40, W - lab - 60);
+  const pct = (x: number | null) => (x == null ? "–" : `${Math.round(x * 100)}%`);
   return (
     <figure className="chart">
       <figcaption><b>{t("viz.aim")}</b><span className="muted"> · {t("viz.aim.sub")}</span> <Vote id="chart.aim" /></figcaption>
-      <label><select className="pick" value={who} onChange={(e) => setWho(Number(e.target.value))} aria-label={t("viz.aim.pick")}>
+      <p className="muted" style={{ margin: "4px 0" }}>{t("viz.aim.team")}: <b>{t("viz.cmp.allies")} {pct(teamAvg.ally)}</b> · <b>{t("viz.cmp.enemies")} {pct(teamAvg.enemy)}</b></p>
+      <label><select className="pick" value={String(who)} onChange={(e) => { const v = e.target.value; setWho(v === "ally" || v === "enemy" ? v : Number(v)); }} aria-label={t("viz.aim.pick")}>
+        <option value="ally">{t("viz.cmp.allies")} · {t("viz.aim.team")}</option>
+        <option value="enemy">{t("viz.cmp.enemies")} · {t("viz.aim.team")}</option>
         {tl.vehicles.map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}
       </select></label>
+      {rows.length === 0 ? <p className="muted">{t("viz.aim.none")}</p> : <>
       <div ref={ref} className="plot">
         <svg width={W} height={H} role="img" aria-label={t("viz.aim.aria")}>
-          {rows.map((r, i) => { const yy = 2 + i * (bh + gap), wd = Math.max(2, r.share! * aw);
-            return <g key={r.v.vid}>
-              <text x={lab - 8} y={yy + bh - 3} className="ax lbl" textAnchor="end">{short(r.v.name)}</text>
-              <rect x={lab} y={yy} width={wd} height={bh} rx={4} style={{ fill: r.ally ? "var(--c-you)" : "var(--c-foe)" }} />
-              <text x={lab + wd + 6} y={yy + bh - 3} className="ax lbl">{Math.round(r.share! * 100)}%</text>
+          {rows.map((r, i) => { const yy = 2 + i * (bh + gap), wd = Math.max(2, r.share * aw), isAlly = teamMode ? who === "ally" : ally(r.vid);
+            return <g key={r.vid}>
+              <text x={lab - 8} y={yy + bh - 3} className="ax lbl" textAnchor="end">{short(name(r.vid))}</text>
+              <rect x={lab} y={yy} width={wd} height={bh} rx={4} style={{ fill: isAlly ? "var(--c-you)" : "var(--c-foe)" }} />
+              <text x={lab + wd + 6} y={yy + bh - 3} className="ax lbl">{Math.round(r.share * 100)}%</text>
             </g>; })}
         </svg>
       </div>
       <div className="tablewrap"><table>
-        <thead><tr><th>{t("viz.player")}</th><th>{t("viz.aim.share")}</th><th>{t("viz.aim.gap")}</th><th>{t("viz.cmp.seen")}</th></tr></thead>
-        <tbody>{rows.map((r) => <tr key={r.v.vid} className={r.ally ? "" : "foe"}><td className="nm">{r.v.name}</td><td>{Math.round(r.share! * 100)}%</td><td>{Math.round(r.meanGapDeg ?? 0)}°</td><td>{r.n}</td></tr>)}</tbody>
-      </table></div>
-      <div className="how-inline"><p><b>{t("gl.how")}.</b> {t("gl.aimsame.how")}</p><p><b>{t("gl.mean")}.</b> {t("gl.aimsame.mean")}</p></div>
+        <thead><tr><th>{t("viz.player")}</th><th>{t("viz.aim.share")}</th>{!teamMode && <th>{t("viz.aim.gap")}</th>}<th>{t("viz.cmp.seen")}</th></tr></thead>
+        <tbody>{rows.map((r) => <tr key={r.vid} className={!teamMode && !ally(r.vid) ? "foe" : ""}><td className="nm">{name(r.vid)}</td><td>{Math.round(r.share * 100)}%</td>{!teamMode && <td>{Math.round(r.gap ?? 0)}°</td>}<td>{teamMode ? "" : r.n}</td></tr>)}</tbody>
+      </table></div></>}
+      <div className="how-inline"><p><b>{t("gl.how")}.</b> {t(teamMode ? "gl.aimteam.how" : "gl.aimsame.how")}</p><p><b>{t("gl.mean")}.</b> {t(teamMode ? "gl.aimteam.mean" : "gl.aimsame.mean")}</p></div>
     </figure>
   );
 }

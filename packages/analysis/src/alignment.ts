@@ -34,3 +34,14 @@ export function alignWith(samples: AimSamples, a: number, b: number): { share: n
   }
   return { share: n ? same / n : null, n, meanGapDeg: n ? sum / n : null };
 }
+
+/** How coherent a group is: the mean share over all its pairs, and each member's mean share with the others in the group. */
+export function teamCoherence(samples: AimSamples, vids: number[]): { avg: number | null; members: { vid: number; share: number | null }[] } {
+  const pairs: number[] = [], per = new Map<number, number[]>(vids.map((v) => [v, []]));
+  for (let i = 0; i < vids.length; i++) for (let j = i + 1; j < vids.length; j++) {
+    const r = alignWith(samples, vids[i]!, vids[j]!); if (r.share == null) continue;
+    pairs.push(r.share); per.get(vids[i]!)!.push(r.share); per.get(vids[j]!)!.push(r.share);
+  }
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
+  return { avg: mean(pairs), members: vids.map((vid) => ({ vid, share: mean(per.get(vid)!) })) };
+}
