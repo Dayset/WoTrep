@@ -264,3 +264,6 @@ select.pick { width: auto; max-width: min(100%, 220px); font-size: 13px; padding
 .sortwrap thead th.nmc { z-index: 3; }
 .sortwrap tbody tr:nth-child(even) > td { background: color-mix(in srgb, var(--panel) 92%, var(--text)); }
 .sortwrap tbody tr:hover > td { background: color-mix(in srgb, var(--panel) 80%, var(--text)); }
+
+/* Estimated values (not replay data): shown italic and muted */
+.est { font-style: italic; color: var(--muted); }
