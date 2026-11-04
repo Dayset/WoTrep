@@ -16,5 +16,11 @@
     "why": "initial guess: attribution is an estimate, never certain, so confidence is capped",
     "n": 0,
     "date": "2026-11-04"
+  },
+  "allocatedShare": {
+    "value": 0.05,
+    "why": "agreed first guess: a drop counts as allocated when its unexplained HP is at most this share of the unseen HP",
+    "n": 0,
+    "date": "2026-11-04"
   }
 }

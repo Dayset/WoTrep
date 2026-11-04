@@ -20,6 +20,6 @@ export { earlyHpDump, isolatedUnderFire, badTrade, wonTrade, idleWithTargets, de
 export const detectors = [earlyHpDump, isolatedUnderFire, badTrade, wonTrade, idleWithTargets, deathRecap, survivedUnusedHp, lowYieldClip, shootingOnTheMove, punishedReload, exposedWhileReloading, peekIntoLoadedAutoloader, collision, unseenDamage];
 
 /** Every i18n key stem a detector can emit (`<stem>.title` / `.body` / `.fix` must exist in en and ru; a web test checks it). */
-export const MESSAGE_KEYS = ["coach.unseenDamage", "coach.collision", "coach.collision.good", "coach.earlyHpDump", "coach.isolatedUnderFire", "coach.badTrade", "coach.wonTrade", "coach.idleWithTargets", "coach.deathRecap", "coach.survivedUnusedHp", "coach.lowYieldClip", "coach.lowYieldSummary", "coach.shootingOnTheMove", "coach.punishedReload", "coach.exposedWhileReloading", "coach.peekIntoLoadedAutoloader"] as const;
+export const MESSAGE_KEYS = ["coach.unseenDamage.allocated", "coach.unseenDamage.partial", "coach.unseenDamage.unresolved", "coach.collision", "coach.collision.good", "coach.earlyHpDump", "coach.isolatedUnderFire", "coach.badTrade", "coach.wonTrade", "coach.idleWithTargets", "coach.deathRecap", "coach.survivedUnusedHp", "coach.lowYieldClip", "coach.lowYieldSummary", "coach.shootingOnTheMove", "coach.punishedReload", "coach.exposedWhileReloading", "coach.peekIntoLoadedAutoloader"] as const;
 export * from "./teamgood";
 export * from "./danger";

@@ -1,5 +1,5 @@
 import { defineDetector } from "../detector";
-import { configs, allocateUnseen } from "@wotrep/analysis";
+import { configs, allocateUnseen, unseenStatus } from "@wotrep/analysis";
 import type { Finding } from "../finding";
 import { subject } from "./util";
 
@@ -22,7 +22,7 @@ export const unseenDamage = defineDetector({
           { k: "number" as const, label: "unseen", value: a.unseen, unit: "hp" },
           { k: "number" as const, label: "unexplained", value: a.unexplained, unit: "hp" },
         ],
-        messageKey: "coach.unseenDamage", params: { hp: a.unseen, left: a.unexplained, suspect },
+        messageKey: `coach.unseenDamage.${unseenStatus(a)}`, params: { hp: a.unseen, left: a.unexplained, suspect },
       });
     }
     return out;

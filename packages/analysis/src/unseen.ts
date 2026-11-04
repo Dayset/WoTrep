@@ -88,3 +88,11 @@ export function allocateUnseen(tl: BattleTimeline): UnseenAllocation[] {
     return { victim: d.vid, t0: d.t0, t1: d.t1, unseen: Math.round(d.unseen), sources, unexplained: Math.max(0, Math.round(left)), topSuspect: cands[0]?.vid ?? null };
   });
 }
+
+/** Status of one drop after allocation. "allocated" = the unexplained HP is within `allocatedShare` of the unseen HP (an estimate
+ *  that adds up, not proof of who fired). "partial" = some sources were found but HP is left. "unresolved" = no source could be placed. */
+export type UnseenStatus = "allocated" | "partial" | "unresolved";
+export function unseenStatus(a: Pick<UnseenAllocation, "unseen" | "unexplained" | "sources">): UnseenStatus {
+  if (a.unseen <= 0 || a.unexplained <= a.unseen * (cfg.allocatedShare.value as number)) return "allocated";
+  return a.sources.length ? "partial" : "unresolved";
+}

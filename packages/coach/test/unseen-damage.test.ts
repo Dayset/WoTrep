@@ -32,8 +32,17 @@ describe("unseen damage", () => {
     for (const c of unseenCandidates(tl, d)) expect(c.confidence).toBeLessThanOrEqual(0.4);
   });
   it("the engine reports it as info for the victim, with no accusation wording", () => {
-    const f = runDetectors(tl, detectors, VID).filter((x) => x.messageKey === "coach.unseenDamage");
+    const f = runDetectors(tl, detectors, VID).filter((x) => x.messageKey.startsWith("coach.unseenDamage."));
     expect(f.length).toBeGreaterThan(0);
     expect(f.every((x) => x.kind === "info")).toBe(true);
+  });
+});
+
+describe("allocation status", () => {
+  it("uses the 5% tolerance: a drop is allocated only when almost nothing is left", async () => {
+    const { unseenStatus } = await import("@wotrep/analysis");
+    expect(unseenStatus({ unseen: 1000, unexplained: 50, sources: [{ vid: 1, hp: 950 }] })).toBe("allocated");
+    expect(unseenStatus({ unseen: 1000, unexplained: 51, sources: [{ vid: 1, hp: 949 }] })).toBe("partial");
+    expect(unseenStatus({ unseen: 1000, unexplained: 1000, sources: [] })).toBe("unresolved");
   });
 });
