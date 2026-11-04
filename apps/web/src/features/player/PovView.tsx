@@ -172,9 +172,13 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       for (const sh of shots) { if (sh.t > T) break; const age = T - sh.t; if (age > TRACER_S || n >= MAXS) continue;
         const x0 = fpO ? fpO[0] : sh.x0, y0 = fpO ? fpO[1] : (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, z0 = fpO ? fpO[2] : -sh.z0;
         const x1 = sh.x1, y1 = (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, z1 = -sh.z1;
-        const dx = x1 - x0, dz = z1 - z0, len = Math.hypot(dx, dz) || 1, px = (-dz / len) * TRACER_HALF, pz = (dx / len) * TRACER_HALF;
+        // billboard: the ribbon's width runs across the view, so it never turns edge-on (a flat ribbon vanishes from a low first-person camera)
+        const dvec = new THREE.Vector3(x1 - x0, y1 - y0, z1 - z0), mid = new THREE.Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+        const side = new THREE.Vector3().crossVectors(dvec, new THREE.Vector3().subVectors(cam.position, mid));
+        if (side.lengthSq() < 1e-9) side.set(0, 1, 0); side.setLength(TRACER_HALF);
+        const px = side.x, py = side.y, pz = side.z;
         const fade = Math.max(0, 1 - age / TRACER_S), k = n * 18;
-        tpos.set([x0 - px, y0, z0 - pz, x0 + px, y0, z0 + pz, x1 - px, y1, z1 - pz, x0 + px, y0, z0 + pz, x1 + px, y1, z1 + pz, x1 - px, y1, z1 - pz], k);
+        tpos.set([x0 - px, y0 - py, z0 - pz, x0 + px, y0 + py, z0 + pz, x1 - px, y1 - py, z1 - pz, x0 + px, y0 + py, z0 + pz, x1 + px, y1 + py, z1 + pz, x1 - px, y1 - py, z1 - pz], k);
         for (let v = 0; v < 6; v++) tcolT.set([fade, fade * 0.9, fade * 0.4], k + v * 3);
         n++; }
       tgeo.setDrawRange(0, n * 6);
