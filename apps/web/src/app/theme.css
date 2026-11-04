@@ -123,3 +123,4 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .covbadge { border: 1px solid var(--line); background: var(--panel); padding: 4px 10px; margin: 8px 0; font-size: 13px; } .covbadge summary { cursor: pointer; }
 .covbadge.good { border-left: 4px solid var(--ally); } .covbadge.partial { border-left: 4px solid var(--me); } .covbadge.low { border-left: 4px solid var(--enemy); } .covbadge ul { margin: 4px 0; padding-left: 18px; } .covbadge p { margin: 4px 0; color: var(--muted); }
 .mpzoom { position: absolute; right: 8px; top: 8px; display: grid; gap: 4px; } .mpzoom button { width: 34px; height: 34px; padding: 0; }
+.povwrap { position: absolute; inset: 0; z-index: 3; background: var(--panel); } .povhost { width: 100%; height: 100%; } .pview { display: inline-flex; gap: 2px; }

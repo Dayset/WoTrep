@@ -11,16 +11,18 @@
   },
   "dependencies": {
     "@wotrep/analysis": "workspace:^",
+    "@wotrep/coach": "workspace:^",
     "@wotrep/gamedata": "workspace:^",
     "@wotrep/model": "workspace:^",
     "@wotrep/parser": "workspace:^",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "@wotrep/coach": "workspace:^"
+    "three": "0.170.0"
   },
   "devDependencies": {
     "@types/react": "18.3.18",
     "@types/react-dom": "18.3.5",
+    "@types/three": "0.170.0",
     "@vitejs/plugin-react": "4.3.4",
     "vite": "6.0.6"
   }

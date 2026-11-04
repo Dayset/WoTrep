@@ -127,3 +127,6 @@ Several replays: per-battle Impact / dmg / WN8 line chart, the most frequent fin
   (only the diagnostics object, never the file, opt-in).
 - Unfinished replay (no results block): report hides result-based numbers and says why.
 - Old WG versions: "positions only" banner.
+
+### 4.1 Simple 3D in the player (built 2026-11-03)
+Toggle in the player controls: Top-down / First person / Behind the tank. Three.js scene (lazy loaded), flat ground (minimap as texture when a map is loaded), boxes for hull, turret and gun, blue = your team, red = enemy, faded = last known position, yellow = enemy that hit the followed tank in the last 4 s. Camera follows the selected tank (default: recorder) and the replay clock. Limits: no height or cover, camera uses hull direction (gun aim not decoded). Next: open it from a finding or danger spot at the moment of the mistake (E10).
