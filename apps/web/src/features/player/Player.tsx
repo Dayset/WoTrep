@@ -24,7 +24,7 @@ interface Cam { cx: number; cz: number; s: number }
 
 /** 2D tactical player (docs/UX.md §3), first cut: grid map (no minimap image until game data lands), units with fog-of-war ghosts,
  *  trails, shots/hits/kills, team bars with win probability, timeline with kill ticks, keyboard controls. Canvas 2D, no map assets. */
-export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline; findings: Finding[]; startAt?: number; onClose: () => void }) {
+export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; findings: Finding[]; startAt?: number; seekTo?: { t: number; n: number } }) {
   const end = Math.floor(tl.arena.durationS ?? tl.events.at(-1)?.t ?? 0);
   const [playing, setPlaying] = useState(false), [speed, setSpeed] = useState(1), [uiT, setUiT] = useState(Math.max(0, startAt ?? 0));
   const [coach, setCoach] = useState(false), [seenIds, setSeenIds] = useState<string[]>([]);
@@ -143,7 +143,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
       const k = tc.getContext("2d")!; k.setTransform(dpr, 0, 0, dpr, 0, 0); k.fillStyle = bg; k.fillRect(0, 0, tw, th);
       const X = (v: number) => (v / Math.max(1, end)) * tw;
       k.strokeStyle = grid; k.beginPath(); k.moveTo(0, th * 0.5); k.lineTo(tw, th * 0.5); k.stroke();
-      k.strokeStyle = you; k.lineWidth = 2; k.beginPath(); wp.t.forEach((v, i) => { const y = 4 + (1 - wp.wp[i]!) * (th - 18); i ? k.lineTo(X(v), y) : k.moveTo(X(v), y); }); k.stroke();
+      k.strokeStyle = you; k.lineWidth = 2; k.beginPath(); wp.t.forEach((v, i) => { const y = 4 + (1 - wp.wp[i]!) * (th - 18); if (i) k.lineTo(X(v), y); else k.moveTo(X(v), y); }); k.stroke();
       for (const p of crew) { const ally = p.team === tl.recorder.team, y = ally ? th - 31 : th - 20; k.globalAlpha = 0.35 + 0.65 * p.coverage; k.fillStyle = ally ? you : foe; k.beginPath(); k.arc(X(p.tStart), y, 3.5, 0, 7); k.fill(); k.globalAlpha = 1; if (p.enabled === "carried") { k.strokeStyle = ink; k.lineWidth = 1.5; k.beginPath(); k.arc(X(p.tStart), y, 6, 0, 7); k.stroke(); } if (dot === p) { k.strokeStyle = accent; k.lineWidth = 2; k.beginPath(); k.arc(X(p.tStart), y, 9, 0, 7); k.stroke(); } }
       for (const d of dangers) { const ally = d.team === tl.recorder.team, y = ally ? th - 31 : th - 20, x = X(d.tStart); k.globalAlpha = 0.35 + 0.65 * d.coverage; k.strokeStyle = ally ? you : foe; k.lineWidth = 2; k.beginPath(); k.moveTo(x - 3.5, y - 3.5); k.lineTo(x + 3.5, y + 3.5); k.moveTo(x + 3.5, y - 3.5); k.lineTo(x - 3.5, y + 3.5); k.stroke(); k.globalAlpha = 1; if (dg === d) { k.strokeStyle = accent; k.beginPath(); k.arc(x, y, 9, 0, 7); k.stroke(); } }
       for (const e of kills) { const victimTeam = vehicle.get(e.victim)?.team; k.fillStyle = victimTeam === tl.recorder.team ? foe : you; k.beginPath(); k.arc(X(e.t), th - 7, 3.5, 0, 7); k.fill(); }
@@ -216,10 +216,11 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
       else if (e.key === ",") seek(clock.current.t - 0.1); else if (e.key === ".") seek(clock.current.t + 0.1);
       else if (/^[1-6]$/.test(e.key)) setSpeed(SPEEDS[Number(e.key) - 1]!);
       else if (e.key === "f" || e.key === "F") setFollow((f) => !f);
-      else if (e.key === "n" || e.key === "N") jump(e.shiftKey ? -1 : 1); else if (e.key === "Escape") onClose();
+      else if (e.key === "n" || e.key === "N") jump(e.shiftKey ? -1 : 1);
     };
     window.addEventListener("keydown", key); return () => window.removeEventListener("keydown", key);
-  }, [toggle, seek, onClose, jump]);
+  }, [toggle, seek, jump]);
+  useEffect(() => { if (seekTo) { seek(seekTo.t); setView3d((v) => v); } }, [seekTo?.n])
 
   const ptrs = useRef(new Map<number, { x: number; y: number }>()), drag = useRef<{ moved: boolean; pinched: boolean } | null>(null), pinch = useRef<{ d: number; mx: number; my: number } | null>(null);
   const zoomAt = (mx: number, my: number, ns: number) => { const cm = cam.current; if (!cm) return; ns = Math.min(8, Math.max(0.2, ns)); cm.cx += mx / cm.s - mx / ns; cm.cz -= my / cm.s - my / ns; cm.s = ns; };
@@ -283,12 +284,47 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
         {active && <div className="pcard" onPointerDown={(e) => e.stopPropagation()}><FindingCard f={active} actions={!playing && <><button type="button" onClick={() => setPlaying(true)}>{t("coach.continue")}</button> <button type="button" onClick={() => { setSel(tl.recorder.vid); seek(active.tStart - 4); setView3d("fp"); }}>{t("pov.show")}</button></>} /></div>}
         {!mapInfo && <div className="pnote">{t("player.nomap")}</div>}
         {mapPanel && <MapLoader mapName={tl.arena.map} onSaved={() => setMapTick((x) => x + 1)} onClose={() => setMapPanel(false)} />}
+        <canvas ref={tline} className="ptimeline povtl" onPointerDown={(e) => { e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); const r = e.currentTarget.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; const hit = crew.find((p) => Math.abs((p.tStart / Math.max(1, end)) * r.width - x) <= 9 && Math.abs((p.team === tl.recorder.team ? r.height - 31 : r.height - 20) - y) <= 9); const dh = hit ? undefined : dangers.find((d) => Math.abs((d.tStart / Math.max(1, end)) * r.width - x) <= 9 && Math.abs((d.team === tl.recorder.team ? r.height - 31 : r.height - 20) - y) <= 9); if (hit) { setDot(hit); setDg(null); seek(hit.tStart - 3); } else if (dh) { setDg(dh); setDot(null); seek(dh.tStart - 3); } else { setDot(null); setDg(null); scrub(e); } }} onPointerMove={(e) => { e.stopPropagation(); scrub(e); }} aria-label={t("player.timeline")} role="slider" aria-valuemin={0} aria-valuemax={end} aria-valuenow={Math.round(uiT)} />
       </div>
-      <canvas ref={tline} className="ptimeline" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); const r = e.currentTarget.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; const hit = crew.find((p) => Math.abs((p.tStart / Math.max(1, end)) * r.width - x) <= 9 && Math.abs((p.team === tl.recorder.team ? r.height - 31 : r.height - 20) - y) <= 9); const dh = hit ? undefined : dangers.find((d) => Math.abs((d.tStart / Math.max(1, end)) * r.width - x) <= 9 && Math.abs((d.team === tl.recorder.team ? r.height - 31 : r.height - 20) - y) <= 9); if (hit) { setDot(hit); setDg(null); seek(hit.tStart - 3); } else if (dh) { setDg(dh); setDot(null); seek(dh.tStart - 3); } else { setDot(null); setDg(null); scrub(e); } }} onPointerMove={scrub} aria-label={t("player.timeline")} role="slider" aria-valuemin={0} aria-valuemax={end} aria-valuenow={Math.round(uiT)} />
+      <div className="pctl">
+        <div className="prow ptransport">
+          <button type="button" onClick={toggle} aria-label={playing ? t("player.pause") : t("player.play")} className="pbig">{playing ? "⏸" : "▶"}</button>
+          <button type="button" onClick={() => jump(-1)} aria-label={t("coach.prev")} title={t("coach.prev")}>⏮</button>
+          <button type="button" onClick={() => seek(uiT - 5)} aria-label="−5 s">⏪</button><button type="button" onClick={() => seek(uiT + 5)} aria-label="+5 s">⏩</button>
+          <button type="button" onClick={() => jump(1)} aria-label={t("coach.next")} title={t("coach.next")}>⏭</button>
+          <span className="ptime">{mmss(uiT)} / {mmss(end)}</span>
+          <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label={t("player.speed")}>{SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}</select>
+        </div>
+        <div className="prow">
+        <label className="pwho">{t("pov.who")} <select value={sel ?? ""} onChange={(e) => setSel(e.target.value === "" ? null : Number(e.target.value))} data-testid="who">
+          <option value="">{t("pov.me")} · {vehicle.get(tl.recorder.vid)?.name}</option>
+          <optgroup label={t("pov.team")}>{tl.vehicles.filter((v) => v.team === tl.recorder.team && !v.isRecorder).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
+          <optgroup label={t("pov.foes")}>{tl.vehicles.filter((v) => v.team !== tl.recorder.team).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
+        </select></label>
+        {sel != null && <button type="button" onClick={() => setSel(null)} data-testid="backme">↩ {t("pov.me")}</button>}
+        <span className="pview" role="group" aria-label={t("pov.view")}>{view3d !== "off" && <><label><input type="checkbox" checked={lockView} onChange={(e) => setLockView(e.target.checked)} /> {t("pov.lock")}</label><button type="button" onClick={() => setResync((n) => n + 1)} title={t("pov.resync.tip")}>{t("pov.resync")}</button></>}{view3d === "fp" && <select value={scope} onChange={(e) => setScope(Number(e.target.value))} aria-label={t("pov.scope")} data-testid="scope">{[1, 3, 6, 12].map((z) => <option key={z} value={z}>{z === 1 ? t("pov.scope.off") : `${t("pov.scope")} ${z}×`}</option>)}</select>}{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)}>{t(`pov.${m}`)}</button>)}</span>
+        </div>
+        <div className="prow">
+        <label><input type="checkbox" checked={coach} onChange={(e) => setCoach(e.target.checked)} /> {t("coach.mode")}</label>
+        {coach && <details className="pauseopts"><summary>{t("pause.title")}</summary>
+          {(["mistake", "good", "info", "danger", "crew", "death"] as const).map((k) => <label key={k}><input type="checkbox" checked={pauseOn.includes(k)} onChange={(e) => setPauseOn((x) => (e.target.checked ? [...x, k] : x.filter((y) => y !== k)))} /> {t(`pause.${k}`)}</label>)}
+          <label>{t("pause.slow")} <select value={slowS} onChange={(e) => setSlowS(Number(e.target.value))}>{[0, 3, 6, 10].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
+          <label>{t("pause.resumeGood")} <select value={resumeGoodS} onChange={(e) => setResumeGoodS(Number(e.target.value))} data-testid="resumegood">{[0, 5, 8, 10].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
+          <label>{t("pause.resume")} <select value={resumeS} onChange={(e) => setResumeS(Number(e.target.value))}>{[0, 5, 10, 20].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
+        </details>}
+        </div>
+        <details className="popts"><summary>{t("player.options")}</summary><div className="prow">
+        <label><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> {t("player.follow")}</label>
+        <label><input type="checkbox" checked={heights} onChange={(e) => setHeights(e.target.checked)} data-testid="heights" /> {t("player.heights")}</label>
+        <label><input type="checkbox" checked={logOn} onChange={(e) => setLogOn(e.target.checked)} /> {t("log.toggle")}</label>
+        <label><input type="checkbox" checked={names} onChange={(e) => setNames(e.target.checked)} /> {t("player.names")}</label>
+        <label><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} /> {t("player.trails")}</label>
+
+        </div></details>
+      </div>
       {dot && <div className="pdot" onPointerDown={(e) => e.stopPropagation()}><b className={dot.team === tl.recorder.team ? "ally" : "enemy"}>{vehicle.get(dot.vid)?.name}</b> · {t("crew.play", { dealt: String(dot.dealt), got: String(dot.got) })} · <b>{t(`crew.${dot.enabled}`)}</b>{dot.absorbedHp > 0 ? ` · ${t("crew.absorbed", { hp: String(dot.absorbedHp) })}` : ""}{dot.sacrificed.length ? ` · ${t("crew.sacrificed", { n: String(dot.sacrificed.length) })}` : ""}{dot.coverage < 0.75 ? ` · ${t("crew.lowcov", { p: String(Math.round(dot.coverage * 100)) })}` : ""}</div>}
       {dg && <div className="pdot" onPointerDown={(e) => e.stopPropagation()}><b className={dg.team === tl.recorder.team ? "ally" : "enemy"}>{vehicle.get(dg.vid)?.name}</b> · {t("dg.spot", { got: String(dg.got), dealt: String(dg.dealt) })} · <b>{t(`dg.cause.${dg.cause}`)}</b> · {t(`dg.do.${dg.cause}`)}{dg.coverage < 0.75 ? ` · ${t("crew.lowcov", { p: String(Math.round(dg.coverage * 100)) })}` : ""} <button type="button" onClick={() => { setSel(dg.vid); seek(dg.tStart - 4); setView3d("fp"); }}>{t("pov.show")}</button></div>}
-      <p className="muted pdotleg">{t("crew.legend")}</p>
-      {view3d !== "off" && <p className="muted pdotleg">{t("pov.note")}</p>}
+      <details className="pleg"><summary>{t("player.legend")}</summary><p className="muted pdotleg">{t("crew.legend")}</p>{view3d !== "off" && <p className="muted pdotleg">{t("pov.note")}</p>}</details>
       <div className="pcurve">
         <div className="pcurvebar" onPointerDown={(e) => e.stopPropagation()}>
           {(["wp", "dmg", "dpm", "hit", "flank"] as const).map((k) => <button type="button" key={k} aria-pressed={curve === k} onClick={() => setCurve(k)}>{t(`curve.${k}`)}</button>)}
@@ -298,33 +334,6 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
         <p className="muted pcurvenote">{t(`curve.${curve}.how`)}{curve !== "wp" && sr.officialDmg != null && sr.officialDmg > 0 && sr.finalDmg < sr.officialDmg * 0.98 ? ` ${t("curve.partial", { p: Math.round((sr.finalDmg / sr.officialDmg) * 100) })}` : ""}</p>
       </div>
       {logOn && <DamageLog tl={tl} now={uiT} onSeek={seek} />}
-      <div className="pctl">
-        <button type="button" onClick={onClose}>← {t("player.back")}</button>
-        <button type="button" onClick={toggle} aria-label={playing ? t("player.pause") : t("player.play")}>{playing ? "⏸" : "▶"}</button>
-        <button type="button" onClick={() => seek(uiT - 5)} aria-label="−5 s">⏪</button><button type="button" onClick={() => seek(uiT + 5)} aria-label="+5 s">⏩</button>
-        <span className="ptime">{mmss(uiT)} / {mmss(end)}</span>
-        <span className="pspeed">{SPEEDS.map((s) => <button type="button" key={s} aria-pressed={speed === s} onClick={() => setSpeed(s)}>{s}×</button>)}</span>
-        <button type="button" onClick={() => jump(-1)} aria-label={t("coach.prev")} title={t("coach.prev")}>⏮</button><button type="button" onClick={() => jump(1)} aria-label={t("coach.next")} title={t("coach.next")}>⏭</button>
-        <label className="pwho">{t("pov.who")} <select value={sel ?? ""} onChange={(e) => setSel(e.target.value === "" ? null : Number(e.target.value))} data-testid="who">
-          <option value="">{t("pov.me")} · {vehicle.get(tl.recorder.vid)?.name}</option>
-          <optgroup label={t("pov.team")}>{tl.vehicles.filter((v) => v.team === tl.recorder.team && !v.isRecorder).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
-          <optgroup label={t("pov.foes")}>{tl.vehicles.filter((v) => v.team !== tl.recorder.team).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
-        </select></label>
-        {sel != null && <button type="button" onClick={() => setSel(null)} data-testid="backme">↩ {t("pov.me")}</button>}
-        <span className="pview" role="group" aria-label={t("pov.view")}>{view3d !== "off" && <><label><input type="checkbox" checked={lockView} onChange={(e) => setLockView(e.target.checked)} /> {t("pov.lock")}</label><button type="button" onClick={() => setResync((n) => n + 1)} title={t("pov.resync.tip")}>{t("pov.resync")}</button></>}{view3d === "fp" && <select value={scope} onChange={(e) => setScope(Number(e.target.value))} aria-label={t("pov.scope")} data-testid="scope">{[1, 3, 6, 12].map((z) => <option key={z} value={z}>{z === 1 ? t("pov.scope.off") : `${t("pov.scope")} ${z}×`}</option>)}</select>}{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)}>{t(`pov.${m}`)}</button>)}</span>
-        <label><input type="checkbox" checked={coach} onChange={(e) => setCoach(e.target.checked)} /> {t("coach.mode")}</label>
-        {coach && <details className="pauseopts"><summary>{t("pause.title")}</summary>
-          {(["mistake", "good", "info", "danger", "crew", "death"] as const).map((k) => <label key={k}><input type="checkbox" checked={pauseOn.includes(k)} onChange={(e) => setPauseOn((x) => (e.target.checked ? [...x, k] : x.filter((y) => y !== k)))} /> {t(`pause.${k}`)}</label>)}
-          <label>{t("pause.slow")} <select value={slowS} onChange={(e) => setSlowS(Number(e.target.value))}>{[0, 3, 6, 10].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
-          <label>{t("pause.resumeGood")} <select value={resumeGoodS} onChange={(e) => setResumeGoodS(Number(e.target.value))} data-testid="resumegood">{[0, 5, 8, 10].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
-          <label>{t("pause.resume")} <select value={resumeS} onChange={(e) => setResumeS(Number(e.target.value))}>{[0, 5, 10, 20].map((n) => <option key={n} value={n}>{n === 0 ? t("pause.off") : `${n} s`}</option>)}</select></label>
-        </details>}
-        <label><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> {t("player.follow")}</label>
-        <label><input type="checkbox" checked={heights} onChange={(e) => setHeights(e.target.checked)} data-testid="heights" /> {t("player.heights")}</label>
-        <label><input type="checkbox" checked={logOn} onChange={(e) => setLogOn(e.target.checked)} /> {t("log.toggle")}</label>
-        <label><input type="checkbox" checked={names} onChange={(e) => setNames(e.target.checked)} /> {t("player.names")}</label>
-        <label><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} /> {t("player.trails")}</label>
-      </div>
     </div>
   );
 }

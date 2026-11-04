@@ -91,7 +91,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     const reset = () => { look.current = { yaw: 0, pitch: 0.28, dist: look.current.dist }; };
     dom.addEventListener("pointerdown", down); dom.addEventListener("pointermove", move); dom.addEventListener("pointerup", up); dom.addEventListener("pointercancel", up); dom.addEventListener("wheel", wheel, { passive: false }); dom.addEventListener("dblclick", reset);
     size(); const ro = new ResizeObserver(size); ro.observe(el);
-    let pitchNow = 0, raf = 0, lastMs = performance.now(), lastT = clock.current.t, camYaw = NaN, camVid = -1; const smY = new Map<number, { h: number; g: number }>(); const TAU = Math.PI * 2, wrap = (a: number) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
+    let pitchNow = 0, raf = 0, lastMs = performance.now(), lastT = clock.current.t; const smY = new Map<number, { h: number; g: number }>(); const TAU = Math.PI * 2, wrap = (a: number) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
     const loop = () => {
       raf = requestAnimationFrame(loop); const nowMs = performance.now(), dtS = Math.min(0.25, (nowMs - lastMs) / 1000); lastMs = nowMs; const jump = Math.abs(clock.current.t - lastT) > 1.2; lastT = clock.current.t; const kS = 1 - Math.exp(-dtS / 0.16);   // rotation is smoothed over ~0.16 s; seeks snap let turretYaw = 0, turretPitch = 0, onTarget = false; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
       let turretYaw = 0, turretPitch = 0, onTarget = false, hullYawS = 0; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);

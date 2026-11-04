@@ -380,5 +380,10 @@
   "pov.team": "Teammates",
   "pov.foes": "Enemies",
   "player.heights": "Heights",
-  "player.heights.note": "Estimated from where tanks drove. Solid = tanks were there, hatched = guessed. Not cover."
+  "player.heights.note": "Estimated from where tanks drove. Solid = tanks were there, hatched = guessed. Not cover.",
+  "player.speed": "Speed",
+  "player.options": "Display options",
+  "player.legend": "Legend and notes",
+  "report.section.analysis": "Analysis",
+  "report.section.heat": "Heatmaps"
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
-import { boldnessAll, coverage, flankModel, playerMetrics, playerStats, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
+import { boldnessAll, flankModel, playerMetrics, playerStats, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
 import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
 import { HeuristicCharts } from "./Charts";
@@ -95,16 +95,15 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
 }
 
 export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void }) {
-  const [watching, setWatching] = useState<number | null>(null), [mapView, setMapView] = useState(false);
+  const [seekTo, setSeekTo] = useState<{ t: number; n: number }>({ t: 0, n: 0 });
   const findings = useMemo(() => rank(runDetectors(tl, detectors)), [tl]);
   const me = tl.vehicles.find((v) => v.isRecorder)!, w = tl.arena.winnerTeam;
   const res = w == null ? t("report.unfinished") : w === 0 ? t("report.draw") : w === tl.recorder.team ? t("report.win") : t("report.loss");
   const resCls = w == null || w === 0 ? "" : w === tl.recorder.team ? "win" : "loss";
-  if (mapView) return <div className="report"><MapPage tl={tl} onClose={() => setMapView(false)} /></div>;
-  if (watching != null) return <div className="report"><Player tl={tl} findings={findings} startAt={watching} onClose={() => setWatching(null)} /></div>;
   return (
     <div className="report" data-testid="report">
-      <button onClick={onBack}>← {t("report.back")}</button> <button onClick={() => setWatching(0)} data-testid="watch">{t("report.watch")}</button> <button onClick={() => setMapView(true)} data-testid="mapbtn">{t("mp.btn")}</button>
+      <button onClick={onBack}>← {t("report.back")}</button>
+      <Player tl={tl} findings={findings} seekTo={seekTo} />
       <h2><span className={resCls}>{res}</span> · {tl.arena.mapDisplayName} · {tank(me)}</h2>
       <div className="sub">{tl.arena.startedAt} · {tl.source.server} · v{tl.source.clientVersion}
         {tl.arena.durationS != null && <> · {t("report.duration")} {mmss(tl.arena.durationS)}</>}</div>
@@ -112,7 +111,8 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
       {(tl.arena.battleType !== 1 || tl.vehicles.length !== 30) && <div className="banner" data-testid="modebanner">{t("report.mode")}</div>}
       <CoverageBadge tl={tl} />
       <Advanced tl={tl} />
-      <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => setWatching(Math.max(0, f.tStart - f.leadS))} />
+      <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => { setSeekTo((s) => ({ t: Math.max(0, f.tStart - f.leadS), n: s.n + 1 })); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+      <details className="repheat" data-testid="heatsec"><summary>{t("report.section.heat")}</summary><MapPage tl={tl} /></details>
       <HeuristicCharts tl={tl} />
       <FeedbackExport />
       <Team tl={tl} team={tl.recorder.team} title={t("report.allies")} cls="ally-h" />

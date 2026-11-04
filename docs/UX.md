@@ -136,3 +136,9 @@ Update: camera and tank rotation in 3D are smoothed (exponential, about 0.16 s) 
 Update: track marks in 3D (the existing "trails" switch): translucent ribbons on the ground behind every tank, last 25 s, drawn only where the tank was visible to the recorder's team (so enemies leave marks only while spotted), fading with age.
 Update: "Watching" selector in the player controls (you, teammates, enemies) drives the 2D follow, the 3D camera, the curves and the aim HUD; "back to you" returns to the recorder. Trees and bushes within 170 m in front of the camera (inside its field of view) are drawn 70% transparent because they are decoration, not cover. Good-play pauses release automatically (default 8 s, options 5/8/10 s); other pauses stay manual unless an auto-resume time is set. Name labels scale with distance.
 Update: "Heights" switch on the 2D player draws the estimated height field as a colour ramp with hillshade (24-91 m on the Overlord fixture); solid where tanks drove, hatched where guessed. Over a loaded minimap it is drawn at 55% so both show. Mini map and map page do not show it yet.
+
+## Single-page layout (view first)
+- After a replay is added the page opens on the 2D/3D view; there is no separate "Watch" step. Findings' "show" seeks the embedded view and scrolls to the top.
+- The timeline (with crew/danger markers) is an overlay at the bottom of the view; mini-map and height legend sit above it.
+- Controls under the view are compact rows: transport + speed, watching selector, view mode / scope / lock, coach mode with pause options, and a "Display options" fold for checkboxes. Legend texts are folded into "Legend and notes".
+- Analysis (cards, findings, heatmaps fold, charts, teams) follows below the view and its curve.

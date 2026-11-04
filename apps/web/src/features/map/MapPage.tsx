@@ -12,8 +12,8 @@ const TEAMS = ["both", "own", "enemy"] as const, WINDOWS = ["all", "open", "mid"
 const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 /** Heatmaps for the loaded battle on the owner's local map image (docs/MAPPAGE.md). */
-export function MapPage({ tl, onClose }: { tl: BattleTimeline; onClose: () => void }) {
-  const [layer, setLayer] = useState<Layer>("presence"), [team, setTeam] = useState<(typeof TEAMS)[number]>("both"), [win, setWin] = useState<(typeof WINDOWS)[number]>("all"), [who, setWho] = useState<number | null>(null), onlyMe = who != null;
+export function MapPage({ tl, onClose }: { tl: BattleTimeline; onClose?: () => void }) {
+  const [layer, setLayer] = useState<Layer>("presence"), [team, setTeam] = useState<(typeof TEAMS)[number]>("both"), [win, setWin] = useState<(typeof WINDOWS)[number]>("all"), [who, setWho] = useState<number | null>(null);
   const [img, setImg] = useState<{ el: HTMLImageElement; b: MapBounds } | null>(null), [panel, setPanel] = useState(false), [tick, setTick] = useState(0), [pick, setPick] = useState<{ c: number; r: number } | null>(null);
   const cv = useRef<HTMLCanvasElement>(null), end = Math.floor(tl.arena.durationS ?? tl.events.at(-1)?.t ?? 0);
 
@@ -96,7 +96,7 @@ export function MapPage({ tl, onClose }: { tl: BattleTimeline; onClose: () => vo
 
   return (
     <div className="mappage" data-testid="mappage">
-      <div className="pctl"><button type="button" onClick={onClose}>← {t("player.back")}</button><b>{tl.arena.mapDisplayName}</b><button type="button" onClick={() => setPanel(true)}>🗺 {t("map.open")}</button></div>
+      <div className="pctl">{onClose && <button type="button" onClick={onClose}>← {t("player.back")}</button>}<b>{tl.arena.mapDisplayName}</b><button type="button" onClick={() => setPanel(true)}>🗺 {t("map.open")}</button></div>
       <div className="chips" role="group" aria-label={t("mp.layer")}>{chip(layer, setLayer, LAYERS, "mp.l")}</div>
       <div className="chips">{layer !== "spots" && chip(team, setTeam, TEAMS, "mp.team")}<span className="sep" />{chip(win, setWin, WINDOWS, "mp.win")}<label>{t("mp.who")} <select value={who ?? ""} onChange={(e) => setWho(e.target.value === "" ? null : Number(e.target.value))} data-testid="mpwho"><option value="">{t("mp.all")}</option>{[...tl.vehicles].sort((a, b) => Number(b.team === tl.recorder.team) - Number(a.team === tl.recorder.team) || a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.team === tl.recorder.team ? "● " : "○ "}{v.name}{v.isRecorder ? ` (${t("mp.you")})` : ""}</option>)}</select></label></div>
       <div className="mpwrap"><canvas ref={cv} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} aria-label={t("mp.aria")} role="img" data-zoom={view.zoom.toFixed(2)} />
