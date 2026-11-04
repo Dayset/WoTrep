@@ -349,5 +349,8 @@
   "pov.show": "Show from their view",
   "mp.l.vanish": "Enemy vanishes",
   "mp.l.vanish.how": "Each time an enemy tank that is still alive leaves our team's vision, it is counted in the cell where it was last seen. Short flickers and deaths are left out.",
-  "mp.l.vanish.mean": "A clue to cover and line-of-sight breaks: places where enemies keep disappearing are likely behind something or in foliage. It can also be camouflage, range or a spotter that died, so one replay is weak evidence; many replays on the same map would make it reliable."
+  "mp.l.vanish.mean": "A clue to cover and line-of-sight breaks: places where enemies keep disappearing are likely behind something or in foliage. It can also be camouflage, range or a spotter that died, so one replay is weak evidence; many replays on the same map would make it reliable.",
+  "mp.who": "Player",
+  "mp.all": "All players",
+  "mp.you": "you"
 }

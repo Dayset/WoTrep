@@ -13,7 +13,7 @@ const css = (n: string) => getComputedStyle(document.documentElement).getPropert
 
 /** Heatmaps for the loaded battle on the owner's local map image (docs/MAPPAGE.md). */
 export function MapPage({ tl, onClose }: { tl: BattleTimeline; onClose: () => void }) {
-  const [layer, setLayer] = useState<Layer>("presence"), [team, setTeam] = useState<(typeof TEAMS)[number]>("both"), [win, setWin] = useState<(typeof WINDOWS)[number]>("all"), [onlyMe, setOnlyMe] = useState(false);
+  const [layer, setLayer] = useState<Layer>("presence"), [team, setTeam] = useState<(typeof TEAMS)[number]>("both"), [win, setWin] = useState<(typeof WINDOWS)[number]>("all"), [who, setWho] = useState<number | null>(null), onlyMe = who != null;
   const [img, setImg] = useState<{ el: HTMLImageElement; b: MapBounds } | null>(null), [panel, setPanel] = useState(false), [tick, setTick] = useState(0), [pick, setPick] = useState<{ c: number; r: number } | null>(null);
   const cv = useRef<HTMLCanvasElement>(null), end = Math.floor(tl.arena.durationS ?? tl.events.at(-1)?.t ?? 0);
 
@@ -33,12 +33,12 @@ export function MapPage({ tl, onClose }: { tl: BattleTimeline; onClose: () => vo
   const span = useMemo(() => (win === "open" ? { t0: 0, t1: 60 } : win === "mid" ? { t0: 60, t1: Math.max(60, end - 60) } : win === "end" ? { t0: Math.max(0, end - 60), t1: end } : layer === "routes" ? { t0: 0, t1: 60 } : {}), [win, layer, end]);
   const hl: HeatLayer = layer === "tracers" || layer === "danger" || layer === "vanish" ? "presence" : layer;
   const grid = useMemo((): HeatGrid => {
-    const base = { bounds, cellM: cell, team: layer === "spots" ? "enemy" as const : team, vid: onlyMe ? tl.recorder.vid : undefined, ...span };
+    const base = { bounds, cellM: cell, team: layer === "spots" ? "enemy" as const : team, vid: who ?? undefined, ...span };
     if (layer !== "danger" && layer !== "vanish") return heatGrid(tl, hl, base);
     const cols = Math.max(1, Math.ceil((bounds.x1 - bounds.x0) / cell)), rows = Math.max(1, Math.ceil((bounds.z1 - bounds.z0) / cell)), values = new Float32Array(cols * rows); let total = 0, max = 0;
     if (layer === "vanish") {
       for (const d of vanishEvents(tl)) {
-        if (d.t < (span.t0 ?? 0) || d.t > (span.t1 ?? Infinity) || (onlyMe && d.spotter !== tl.recorder.vid)) continue;
+        if (d.t < (span.t0 ?? 0) || d.t > (span.t1 ?? Infinity) || (who != null && d.spotter !== who)) continue;
         const c = Math.floor((d.x - bounds.x0) / cell), r = Math.floor((d.z - bounds.z0) / cell); if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
         const k = r * cols + c; values[k] = values[k]! + 1; total++; max = Math.max(max, values[k]!);
       }
@@ -46,14 +46,14 @@ export function MapPage({ tl, onClose }: { tl: BattleTimeline; onClose: () => vo
     }
     for (const d of dangerSpots(tl)) {
       if (d.x == null || d.z == null || d.tStart < (span.t0 ?? 0) || d.tStart > (span.t1 ?? Infinity)) continue;
-      if (onlyMe && d.vid !== tl.recorder.vid) continue;
+      if (who != null && d.vid !== who) continue;
       if (team !== "both" && (team === "own") !== (d.team === tl.recorder.team)) continue;
       const c = Math.floor((d.x - bounds.x0) / cell), r = Math.floor((d.z - bounds.z0) / cell); if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
       const k = r * cols + c; values[k] = values[k]! + 1; total++; max = Math.max(max, values[k]!);
     }
     return { cols, rows, cellM: cell, values, total, max, unit: "count" };
-  }, [tl, hl, layer, team, span, onlyMe, bounds, cell]);
-  const shots = useMemo(() => (layer === "tracers" ? tracerLines(tl, { team, vid: onlyMe ? tl.recorder.vid : undefined, ...span }) : []), [tl, layer, team, onlyMe, span]);
+  }, [tl, hl, layer, team, span, who, bounds, cell]);
+  const shots = useMemo(() => (layer === "tracers" ? tracerLines(tl, { team, vid: who ?? undefined, ...span }) : []), [tl, layer, team, who, span]);
 
   const aspect = (bounds.z1 - bounds.z0) / (bounds.x1 - bounds.x0);
   const [view, setView] = useState({ zoom: 1, cx: (bounds.x0 + bounds.x1) / 2, cz: (bounds.z0 + bounds.z1) / 2 }), viewRef = useRef(view); viewRef.current = view;
@@ -98,7 +98,7 @@ export function MapPage({ tl, onClose }: { tl: BattleTimeline; onClose: () => vo
     <div className="mappage" data-testid="mappage">
       <div className="pctl"><button type="button" onClick={onClose}>← {t("player.back")}</button><b>{tl.arena.mapDisplayName}</b><button type="button" onClick={() => setPanel(true)}>🗺 {t("map.open")}</button></div>
       <div className="chips" role="group" aria-label={t("mp.layer")}>{chip(layer, setLayer, LAYERS, "mp.l")}</div>
-      <div className="chips">{layer !== "spots" && chip(team, setTeam, TEAMS, "mp.team")}<span className="sep" />{chip(win, setWin, WINDOWS, "mp.win")}<label><input type="checkbox" checked={onlyMe} onChange={(e) => setOnlyMe(e.target.checked)} /> {t("mp.onlyme")}</label></div>
+      <div className="chips">{layer !== "spots" && chip(team, setTeam, TEAMS, "mp.team")}<span className="sep" />{chip(win, setWin, WINDOWS, "mp.win")}<label>{t("mp.who")} <select value={who ?? ""} onChange={(e) => setWho(e.target.value === "" ? null : Number(e.target.value))} data-testid="mpwho"><option value="">{t("mp.all")}</option>{[...tl.vehicles].sort((a, b) => Number(b.team === tl.recorder.team) - Number(a.team === tl.recorder.team) || a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.team === tl.recorder.team ? "● " : "○ "}{v.name}{v.isRecorder ? ` (${t("mp.you")})` : ""}</option>)}</select></label></div>
       <div className="mpwrap"><canvas ref={cv} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} aria-label={t("mp.aria")} role="img" data-zoom={view.zoom.toFixed(2)} />
         <div className="mpzoom" onPointerDown={(e) => e.stopPropagation()}><button type="button" aria-label={t("player.zoomin")} onClick={() => { const c = cv.current; if (c) zoomAt(c.clientWidth / 2, c.clientHeight / 2, 1.5, c.getBoundingClientRect()); }}>+</button><button type="button" aria-label={t("player.zoomout")} onClick={() => { const c = cv.current; if (c) zoomAt(c.clientWidth / 2, c.clientHeight / 2, 1 / 1.5, c.getBoundingClientRect()); }}>−</button><button type="button" aria-label={t("mp.reset")} onClick={() => setView({ zoom: 1, cx: (bounds.x0 + bounds.x1) / 2, cz: (bounds.z0 + bounds.z1) / 2 })}>⤢</button></div>
         {panel && <MapLoader mapName={tl.arena.map} onSaved={() => setTick((x) => x + 1)} onClose={() => setPanel(false)} />}
