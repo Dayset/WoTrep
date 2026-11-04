@@ -111,7 +111,7 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .pcurvebar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } .pcurvebar button[aria-pressed="true"] { border-color: var(--accent); }
 .pcurvenote { font-size: 12px; margin: 0; }
 .mappage { display: grid; gap: 8px; } .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .chips button[aria-pressed="true"] { border-color: var(--accent); background: var(--bg); }
-.chips .sep { width: 12px; } .mpwrap { position: relative; } .mpwrap canvas { width: 100%; display: block; border: 1px solid var(--line); touch-action: manipulation; cursor: crosshair; }
+.chips .sep { width: 12px; } .mpwrap { position: relative; } .mpwrap canvas { width: 100%; display: block; border: 1px solid var(--line); touch-action: none; cursor: crosshair; }
 .mplegend { margin: 0; font-size: 12px; } .mappage .how p { margin: 4px 0; }
 .dlog { border: 1px solid var(--line); background: var(--panel); display: grid; }
 .dlogbar { display: flex; gap: 6px; align-items: center; padding: 4px 8px; border-bottom: 1px solid var(--line); } .dlogbar button[aria-pressed="true"] { border-color: var(--accent); }
@@ -122,3 +122,4 @@ details > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .pdot { border: 1px solid var(--line); background: var(--panel); padding: 4px 8px; font-size: 13px; } .pdot .ally { color: var(--accent); } .pdot .enemy { color: var(--enemy); } .pdotleg { margin: 0; font-size: 12px; }
 .covbadge { border: 1px solid var(--line); background: var(--panel); padding: 4px 10px; margin: 8px 0; font-size: 13px; } .covbadge summary { cursor: pointer; }
 .covbadge.good { border-left: 4px solid var(--ally); } .covbadge.partial { border-left: 4px solid var(--me); } .covbadge.low { border-left: 4px solid var(--enemy); } .covbadge ul { margin: 4px 0; padding-left: 18px; } .covbadge p { margin: 4px 0; color: var(--muted); }
+.mpzoom { position: absolute; right: 8px; top: 8px; display: grid; gap: 4px; } .mpzoom button { width: 34px; height: 34px; padding: 0; }

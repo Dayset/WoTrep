@@ -214,7 +214,7 @@
   "mp.win.open": "Opening (0–60 s)",
   "mp.win.mid": "Middle",
   "mp.win.end": "Last minute",
-  "mp.legend": "Darkest cell = {max} · cell {cell} m · total {total}. Tap a cell to read it.",
+  "mp.legend": "Darkest cell = {max} · cell {cell} m · total {total}. Tap a cell to read it; pinch, wheel or +/− to zoom, drag to pan.",
   "mp.cell": "selected {v}",
   "mp.agg": "Win rate by spawn side and other all-battle statistics need many battles. They appear here once opt-in aggregates exist; this page shows only the battles you load.",
   "mp.l.presence.how": "Each second a tank is alive adds one second to the map cell it stands in. Enemies count only where we actually saw them.",
@@ -301,5 +301,6 @@
   "cov.kills.derived": "rebuilt from results (time ±0.5 s)",
   "cov.kills.decoded": "read from the replay",
   "cov.how": "Damage = hits the replay reports ÷ official damage of all players. Shots = shot events ÷ official shots (can pass 100%). Positions = share of alive time with a known position. Good = at least 85% of damage and the enemy seen for 40% of their time; low = under 50% of damage.",
-  "cov.mean": "The replay only sends what the recorder's client knew, so other players' numbers are partial and enemy positions only exist while they were visible. Low coverage does not make a number wrong, but trust team-wide and enemy values less, and the coach is more careful there."
+  "cov.mean": "The replay only sends what the recorder's client knew, so other players' numbers are partial and enemy positions only exist while they were visible. Low coverage does not make a number wrong, but trust team-wide and enemy values less, and the coach is more careful there.",
+  "mp.reset": "Reset view"
 }
