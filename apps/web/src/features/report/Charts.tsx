@@ -185,6 +185,8 @@ export function CompareChart({ tl }: { tl: BattleTimeline }) {
   const rows = base.map((r) => ({ ...r, pct: percentileRank(vals, r.val) ?? 0 })).sort((a, b) => b.val - a.val);
   const lo = Math.min(0, ...vals), hiV = Math.max(1, ...vals);
   const barW = (v: number) => `${Math.max(0, ((v - lo) / (hiV - lo)) * 100)}%`;
+  const teamPos = new Map<number, string>();
+  for (const side of [true, false]) { const side_ = rows.filter((r) => r.ally === side); side_.forEach((r, i) => teamPos.set(r.v.vid, `#${i + 1}/${side_.length}`)); }
   const rank = rows.findIndex((r) => r.mine) + 1, nAlly = rows.filter((r) => r.ally).length, myAllyRank = rows.filter((r) => r.ally).findIndex((r) => r.mine) + 1;
   const sub = rank ? `${t("viz.cmp.you")} #${rank}/${rows.length} · ${t("viz.cmp.allies")} #${myAllyRank}/${nAlly}` : t("viz.cmp.sub");
   return (
@@ -193,12 +195,13 @@ export function CompareChart({ tl }: { tl: BattleTimeline }) {
       <div className="seg" role="tablist">{METRICS.map((x) => <button key={x.key} role="tab" aria-selected={mk === x.key} onClick={() => setMk(x.key)}>{t(x.label)}</button>)}</div>
       <div className="tablewrap">
         <table>
-          <thead><tr><th>{t("viz.player")}</th><th>{t(m.label)}</th><th>{t("viz.dist.pct")}</th><th>{t("viz.cmp.seen")}</th></tr></thead>
+          <thead><tr><th>{t("viz.player")}</th><th>{t(m.label)}</th><th>{t("viz.dist.pct")}</th><th>{t("viz.place")}</th><th>{t("viz.cmp.seen")}</th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.v.vid} className={r.mine ? "me" : ""}>
               <td className="nm">{r.v.name}{r.mine ? ` (${t("report.you")})` : ""}</td>
               <td><span className={`bar ${r.ally ? "bup" : "bdn"}`} style={{ width: barW(r.val), display: "inline-block", height: 8, borderRadius: 4, verticalAlign: "middle", marginRight: 6 }} />{(r.cov < PARTIAL ? "~" : "") + m.fmt(r.val)}</td>
               <td>{r.pct}%</td>
+              <td>{teamPos.get(r.v.vid)}</td>
               <td>{Math.round(r.cov * 100)}%</td>
             </tr>))}</tbody>
         </table>
