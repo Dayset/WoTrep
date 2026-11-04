@@ -3,7 +3,7 @@ import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
 import { boldnessAll, flankModel, playerHeuristics, playerMetrics, playerStats, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
 import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
-import { CompareChart, DistChart, ImpactChart, TargetChart, WpChart } from "./Charts";
+import { CompareChart, ImpactChart, TargetChart, WpChart } from "./Charts";
 import { Debug, debugOn } from "./Debug";
 import { Player } from "../player/Player";
 import { MapPage } from "../map/MapPage";
@@ -118,7 +118,7 @@ type Tab = "replay" | "stats" | "coach" | "teams" | "charts";
 export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void }) {
   const [tab, setTab] = useState<Tab>("replay");
   const [tsub, setTsub] = useState<"score" | "ledger" | "danger" | "move">("score"), [side, setSide] = useState<"own" | "enemy">("own");
-  const [csub, setCsub] = useState<"wp" | "impact" | "targets" | "compare" | "dist" | "heat">("wp");
+  const [csub, setCsub] = useState<"wp" | "impact" | "targets" | "compare" | "heat">("wp");
   const [seekTo, setSeekTo] = useState<{ t: number; n: number }>({ t: 0, n: 0 });
   const [subject, setSubject] = useState(tl.recorder.vid);
   /** The player the Stats and Coach tabs are about. Falls back to the recorder when the stored vid is not in this battle. */
@@ -172,8 +172,8 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
         {tsub === "ledger" && <Ledger tl={tl} />}{tsub === "danger" && <Danger tl={tl} />}{tsub === "move" && <Movement tl={tl} />}
       </div>}
       {tab === "charts" && <div className="pane">
-        <Seg value={csub} set={setCsub} label={t("ui.tab.charts")} testid="charts" items={[["wp", t("ui.c.wp")], ["impact", t("ui.c.impact")], ["targets", t("ui.c.targets")], ["compare", t("ui.c.compare")], ["dist", t("ui.c.dist")], ["heat", t("ui.c.heat")]]} />
-        <div className="charts">{csub === "wp" && <WpChart tl={tl} />}{csub === "impact" && <ImpactChart tl={tl} />}{csub === "targets" && <TargetChart tl={tl} />}{csub === "compare" && <CompareChart tl={tl} />}{csub === "dist" && <DistChart tl={tl} />}{csub === "heat" && <MapPage tl={tl} />}</div>
+        <Seg value={csub} set={setCsub} label={t("ui.tab.charts")} testid="charts" items={[["wp", t("ui.c.wp")], ["impact", t("ui.c.impact")], ["targets", t("ui.c.targets")], ["compare", t("ui.c.compare")], ["heat", t("ui.c.heat")]]} />
+        <div className="charts">{csub === "wp" && <WpChart tl={tl} />}{csub === "impact" && <ImpactChart tl={tl} />}{csub === "targets" && <TargetChart tl={tl} />}{csub === "compare" && <CompareChart tl={tl} />}{csub === "heat" && <MapPage tl={tl} />}</div>
       </div>}
     </div>
   );
