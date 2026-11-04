@@ -1,0 +1,8 @@
+{
+  "gapS": {
+    "value": 3,
+    "why": "initial guess, recalibrate later (ramming hits closer than this belong to one collision)",
+    "n": 0,
+    "date": "2026-11-04"
+  }
+}

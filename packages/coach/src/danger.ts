@@ -1,5 +1,6 @@
 import { stateAt, type BattleTimeline } from "@wotrep/model";
 import { engagements } from "./detectors/trades";
+import { isRamming } from "./detectors/util";
 import cfg from "../config/danger.json";
 
 /** Danger spots for every player (docs/METRICS.md §3.15): the engagements where a player lost the most, why, and what to do instead.
@@ -12,7 +13,7 @@ export interface DangerSpot {
 const v = (k: keyof typeof cfg) => cfg[k].value;
 
 export function dangerSpots(tl: BattleTimeline): DangerSpot[] {
-  const seen = new Map<number, number>(); for (const e of tl.events) if (e.k === "damage" && e.amount > 0) seen.set(e.attacker, (seen.get(e.attacker) ?? 0) + e.amount);
+  const seen = new Map<number, number>(); for (const e of tl.events) if (e.k === "damage" && e.amount > 0 && !isRamming(e)) seen.set(e.attacker, (seen.get(e.attacker) ?? 0) + e.amount);
   const out: DangerSpot[] = [];
   for (const me of tl.vehicles) {
     const official = tl.results?.players[me.vid]?.damageDealt ?? 0, coverage = official > 0 ? Math.min(1, (seen.get(me.vid) ?? 0) / official) : 1;

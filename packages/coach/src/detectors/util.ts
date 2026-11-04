@@ -21,3 +21,7 @@ export function cluster<T extends { t: number }>(items: T[], gapS: number): T[][
   for (const it of items) { const last = out.at(-1); if (last && it.t - last.at(-1)!.t <= gapS) last.push(it); else out.push([it]); }
   return out;
 }
+/** Ramming damage (attack reason 2 in the replay): vehicle-on-vehicle contact. It is not a trade, so it is kept out of
+ *  the engagement and good-play counts; `collision` reports it on its own. World/terrain collisions (reason 3) are not included. */
+export const RAMMING = 2;
+export const isRamming = (e: { k: string; reason?: number }) => e.k === "damage" && e.reason === RAMMING;

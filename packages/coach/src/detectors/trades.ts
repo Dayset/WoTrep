@@ -1,7 +1,7 @@
 import { defineDetector } from "../detector";
 import badCfg from "../../config/bad-trade.json";
 import wonCfg from "../../config/won-trade.json";
-import { cluster, subject } from "./util";
+import { cluster, isRamming, subject } from "./util";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
 import { wpOf } from "@wotrep/analysis";
 
@@ -9,7 +9,7 @@ import { wpOf } from "@wotrep/analysis";
  *  so these numbers are exact for the recorder and partial for anyone else. */
 export function engagements(tl: BattleTimeline, gapS: number, vid?: number) {
   const me = subject(tl, vid); if (!me) return [];
-  const ev = tl.events.flatMap((e) => (e.k === "damage" && e.amount > 0 && e.t >= 0 && (e.attacker === me.vid || e.target === me.vid) && e.attacker !== e.target ? [e] : []));
+  const ev = tl.events.flatMap((e) => (e.k === "damage" && !isRamming(e) && e.amount > 0 && e.t >= 0 && (e.attacker === me.vid || e.target === me.vid) && e.attacker !== e.target ? [e] : []));
   return cluster(ev, gapS).map((c) => ({
     me, c, t0: c[0]!.t, t1: c.at(-1)!.t, first: c[0]!.attacker === me.vid ? "me" as const : "them" as const,
     dealt: c.filter((e) => e.attacker === me.vid).reduce((s, e) => s + e.amount, 0), got: c.filter((e) => e.target === me.vid).reduce((s, e) => s + e.amount, 0),

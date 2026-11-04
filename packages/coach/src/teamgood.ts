@@ -1,5 +1,6 @@
 import type { BattleTimeline } from "@wotrep/model";
 import { engagements } from "./detectors/trades";
+import { isRamming } from "./detectors/util";
 import wonCfg from "../config/won-trade.json";
 import tgCfg from "../config/team-good.json";
 
@@ -23,7 +24,7 @@ const cfgv = (k: string) => (wonCfg as Record<string, { value: number }>)[k]!.va
 
 export function goodPlaysAll(tl: BattleTimeline): GoodPlay[] {
   const team = new Map(tl.vehicles.map((v) => [v.vid, v.team]));
-  const seen = new Map<number, number>(); for (const e of tl.events) if (e.k === "damage" && e.amount > 0 && team.get(e.attacker) !== team.get(e.target)) seen.set(e.attacker, (seen.get(e.attacker) ?? 0) + e.amount);
+  const seen = new Map<number, number>(); for (const e of tl.events) if (e.k === "damage" && e.amount > 0 && !isRamming(e) && team.get(e.attacker) !== team.get(e.target)) seen.set(e.attacker, (seen.get(e.attacker) ?? 0) + e.amount);
   const out: GoodPlay[] = [];
   for (const v of tl.vehicles) {
     const official = tl.results?.players[v.vid]?.damageDealt ?? 0, coverage = official > 0 ? Math.min(1, (seen.get(v.vid) ?? 0) / official) : 1;
