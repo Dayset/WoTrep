@@ -120,7 +120,7 @@ match results]; `7` avatar ready; `8` base/team info; `4` vehicle list; `24`, `2
 | idx | method | args | conf |
 |---|---|---|---|
 | 3 | onHealthChanged | `i16 newHealth, i16 oldHealth, u32 attackerId, u8 attackReason` | V — recorder's 28 events sum to 1,362 = results `damageDealt` |
-| 1 | showShooting | `u8 burstCount, u8 gunIndex` | O |
+| 1 | showShooting | `u8 burstCount, u8 gunIndex` | O: 104 calls on the fixture, none for the recorder (first-person shooting is shown via showTracer instead); burstCount is uniformly 1 here, so it carries no burst information on this fixture and is not a usable recorder shot counter — see the counting rule below |
 | 10 | showDamageFromShot | `u32 attackerId, u8 type (01 = 16 B, 02 = 24 B), …` | O: 573 calls; fires for damaging and non-damaging hits alike (about a quarter have no same-clock health change), i.e. every shot that reached the target — the client-side armour-hit marker feed. Attacker = recorder for 50 calls, exactly the Avatar method 60 record count; 420/573 have a target-side 0x24 duplicate |
 | 8 | (collision / ramming?) | 36 B | ? |
 
@@ -141,7 +141,39 @@ speed-correlated), `9` (avatar, 1 B, 5 states 00–04), `17` (vehicle, 4 B, 16 u
 a subset of the killed set, clocks not at kills), `23` (vehicle, 4 B, one vehicle, two ~15 s nonzero
 windows separated by 0).
 
-Open questions (good first issues): recorder has **61** `showTracer` vs **59** `shots` in results; 0x1C/0x1D
+### Counting shots: the tracer rule (#31)
+
+**Rule: count distinct `shotId`s from `showTracer`, ignore duplicate shows.** A shot is one
+`shotId`; the same `shotId` sometimes arrives in two `showTracer` calls, and counting calls
+overcounts. On the fixture this resolves the old 61-vs-59 question exactly.
+
+Evidence (fixture, `tools/probe/tracer_audit.py` reproduces it and asserts the headline counts):
+
+- Recorder: 61 `showTracer` records, 59 distinct `shotId`s, 59 `shots` in results, 61 timeline
+  shot events (the timeline emits one event per show, no dedupe — see the consequence below).
+- The two duplicates are `41740511` (shown at clocks 71.46 and 71.56) and `43213023` (301.85 and
+  302.05): 0.10 s and 0.20 s after the first show, inside the same burst, with different tracer
+  geometry in the payload — a genuine second show, not a retransmitted packet.
+- All 30 shooters: distinct `shotId`s equal results `shots` for 19 of them; the other 11 differ
+  only downward (distinct < results, never above) by tracers the recorder never saw — e.g.
+  PERESVET_ROSTOV61 (`usa:A171_TF_4`): 162 tracers seen vs 493 results shots. 24 duplicated
+  `shotId`s in total across the fixture, every one shown exactly twice. Counting distinct
+  `shotId`s therefore never overcounts against results; it undercounts only by unseen tracers.
+- `shotId` structure on this fixture: successive shots step by 2048, the low 11 bits are
+  constant 223 for every shooter, and the counter is global (a recorder gap of 4096+ is other
+  shooters' shots interleaved). `shotId` alone is a safe dedupe key — no per-shooter scoping
+  needed.
+- What does **not** count shots: `stopTracer` (only 52 of the recorder's 59 shots have a stop),
+  `explodeProjectile` (6 of 59 — rare, not a shot proxy), `showShooting` (0 records for the
+  recorder; see its row above).
+
+Consequence (not fixed here — #31 owns docs + probe only): timeline shot events and everything
+built on them inherit the inflation. The recorder's `shootingStats` clips read
+`[10, 10, 10, 10, 11, 10]` on shows but `[9, 10, 10, 10, 10, 10]` on distinct shots, and accuracy
+denominators read 61 instead of 59. The follow-up is to dedupe by `shotId` where shot events
+are built or consumed (the timeline builder already carries `shotId` on every shot event).
+
+Open questions (good first issues): 0x1C/0x1D
 axes; 0x20's 11.813 s pairs; 0x24 methods 02/04/05/06 and their id space; showDamageFromShot's type-01 vs
 type-02 distinction and its packed hit-point bytes; method 60's two flag bytes (same flags appear for
 damaging and bouncing hits, so they are not damage/bounce); 0x1A fields `[3]`/`[4]`/`[11]`; 0x26 fields
