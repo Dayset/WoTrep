@@ -131,6 +131,41 @@
   {
     "vid": 13908113,
     "kind": "good",
+    "tStart": 243.39,
+    "tEnd": 246,
+    "leadS": 3,
+    "cost": {
+      "winProbDelta": 13.71
+    },
+    "confidence": 0.6,
+    "evidence": [
+      {
+        "k": "unit",
+        "vid": 13908131,
+        "t": 243.39,
+        "label": "coach.ev.you"
+      },
+      {
+        "k": "number",
+        "label": "raise",
+        "value": 13.71,
+        "unit": "pts"
+      }
+    ],
+    "messageKey": "coach.impactRaise",
+    "params": {
+      "pts": 13.7,
+      "who": "91419",
+      "secs": 3
+    },
+    "schema": "wotrep.finding/1",
+    "detector": "impact-raise",
+    "detectorVersion": 1,
+    "id": "impact-raise:13908113:243.4"
+  },
+  {
+    "vid": 13908113,
+    "kind": "good",
     "tStart": 123.2,
     "tEnd": 125.3,
     "leadS": 3,

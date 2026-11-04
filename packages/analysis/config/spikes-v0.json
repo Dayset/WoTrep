@@ -1,0 +1,8 @@
+{
+  "bucketS": {
+    "value": 2,
+    "why": "initial guess: impact events closer than this (seconds) belong to one swing, so a kill and the hits around it read as one moment",
+    "n": 0,
+    "date": "2026-11-04"
+  }
+}
