@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BattleTimeline, Team } from "@wotrep/model";
-import { boldnessAll, percentileRank, playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
+import { aimSamples, alignWith, boldnessAll, percentileRank, playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
 import { t } from "../../i18n";
 import { Vote } from "./Feedback";
 
@@ -265,6 +265,41 @@ export function CompareChart({ tl }: { tl: BattleTimeline }) {
       </div>
       <div className="how-inline"><p><b>{t("gl.how")}.</b> {t(`gl.${mk}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${mk}.mean`)}</p></div>
       <p className="fbnote muted" style={{ marginTop: 10 }}>{t("viz.cmp.note")}</p>
+    </figure>
+  );
+}
+
+/** Same aim: for the selected player, how often each other player's turret pointed within sameDirDeg of theirs while both were alive. */
+export function AimChart({ tl }: { tl: BattleTimeline }) {
+  const [ref, W] = useWidth(); const [who, setWho] = useState<number>(tl.recorder.vid);
+  const samples = useMemo(() => aimSamples(tl, 2), [tl]);
+  const rows = useMemo(() => tl.vehicles.filter((v) => v.vid !== who).map((v) => ({ v, ...alignWith(samples, who, v.vid), ally: v.team === tl.recorder.team }))
+    .filter((r) => r.share != null && r.n >= 5).sort((a, b) => b.share! - a.share!), [tl, samples, who]);
+  const nm = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
+  const short = (n: string) => (n.length > 14 ? n.slice(0, 13) + "…" : n);
+  if (!rows.length) return null;
+  const lab = Math.min(120, Math.floor(W * 0.32)), bh = 13, gap = 7, H = rows.length * (bh + gap) + 4, aw = Math.max(40, W - lab - 60);
+  return (
+    <figure className="chart">
+      <figcaption><b>{t("viz.aim")}</b><span className="muted"> · {t("viz.aim.sub")}</span> <Vote id="chart.aim" /></figcaption>
+      <label><select className="pick" value={who} onChange={(e) => setWho(Number(e.target.value))} aria-label={t("viz.aim.pick")}>
+        {tl.vehicles.map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}
+      </select></label>
+      <div ref={ref} className="plot">
+        <svg width={W} height={H} role="img" aria-label={t("viz.aim.aria")}>
+          {rows.map((r, i) => { const yy = 2 + i * (bh + gap), wd = Math.max(2, r.share! * aw);
+            return <g key={r.v.vid}>
+              <text x={lab - 8} y={yy + bh - 3} className="ax lbl" textAnchor="end">{short(r.v.name)}</text>
+              <rect x={lab} y={yy} width={wd} height={bh} rx={4} style={{ fill: r.ally ? "var(--c-you)" : "var(--c-foe)" }} />
+              <text x={lab + wd + 6} y={yy + bh - 3} className="ax lbl">{Math.round(r.share! * 100)}%</text>
+            </g>; })}
+        </svg>
+      </div>
+      <div className="tablewrap"><table>
+        <thead><tr><th>{t("viz.player")}</th><th>{t("viz.aim.share")}</th><th>{t("viz.aim.gap")}</th><th>{t("viz.cmp.seen")}</th></tr></thead>
+        <tbody>{rows.map((r) => <tr key={r.v.vid} className={r.ally ? "" : "foe"}><td className="nm">{r.v.name}</td><td>{Math.round(r.share! * 100)}%</td><td>{Math.round(r.meanGapDeg ?? 0)}°</td><td>{r.n}</td></tr>)}</tbody>
+      </table></div>
+      <div className="how-inline"><p><b>{t("gl.how")}.</b> {t("gl.aimsame.how")}</p><p><b>{t("gl.mean")}.</b> {t("gl.aimsame.mean")}</p></div>
     </figure>
   );
 }

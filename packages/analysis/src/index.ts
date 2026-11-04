@@ -16,3 +16,4 @@ export * from "./vanish";
 export * from "./aim";
 export * from "./terrain";
 export * from "./percentile";
+export * from "./alignment";

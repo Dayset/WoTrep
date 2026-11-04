@@ -1,0 +1,4 @@
+{
+  "sampleS": { "value": 2, "why": "initial guess: aim is sampled every 2 s, enough to see who is on the same target without heavy compute", "n": 0, "date": "2026-11-04" },
+  "sameDirDeg": { "value": 20, "why": "initial guess: two turrets within 20 degrees are treated as aiming at the same target (about the width of a tank at 200 m)", "n": 0, "date": "2026-11-04" }
+}
