@@ -1,8 +1,38 @@
 {
-  "gapS": { "value": 8, "why": "initial guess, recalibrate in E13 (same engagement window as bad-trade)", "n": 0, "date": "2026-11-03" },
-  "minLossShare": { "value": 0.25, "why": "initial guess, recalibrate in E13 (received at least this share of max HP in one engagement)", "n": 0, "date": "2026-11-03" },
-  "maxRatio": { "value": 0.5, "why": "initial guess, recalibrate in E13 (dealt/received below this = a losing exchange)", "n": 0, "date": "2026-11-03" },
-  "allyDistM": { "value": 120, "why": "initial guess, recalibrate in E13 (nearest living ally farther than this = alone)", "n": 0, "date": "2026-11-03" },
-  "crossfireFoes": { "value": 2, "why": "initial guess, recalibrate in E13 (this many different enemies hitting you in one engagement = crossfire)", "n": 0, "date": "2026-11-03" },
-  "earlyS": { "value": 60, "why": "initial guess, recalibrate in E13 (battle time before which a heavy loss counts as an opening mistake)", "n": 0, "date": "2026-11-03" }
+  "gapS": {
+    "value": 8,
+    "why": "initial guess, recalibrate in E13 (same engagement window as bad-trade)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "minLossShare": {
+    "value": 0.25,
+    "why": "initial guess, recalibrate in E13 (received at least this share of max HP in one engagement); checked 2026-11-03 on 8 random replays (695 engagements, players with >=80% damage coverage): kept, gives 0.56 spots per player",
+    "n": 695,
+    "date": "2026-11-03"
+  },
+  "maxRatio": {
+    "value": 0.5,
+    "why": "initial guess, recalibrate in E13 (dealt/received below this = a losing exchange); checked 2026-11-03 on 8 random replays (695 engagements, players with >=80% damage coverage): kept, gives 0.56 spots per player",
+    "n": 695,
+    "date": "2026-11-03"
+  },
+  "allyDistM": {
+    "value": 120,
+    "why": "initial guess, recalibrate in E13 (nearest living ally farther than this = alone)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "crossfireFoes": {
+    "value": 2,
+    "why": "initial guess, recalibrate in E13 (this many different enemies hitting you in one engagement = crossfire)",
+    "n": 0,
+    "date": "2026-11-03"
+  },
+  "earlyS": {
+    "value": 60,
+    "why": "initial guess, recalibrate in E13 (battle time before which a heavy loss counts as an opening mistake)",
+    "n": 0,
+    "date": "2026-11-03"
+  }
 }

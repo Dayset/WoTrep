@@ -131,3 +131,9 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 
 ## Unsupported-mode banner (2026-11-03)
 Report shows a banner when battleType != 1 or vehicle count != 30 (tundra 14 players, epic 60 seen in local WG replays). Numbers are not rescaled; only flagged.
+
+## First calibration pass (2026-11-03, 8 random 15v15 replays: 7 WG + Lesta fixture; 695 engagements, players with >=80% damage coverage)
+- Loss share per engagement: p50 0.05, p75 0.26, p90 0.49, p95 0.68. Most heavy losses have dealt/received = 0 (the player was hit and never hit back), so the ratio cut matters little between 0.3 and 0.8.
+- Danger rule at minLoss 0.25 / maxRatio 0.5: 0.56 spots per player; won-trade rule at the current thresholds: 0.61 good plays per player. Both feel balanced, so thresholds are kept; `danger.json` records n.
+- Not calibrated: causes (alone/crossfire/early distances), flank and teamplay thresholds, anything needing class or gun data. Corpus is 8 replays on 3 maps; E13 proper needs the uploaded corpus (#111/#112).
+- Gun data (#42) is blocked on an owner-provided Lesta application id (the public demo id is rejected). Nothing to build until then.
