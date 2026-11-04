@@ -219,3 +219,6 @@ Mirror of good plays (§3.11). Rule = the `bad-trade` rule applied to every play
 
 ### 3.16 Movement, exposure and reaction
 Per player, one sample per battle second while the tank is alive and live-visible: metres per minute, share of seconds under 1 m/s, share of seconds with >= 2 hostile living tanks within 150 m (`multiShare`, "daredevil"), most hostiles at once, and median seconds from a new contact (no hostile in range for 10 s) to the player's next shot (<= 20 s). Config `packages/analysis/config/movement-v0.json` (range tried at 150/200/300 m on the fixture; 300 m flagged 97% of time as exposed). Limits: enemy positions are known only while spotted, so the enemy side's exposure is inflated; compare within a team only. No line of sight or gun data, so "in range" is geometric. Report panel `Movement.tsx`.
+
+### 3.17 Vanish events
+An enemy of the recorder leaves our team's vision while alive (visible interval ends, >= 3 s long, not within 2 s of its death). Records last position, nearest ally 20-445 m (proxy spotter), speed over the last seconds and whether it stopped. Clue for cover / line-of-sight breaks only; camouflage, range, a dead spotter and smoke look the same. Map page layer "Enemy vanishes". Config `packages/analysis/config/vanish-v0.json`. Aggregating many replays per map is the plan for a cover map.
