@@ -137,3 +137,7 @@ Report shows a banner when battleType != 1 or vehicle count != 30 (tundra 14 pla
 - Danger rule at minLoss 0.25 / maxRatio 0.5: 0.56 spots per player; won-trade rule at the current thresholds: 0.61 good plays per player. Both feel balanced, so thresholds are kept; `danger.json` records n.
 - Not calibrated: causes (alone/crossfire/early distances), flank and teamplay thresholds, anything needing class or gun data. Corpus is 8 replays on 3 maps; E13 proper needs the uploaded corpus (#111/#112).
 - Gun data (#42) is blocked on an owner-provided Lesta application id (the public demo id is rejected). Nothing to build until then.
+
+## Game fundamentals to reverse engineer into heuristics (2026-11-03, owner request: "whatever is important in the game")
+Done: assist per minute + share (card "support"); damage trades; positioning vs allies; crossfire; opening.
+Next, by value: (1) spot quality and spot-to-damage link (needs 0x37 / #26); (2) vanish-event layer and aggregated cover map; (3) peek-and-retreat / exposure time; (4) class roles (heavy holds, medium flanks, scout spots, TD ambush) needs class data (#42); (5) reload and gun uptime (#42); (6) base capture / reset timing; (7) HP-pool trading (who has more HP left) at key moments; (8) tier and matchmaking context.

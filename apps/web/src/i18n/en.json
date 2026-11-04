@@ -325,5 +325,9 @@
   "mp.l.danger": "Danger spots",
   "mp.l.danger.how": "Each player's heavy losing exchanges (the Danger spots table in the report) are placed at the cell where that player stood when the exchange began.",
   "mp.l.danger.mean": "Where players lose fights they should not take. Bright cells are places many players got hurt; a bright cell on your own side is a spot to avoid or cover with a teammate.",
-  "dg.spot": "lost {got} HP, dealt {dealt}"
+  "dg.spot": "lost {got} HP, dealt {dealt}",
+  "adv.support": "Support per minute (share)",
+  "adv.support.tip": "Assisted damage (spotting, tracks, stuns) per minute alive, and its share of damage dealt plus assisted",
+  "gl.support.how": "Assisted damage from the battle results: damage your teammates did to enemies you spotted (radio), tracked or stunned. We divide it by the minutes you were alive. The share is assisted ÷ (assisted + your own damage).",
+  "gl.support.mean": "Scouts and support tanks create damage that never shows in their own damage. A high share means your value came from enabling others. We cannot yet say which spots led to which damage, or how good each spot was."
 }

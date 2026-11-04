@@ -53,6 +53,7 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
   const plays = goodPlaysAll(tl), al = alignment(plays, tl.recorder.team), mineP = plays.filter((p) => p.vid === tl.recorder.vid), carried = mineP.filter((p) => p.enabled === "carried").length;
   const fm = flankModel(tl), rf = fm ? reinforce(tl, fm) : null, mineR = rf?.byPlayer.get(tl.recorder.vid) ?? 0, reactions = rf ? rf.episodes.flatMap((e) => (e.reactionS == null ? [] : [e.reactionS])).sort((a, b) => a - b) : [];
   const bd = boldnessAll(tl).get(tl.recorder.vid), tp = teamplayAll(tl).get(tl.recorder.vid), shape = teamShape(tl, tl.recorder.team);
+  const myRes = tl.results?.players[tl.recorder.vid];
   const sgn = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
   const cards: [string, string, string, string][] = [
     [t("adv.impact"), `${sgn(h.impactPts)} ${t("adv.pts")}`, t("adv.impact.tip"), "impact"],
@@ -60,6 +61,7 @@ function Advanced({ tl }: { tl: BattleTimeline }) {
     [t("adv.onthreats"), pct(h.shareOnThreats), t("adv.onthreats.tip"), "onthreats"],
     [t("adv.cleanup"), pct(h.cleanupShare), t("adv.cleanup.tip"), "cleanup"],
     [t("adv.dpm"), String(h.dpm), t("adv.dpm.tip"), "dpm"],
+    ...(myRes && myRes.lifeTimeS >= 10 ? ([[t("adv.support"), `${Math.round(((myRes.assistRadio + myRes.assistTrack + myRes.assistStun) / (myRes.lifeTimeS / 60)))} (${Math.round((100 * (myRes.assistRadio + myRes.assistTrack + myRes.assistStun)) / Math.max(1, myRes.assistRadio + myRes.assistTrack + myRes.assistStun + myRes.damageDealt))}%)`, t("adv.support.tip"), "support"]] as [string, string, string, string][]) : []),
     ...(bd ? ([
       [t("adv.bold"), bd.rate == null ? "—" : `${Math.round(bd.rate * 100)}% (${bd.taken}/${bd.episodes})`, t("adv.bold.tip"), "bold"],
       [t("adv.paid"), bd.rewardedShare == null ? "—" : `${Math.round(bd.rewardedShare * 100)}% (${bd.rewarded}/${bd.taken})`, "", "paid"],
