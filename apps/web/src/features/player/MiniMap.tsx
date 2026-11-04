@@ -6,7 +6,7 @@ import { t } from "../../i18n";
 
 /** Small top-down map for the 3D views: the followed tank with its view wedge, everyone else as dots. Size S/M/L; "Near" zooms to ~350 m around the tank. */
 export function MiniMap({ tl, clock, vid, img, bounds, fp }: { tl: BattleTimeline; clock: { current: { t: number } }; vid: number; img: HTMLImageElement | null; bounds: MapBounds; fp: boolean }) {
-  const cv = useRef<HTMLCanvasElement>(null), [size, setSize] = useState<"s" | "m" | "l">("m"), [near, setNear] = useState(false), live = useRef({ vid, near, fp }); live.current = { vid, near, fp };
+  const cv = useRef<HTMLCanvasElement>(null), [size, setSize] = useState<"s" | "m" | "l" | "x">(() => (window.matchMedia?.("(max-width: 600px)").matches ? "s" : "m")), [near, setNear] = useState(false), live = useRef({ vid, near, fp }); live.current = { vid, near, fp };
   useEffect(() => {
     const c = cv.current; if (!c) return; let raf = 0;
     const css = (n: string, d: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || d, ally = css("--accent", "#4aa3ff"), foe = css("--enemy", "#ff5a5a");
@@ -36,11 +36,11 @@ export function MiniMap({ tl, clock, vid, img, bounds, fp }: { tl: BattleTimelin
       }
     }; draw(); return () => cancelAnimationFrame(raf);
   }, [tl, clock, img, bounds]);
-  const px = { s: 130, m: 190, l: 280 }[size];
+  const px = { s: 110, m: 190, l: 280, x: 0 }[size];
   return (
     <div className="minimap" onPointerDown={(e) => e.stopPropagation()} data-testid="minimap">
-      <canvas ref={cv} style={{ width: `min(${px}px, 42vw)`, height: `min(${Math.round(px * ((bounds.z1 - bounds.z0) / (bounds.x1 - bounds.x0)))}px, ${Math.round(42 * ((bounds.z1 - bounds.z0) / (bounds.x1 - bounds.x0)))}vw)` }} aria-label={t("mini.aria")} role="img" />
-      <div className="minibtns"><button type="button" onClick={() => setSize(size === "s" ? "m" : size === "m" ? "l" : "s")} aria-label={t("mini.size")} title={t("mini.size")}>{size.toUpperCase()}</button><button type="button" aria-pressed={near} onClick={() => setNear(!near)} title={t("mini.near")}>{t("mini.near")}</button></div>
+      <canvas ref={cv} hidden={size === "x"} style={{ width: `min(${px}px, 42vw)`, height: `min(${Math.round(px * ((bounds.z1 - bounds.z0) / (bounds.x1 - bounds.x0)))}px, ${Math.round(42 * ((bounds.z1 - bounds.z0) / (bounds.x1 - bounds.x0)))}vw)` }} aria-label={t("mini.aria")} role="img" />
+      <div className="minibtns"><button type="button" onClick={() => setSize(size === "s" ? "m" : size === "m" ? "l" : size === "l" ? "x" : "s")} aria-label={t("mini.size")} title={t("mini.size")}>{size === "x" ? "🗺" : size.toUpperCase()}</button>{size !== "x" && <button type="button" aria-pressed={near} onClick={() => setNear(!near)} title={t("mini.near")}>{t("mini.near")}</button>}</div>
     </div>
   );
 }
