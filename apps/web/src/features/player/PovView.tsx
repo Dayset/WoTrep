@@ -6,10 +6,11 @@ import type { MapBounds } from "../../lib/mapStore";
 
 /** Low-poly 3D view of the replay on flat ground (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
  *  Heights and cover are not known yet, so ground is flat and nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
-export default function PovView({ tl, clock, vid, mode, img, bounds, zoom }: {
-  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number;
+export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync }: {
+  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number;
 }) {
-  const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom }); live.current = { vid, mode, zoom };
+  const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom, lock }); live.current = { vid, mode, zoom, lock };
+  useEffect(() => { look.current = { yaw: 0, pitch: 0.28, dist: look.current.dist }; }, [resync, lock]);
   useEffect(() => {
     const el = host.current; if (!el) return;
     const css = (n: string, d: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || d;
@@ -61,28 +62,30 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom }: {
     const cam = new THREE.PerspectiveCamera(65, 1, 0.5, 4000);
     const size = () => { const w = el.clientWidth || 640, h = el.clientHeight || 360; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); };
     const dom = renderer.domElement, ptr = new Map<number, { x: number; y: number }>(); let pinch = 0; dom.style.touchAction = "none"; dom.style.cursor = "grab";
-    const down = (e: PointerEvent) => { dom.setPointerCapture(e.pointerId); ptr.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptr.size === 2) { const [a, b] = [...ptr.values()]; pinch = Math.hypot(a!.x - b!.x, a!.y - b!.y); } };
+    const down = (e: PointerEvent) => { if (live.current.lock) return; dom.setPointerCapture(e.pointerId); ptr.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptr.size === 2) { const [a, b] = [...ptr.values()]; pinch = Math.hypot(a!.x - b!.x, a!.y - b!.y); } };
     const move = (e: PointerEvent) => { const q = ptr.get(e.pointerId); if (!q) return; const L = look.current;
       if (ptr.size === 2) { ptr.set(e.pointerId, { x: e.clientX, y: e.clientY }); const [a, b] = [...ptr.values()]; const d = Math.hypot(a!.x - b!.x, a!.y - b!.y); if (pinch > 0) L.dist = Math.min(120, Math.max(5, L.dist * (pinch / d))); pinch = d; return; }
       L.yaw -= (e.clientX - q.x) * 0.006; L.pitch = Math.min(1.45, Math.max(-0.35, L.pitch + (e.clientY - q.y) * 0.005)); ptr.set(e.pointerId, { x: e.clientX, y: e.clientY }); };
     const up = (e: PointerEvent) => { ptr.delete(e.pointerId); pinch = 0; };
     const wheel = (e: WheelEvent) => { e.preventDefault(); look.current.dist = Math.min(120, Math.max(5, look.current.dist * (e.deltaY > 0 ? 1.12 : 0.89))); };
-    const reset = () => { look.current = { yaw: 0, pitch: 0.28, dist: 16 }; };
+    const reset = () => { look.current = { yaw: 0, pitch: 0.28, dist: look.current.dist }; };
     dom.addEventListener("pointerdown", down); dom.addEventListener("pointermove", move); dom.addEventListener("pointerup", up); dom.addEventListener("pointercancel", up); dom.addEventListener("wheel", wheel, { passive: false }); dom.addEventListener("dblclick", reset);
     size(); const ro = new ResizeObserver(size); ro.observe(el);
-    let pitchNow = 0, raf = 0; const loop = () => {
-      raf = requestAnimationFrame(loop); let turretYaw = 0, turretPitch = 0, onTarget = false; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
+    let pitchNow = 0, raf = 0, lastMs = performance.now(), lastT = clock.current.t, camYaw = NaN, camVid = -1; const smY = new Map<number, { h: number; g: number }>(); const TAU = Math.PI * 2, wrap = (a: number) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
+    const loop = () => {
+      raf = requestAnimationFrame(loop); const nowMs = performance.now(), dtS = Math.min(0.25, (nowMs - lastMs) / 1000); lastMs = nowMs; const jump = Math.abs(clock.current.t - lastT) > 1.2; lastT = clock.current.t; const kS = 1 - Math.exp(-dtS / 0.16);   // rotation is smoothed over ~0.16 s; seeks snap let turretYaw = 0, turretPitch = 0, onTarget = false; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
+      let turretYaw = 0, turretPitch = 0, onTarget = false, hullYawS = 0; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
       const hit = new Set<number>(); for (const e of tl.events) if (e.k === "damage" && e.target === L.vid && e.t <= clock.current.t && e.t >= clock.current.t - 4) hit.add(e.attacker);
       for (const u of s.units) {
         const k = tanks.get(u.vid)!; k.g.visible = u.known !== "never" && !(L.mode === "fp" && u.vid === L.vid && u.alive);
-        k.g.position.set(u.x, gh(u.x, u.z), -u.z); k.g.rotation.y = -u.yaw; k.mat.opacity = !u.alive ? 0.5 : u.known === "ghost" ? 0.3 : 1;
+        k.g.position.set(u.x, gh(u.x, u.z), -u.z); const aim0 = u.alive ? aimAt(tl, u.vid, clock.current.t) : null, sm = smY.get(u.vid) ?? { h: u.yaw, g: aim0 ? aim0.yaw : u.yaw }; if (jump || !smY.has(u.vid)) { sm.h = u.yaw; sm.g = aim0 ? aim0.yaw : u.yaw; } else { sm.h += wrap(u.yaw - sm.h) * kS; sm.g += wrap((aim0 ? aim0.yaw : u.yaw) - sm.g) * kS; } smY.set(u.vid, sm); k.g.rotation.y = -sm.h; k.mat.opacity = !u.alive ? 0.5 : u.known === "ghost" ? 0.3 : 1;
         k.mat.color.copy(!u.alive ? new THREE.Color(0x444444) : hit.has(u.vid) ? new THREE.Color(0xffd23f) : u.team === tl.recorder.team ? ally : foe);
-        k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = u.alive ? aimAt(tl, u.vid, clock.current.t) : null; (k.g.children[1] as THREE.Group).rotation.y = aim ? u.yaw - aim.yaw : 0; if (u.vid === L.vid) { turretYaw = aim ? aim.yaw : u.yaw; onTarget = !!aim?.onTarget; turretPitch = aim ? aim.pitch : 0; }
+        k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = aim0; (k.g.children[1] as THREE.Group).rotation.y = aim ? sm.h - sm.g : 0; if (u.vid === L.vid) { turretYaw = sm.g; hullYawS = sm.h; onTarget = !!aim?.onTarget; turretPitch = aim ? aim.pitch : 0; }
       }
       let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; tpos.set([sh.x0, (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, -sh.z0, sh.x1, (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, -sh.z1], n * 6); n++; }
       tgeo.setDrawRange(0, n * 2); (tgeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
       if (me && me.known !== "never") {
-        const p = new THREE.Vector3(me.x, gh(me.x, me.z), -me.z), K = look.current, ay = -(L.mode === "fp" ? turretYaw : me.yaw) + K.yaw, cp = Math.cos(K.pitch);
+        const p = new THREE.Vector3(me.x, gh(me.x, me.z), -me.z), K = look.current, ay = -(L.mode === "fp" ? turretYaw : hullYawS) + K.yaw, cp = Math.cos(K.pitch);
         pitchNow += (turretPitch - pitchNow) * 0.15;
         if (L.mode === "fp") { cam.position.set(p.x, p.y + 2.9, p.z); cam.lookAt(p.x - Math.sin(ay) * 50, p.y + 2.9 + Math.tan(pitchNow) * 50 - (K.pitch - 0.28) * 50, p.z - Math.cos(ay) * 50); }
         else { const cx = p.x + Math.sin(ay) * cp * K.dist, cz = p.z + Math.cos(ay) * cp * K.dist; cam.position.set(cx, Math.max(gh(cx, -cz) + 1.2, p.y + 1.5 + Math.sin(K.pitch) * K.dist), cz); cam.lookAt(p.x, p.y + 2, p.z); }
