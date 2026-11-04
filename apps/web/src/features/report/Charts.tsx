@@ -112,7 +112,7 @@ export function ImpactChart({ tl }: { tl: BattleTimeline }) {
   return (
     <Frame id="chart.impact" title={t("viz.impact")} sub={t("viz.impact.sub")} legend={both ? [["--c-you", t("viz.cmp.allies")], ["--c-foe", t("viz.cmp.enemies")], ["--c-ink", t("viz.impact.total")]] : [["--c-you", t("viz.impact.up")], ["--c-foe", t("viz.impact.down")], ["--c-ink", t("viz.impact.total")]]}
       table={<table><thead><tr><th>{t("viz.time")}</th><th>{t("viz.player")}</th><th>{t("viz.target")}</th><th>dmg</th><th>×</th><th>Δ WP</th><th>Σ</th></tr></thead><tbody>{hits.map((d, i) => <tr key={i}><td>{mmss(d.t)}</td><td>{d.who}</td><td>{nm(d.target)}</td><td>{d.amount}</td><td>{d.threat}</td><td>{sgn(d.dWpPts)}</td><td>{sgn(d.cumPts)}</td></tr>)}</tbody></table>}>
-      <label><select value={String(mode)} onChange={(e) => { const v = e.target.value; setMode(v === "you" || v === "ally" || v === "enemy" || v === "both" ? v : Number(v)); setHi(null); }}>
+      <label><select className="pick" value={String(mode)} onChange={(e) => { const v = e.target.value; setMode(v === "you" || v === "ally" || v === "enemy" || v === "both" ? v : Number(v)); setHi(null); }}>
         <option value="both">{t("viz.side.both")}</option>
         <option value="you">{t("report.you")}</option>
         <option value="ally">{t("viz.cmp.allies")}</option>
@@ -164,7 +164,7 @@ export function TargetChart({ tl }: { tl: BattleTimeline }) {
       <figcaption><b>{t("viz.targets")}</b><span className="muted"> · {caption}</span> <Vote id="chart.targets" /></figcaption>
       <div className="legend"><span><i style={{ background: "var(--c-you)" }} />{t("viz.targets.raw")}</span><span><i style={{ background: "var(--c-ink)" }} />{t("viz.targets.weighted")}</span></div>
       {sel === "all" && <SideSeg value={side} set={setSide} />}
-      <label><select value={sel} onChange={(e) => { setSel(e.target.value === "all" ? "all" : Number(e.target.value)); setHi(null); }}>
+      <label><select className="pick" value={sel} onChange={(e) => { setSel(e.target.value === "all" ? "all" : Number(e.target.value)); setHi(null); }}>
         <option value="all">{t("viz.cmp.allies")} + {t("viz.cmp.enemies")}</option>
         {all.map(({ v }) => <option key={v.vid} value={v.vid}>{v.name}</option>)}
       </select></label>

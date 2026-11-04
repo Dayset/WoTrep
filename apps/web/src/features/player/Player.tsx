@@ -45,7 +45,7 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
   const [coach, setCoach] = useState(false), [seenIds, setSeenIds] = useState<string[]>([]);
   const [pauseOn, setPauseOn] = useState<string[]>(["mistake", "good", "info"]), [resumeS, setResumeS] = useState(0), [resumeGoodS, setResumeGoodS] = useState(8), [slowS, setSlowS] = useState(6), coachPaused = useRef<string | false>(false);
   const [view3d, setView3d] = useState<"off" | "fp" | "chase">("off"), [scope, setScope] = useState(6), [lockView, setLockView] = useState(false), [resync, setResync] = useState(0), [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [logOn, setLogOn] = useState(() => window.matchMedia?.("(min-width: 1100px)").matches === true), [setOpen, setSetOpen] = useState(false), [sel, setSel] = useState<number | null>(null);
-  const [sfxOn, setSfxOn] = useState(false), sfxRef = useRef(false), sfxLast = useRef(0), [trainer, setTrainer] = useState(false), [trainerSel, setTrainerSel] = useState<TrainerSel>("all");
+  const [sfxOn, setSfxOn] = useState(true), sfxRef = useRef(true), sfxLast = useRef(0), [trainer, setTrainer] = useState(false), [trainerSel, setTrainerSel] = useState<TrainerSel>("all");
   const shotList = useMemo(() => { const tm = new Map(tl.vehicles.map((v) => [v.vid, v.team])); return tl.events.flatMap((e) => e.k === "shot" ? [{ t: e.t, kind: (e.shooter === tl.recorder.vid ? "own" : tm.get(e.shooter) === tl.recorder.team ? "ally" : "enemy") as ShotKind }] : []).sort((a, b) => a.t - b.t); }, [tl]);
   const shotsRef = useRef(shotList); shotsRef.current = shotList;
   const deathT = useMemo(() => { const d = new Map<number, number>(); for (const e of tl.events) if (e.k === "kill" && e.t >= 0 && !d.has(e.victim)) d.set(e.victim, e.t); return d; }, [tl]);
@@ -83,6 +83,8 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
   const coachRef = useRef({ on: false, seen: new Set<string>(), marks, pauses, slowS: 6 });
   coachRef.current.on = coach; coachRef.current.marks = marks; coachRef.current.pauses = pauses; coachRef.current.slowS = slowS; coachRef.current.seen = new Set(seenIds);
 
+  // sound is on by default, but browsers only allow audio after a gesture: start the context on the first tap
+  useEffect(() => { const go = () => sfxStart(); window.addEventListener("pointerdown", go, { once: true }); return () => window.removeEventListener("pointerdown", go); }, []);
   const seek = useCallback((x: number) => { clock.current.t = Math.min(end, Math.max(0, x)); setUiT(clock.current.t); }, [end]);
   const fit = useCallback((w: number, h: number) => {
     const s = Math.min(w / (bounds.x1 - bounds.x0), h / (bounds.z1 - bounds.z0));
@@ -348,7 +350,7 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
           </select>
           {sel != null && <button type="button" onClick={() => setSel(null)} data-testid="backme" title={t("pov.me")} aria-label={t("pov.me")}>↩</button>}
           <button type="button" aria-pressed={trainer} onClick={() => setTrainer(!trainer)} data-testid="trainerbtn">🎯 {t("player.trainer")}</button>
-          {trainer && <label><select value={String(trainerSel)} onChange={(e) => { const v = e.target.value; setTrainerSel(v === "all" || v === "ally" || v === "enemy" ? v : Number(v)); }} data-testid="trainersel">
+          {trainer && <label><select className="pick" value={String(trainerSel)} onChange={(e) => { const v = e.target.value; setTrainerSel(v === "all" || v === "ally" || v === "enemy" ? v : Number(v)); }} data-testid="trainersel">
             <option value="all">{t("viz.side.all")}</option><option value="ally">{t("viz.cmp.allies")}</option><option value="enemy">{t("viz.cmp.enemies")}</option>
             {tl.vehicles.map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}
           </select></label>}
