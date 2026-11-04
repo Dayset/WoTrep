@@ -25,11 +25,14 @@ export function hiddenDealt(tl: BattleTimeline): Map<number, number> {
 export function unseenDrops(tl: BattleTimeline, vid: number): UnseenDrop[] {
   const end = Math.floor(tl.arena.durationS ?? Math.max(0, ...tl.events.map((e) => e.t)));
   const out: UnseenDrop[] = [];
+  // The window opens when the HP last changed, not at the last live sample: HP can stay stale while the tank is live.
   let lastT = -1, lastHp = -1;
   for (let t = 0; t <= end; t++) {
     const u = stateAt(tl, t).units.find((x) => x.vid === vid);
     if (!u || u.known !== "live") continue;
-    if (lastT >= 0 && u.hp < lastHp) {
+    if (lastT < 0) { lastT = t; lastHp = u.hp; continue; }
+    if (u.hp === lastHp) continue;
+    if (u.hp < lastHp) {
       const hpLost = lastHp - u.hp;
       const seenDmg = tl.events.reduce((s, e) => (e.k === "damage" && e.target === vid && e.t > lastT && e.t <= t ? s + e.amount : s), 0);
       const unseen = hpLost - seenDmg;
