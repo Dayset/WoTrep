@@ -12,3 +12,4 @@ export * from "./teamplay";
 export * from "./flank";
 export * from "./coverage";
 export * from "./movement";
+export * from "./vanish";

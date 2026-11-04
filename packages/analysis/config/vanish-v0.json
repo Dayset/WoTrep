@@ -1,0 +1,7 @@
+{
+  "minSpotterM": { "value": 20, "why": "initial guess, recalibrate in E13 (ally closer than this is not a spotter)", "n": 0, "date": "2026-11-03" },
+  "maxSpotterM": { "value": 445, "why": "game maximum view range; farther allies cannot be the spotter", "n": 0, "date": "2026-11-03" },
+  "deathGapS": { "value": 2, "why": "initial guess (a disappearance within this many seconds of the tank's death is a death, not a vanish)", "n": 0, "date": "2026-11-03" },
+  "stillMps": { "value": 2, "why": "initial guess, recalibrate in E13 (speed over the last seconds below this = it stopped, the likelier line-of-sight break)", "n": 0, "date": "2026-11-03" },
+  "minVisibleS": { "value": 3, "why": "initial guess (shorter visible intervals are flicker, ignored)", "n": 0, "date": "2026-11-03" }
+}

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { heatGrid, tracerLines, type HeatLayer, type HeatGrid } from "@wotrep/analysis";
+import { heatGrid, tracerLines, vanishEvents, type HeatLayer, type HeatGrid } from "@wotrep/analysis";
 import { dangerSpots } from "@wotrep/coach";
 import type { BattleTimeline } from "@wotrep/model";
 import { t } from "../../i18n";
 import { loadMap, type MapBounds } from "../../lib/mapStore";
 import { MapLoader } from "../player/MapLoader";
 
-type Layer = HeatLayer | "tracers" | "danger";
-const LAYERS: Layer[] = ["presence", "dmgdealt", "dmgrecv", "deaths", "routes", "spots", "danger", "tracers"];
+type Layer = HeatLayer | "tracers" | "danger" | "vanish";
+const LAYERS: Layer[] = ["presence", "dmgdealt", "dmgrecv", "deaths", "routes", "spots", "danger", "vanish", "tracers"];
 const TEAMS = ["both", "own", "enemy"] as const, WINDOWS = ["all", "open", "mid", "end"] as const;
 const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
@@ -31,11 +31,19 @@ export function MapPage({ tl, onClose }: { tl: BattleTimeline; onClose: () => vo
   }, [tl, img]);
   const cell = Math.max(10, Math.round((bounds.x1 - bounds.x0) / 56 / 5) * 5);
   const span = useMemo(() => (win === "open" ? { t0: 0, t1: 60 } : win === "mid" ? { t0: 60, t1: Math.max(60, end - 60) } : win === "end" ? { t0: Math.max(0, end - 60), t1: end } : layer === "routes" ? { t0: 0, t1: 60 } : {}), [win, layer, end]);
-  const hl: HeatLayer = layer === "tracers" || layer === "danger" ? "presence" : layer;
+  const hl: HeatLayer = layer === "tracers" || layer === "danger" || layer === "vanish" ? "presence" : layer;
   const grid = useMemo((): HeatGrid => {
     const base = { bounds, cellM: cell, team: layer === "spots" ? "enemy" as const : team, vid: onlyMe ? tl.recorder.vid : undefined, ...span };
-    if (layer !== "danger") return heatGrid(tl, hl, base);
+    if (layer !== "danger" && layer !== "vanish") return heatGrid(tl, hl, base);
     const cols = Math.max(1, Math.ceil((bounds.x1 - bounds.x0) / cell)), rows = Math.max(1, Math.ceil((bounds.z1 - bounds.z0) / cell)), values = new Float32Array(cols * rows); let total = 0, max = 0;
+    if (layer === "vanish") {
+      for (const d of vanishEvents(tl)) {
+        if (d.t < (span.t0 ?? 0) || d.t > (span.t1 ?? Infinity) || (onlyMe && d.spotter !== tl.recorder.vid)) continue;
+        const c = Math.floor((d.x - bounds.x0) / cell), r = Math.floor((d.z - bounds.z0) / cell); if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+        const k = r * cols + c; values[k] = values[k]! + 1; total++; max = Math.max(max, values[k]!);
+      }
+      return { cols, rows, cellM: cell, values, total, max, unit: "count" };
+    }
     for (const d of dangerSpots(tl)) {
       if (d.x == null || d.z == null || d.tStart < (span.t0 ?? 0) || d.tStart > (span.t1 ?? Infinity)) continue;
       if (onlyMe && d.vid !== tl.recorder.vid) continue;
