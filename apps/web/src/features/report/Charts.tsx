@@ -1,3 +1,4 @@
+import { SortTable } from "./SortTable";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BattleTimeline, Team } from "@wotrep/model";
 import { aimSamples, alignWith, teamCoherence, boldnessAll, percentileRank, playerHeuristics, playerStats, recorderHeuristics, wpSeries } from "@wotrep/analysis";
@@ -52,7 +53,7 @@ export function WpChart({ tl }: { tl: BattleTimeline }) {
   const rows = kills.map((k) => ({ t: k.t, text: `${nm(k.killer)} → ${nm(k.victim)}`, wp: wpAt(k.t) }));
   return (
     <Frame id="chart.wp" title={t("viz.wp")} sub={t("viz.wp.sub")} legend={[["--c-you", t("viz.wp.you")], ["--c-foe", t("viz.kill.foe")], ["--c-mine", t("viz.hit")]]}
-      table={<table><thead><tr><th>{t("viz.time")}</th><th>{t("viz.event")}</th><th>WP</th></tr></thead><tbody>{rows.map((r) => <tr key={r.t}><td>{mmss(r.t)}</td><td>{r.text}</td><td>{(r.wp * 100).toFixed(0)}%</td></tr>)}</tbody></table>}>
+      table={<SortTable sortKey="t" dir={1} cols={[{ key: "t", label: t("viz.time") }, { key: "e", label: t("viz.event") }, { key: "wp", label: "WP" }]} rows={rows.map((r) => ({ id: r.t, cells: { t: { v: r.t, node: mmss(r.t) }, e: { v: r.text, node: r.text }, wp: { v: r.wp, node: `${(r.wp * 100).toFixed(0)}%` } } }))} />}>
       <div ref={ref} className="plot">
         <svg width={W} height={H} role="img" aria-label={t("viz.wp.aria")} onPointerMove={move} onPointerLeave={() => setHi(null)} style={{ touchAction: "pan-y" }}>
           {[0, 0.5, 1].map((p) => <g key={p}><line x1={M.l} x2={W - M.r} y1={y(p)} y2={y(p)} className={p === 0.5 ? "ref" : "grid"} /><text x={M.l - 6} y={y(p) + 4} className="ax" textAnchor="end">{p * 100}%</text></g>)}
@@ -111,7 +112,7 @@ export function ImpactChart({ tl }: { tl: BattleTimeline }) {
   const hh = hi == null ? null : hits[hi]!;
   return (
     <Frame id="chart.impact" title={t("viz.impact")} sub={t("viz.impact.sub")} legend={both ? [["--c-you", t("viz.cmp.allies")], ["--c-foe", t("viz.cmp.enemies")], ["--c-ink", t("viz.impact.total")]] : [["--c-you", t("viz.impact.up")], ["--c-foe", t("viz.impact.down")], ["--c-ink", t("viz.impact.total")]]}
-      table={<table><thead><tr><th>{t("viz.time")}</th><th>{t("viz.player")}</th><th>{t("viz.target")}</th><th>dmg</th><th>×</th><th>Δ WP</th><th>Σ</th></tr></thead><tbody>{hits.map((d, i) => <tr key={i}><td>{mmss(d.t)}</td><td>{d.who}</td><td>{nm(d.target)}</td><td>{d.amount}</td><td>{d.threat}</td><td>{sgn(d.dWpPts)}</td><td>{sgn(d.cumPts)}</td></tr>)}</tbody></table>}>
+      table={<SortTable sortKey="t" dir={1} cols={[{ key: "t", label: t("viz.time") }, { key: "who", label: t("viz.player") }, { key: "target", label: t("viz.target") }, { key: "dmg", label: "dmg" }, { key: "x", label: "×" }, { key: "dwp", label: "Δ WP" }, { key: "sum", label: "Σ" }]} rows={hits.map((d, i) => ({ id: i, cells: { t: { v: d.t, node: mmss(d.t) }, who: { v: d.who, node: d.who }, target: { v: nm(d.target), node: nm(d.target) }, dmg: { v: d.amount, node: d.amount }, x: { v: d.threat, node: d.threat }, dwp: { v: d.dWpPts, node: sgn(d.dWpPts) }, sum: { v: d.cumPts, node: sgn(d.cumPts) } } }))} />}>
       <label><select className="pick" value={String(mode)} onChange={(e) => { const v = e.target.value; setMode(v === "you" || v === "ally" || v === "enemy" || v === "both" ? v : Number(v)); setHi(null); }}>
         <option value="both">{t("viz.side.both")}</option>
         <option value="you">{t("report.you")}</option>
@@ -181,10 +182,7 @@ export function TargetChart({ tl }: { tl: BattleTimeline }) {
         </svg>
         {hiRow && <div className="tip" style={{ right: 0, top: 0 }}><b>{hiRow.name}</b><div>{hiRow.dmg} dmg × {hiRow.w} = {hiRow.tw}</div>{hiRow.cov < 1 && <div className="muted">{t("viz.cmp.seen")}: {Math.round(hiRow.cov * 100)}%</div>}</div>}
       </div>
-      <div className="tablewrap"><table>
-        <thead><tr><th>{sel === "all" ? t("viz.player") : t("viz.target")}</th><th>dmg</th><th>×</th><th>{t("viz.targets.weighted")}</th>{sel === "all" && <th>{t("viz.cmp.seen")}</th>}</tr></thead>
-        <tbody>{rows.map((r) => <tr key={r.key} className={r.mine ? "me" : ""}><td className="nm">{r.name}</td><td>{r.dmg}</td><td>{r.w}</td><td>{r.tw}</td>{sel === "all" && <td>{Math.round(r.cov * 100)}%</td>}</tr>)}</tbody>
-      </table></div>
+      <SortTable sortKey="tw" cols={[{ key: "n", label: sel === "all" ? t("viz.player") : t("viz.target") }, { key: "dmg", label: "dmg" }, { key: "w", label: "×" }, { key: "tw", label: t("viz.targets.weighted") }, ...(sel === "all" ? [{ key: "cov", label: t("viz.cmp.seen") }] : [])]} rows={rows.map((r) => ({ id: r.key, cls: r.mine ? "me" : "", cells: { n: { v: r.name, node: <span className="nm">{r.name}</span> }, dmg: { v: r.dmg, node: r.dmg }, w: { v: r.w, node: r.w }, tw: { v: r.tw, node: r.tw }, cov: { v: r.cov, node: `${Math.round(r.cov * 100)}%` } } }))} />
     </figure>
   );
 }
@@ -235,19 +233,7 @@ export function CompareChart({ tl }: { tl: BattleTimeline }) {
       <figcaption><b>{t("viz.cmp")}</b><span className="muted"> · {sub}</span> <Vote id="chart.compare" /></figcaption>
       <div className="seg" role="tablist">{METRICS.map((x) => <button key={x.key} role="tab" aria-selected={mk === x.key} onClick={() => setMk(x.key)}>{t(x.label)}</button>)}</div>
       <SideSeg value={side} set={setSide} />
-      <div className="tablewrap">
-        <table>
-          <thead><tr><th>{t("viz.player")}</th><th>{t(m.label)}</th><th>{t("viz.dist.pct")}</th><th>{t("viz.place")}</th><th>{t("viz.cmp.seen")}</th></tr></thead>
-          <tbody>{shown.map((r) => (
-            <tr key={r.v.vid} className={r.mine ? "me" : ""}>
-              <td className="nm">{r.v.name}{r.mine ? ` (${t("report.you")})` : ""}</td>
-              <td><span className={`bar ${r.ally ? "bup" : "bdn"}`} style={{ width: barW(r.val), display: "inline-block", height: 8, borderRadius: 4, verticalAlign: "middle", marginRight: 6 }} />{(r.cov < PARTIAL ? "~" : "") + m.fmt(r.val)}</td>
-              <td>{r.pct}%</td>
-              <td>{teamPos.get(r.v.vid)}</td>
-              <td>{Math.round(r.cov * 100)}%</td>
-            </tr>))}</tbody>
-        </table>
-      </div>
+      <SortTable sortKey="val" cols={[{ key: "player", label: t("viz.player") }, { key: "val", label: t(m.label) }, { key: "pct", label: t("viz.dist.pct") }, { key: "place", label: t("viz.place") }, { key: "seen", label: t("viz.cmp.seen") }]} rows={shown.map((r) => ({ id: r.v.vid, cls: r.mine ? "me" : "", cells: { player: { v: r.v.name, node: <>{r.v.name}{r.mine ? ` (${t("report.you")})` : ""}</> }, val: { v: r.val, node: <><span className={`bar ${r.ally ? "bup" : "bdn"}`} style={{ width: barW(r.val), display: "inline-block", height: 8, borderRadius: 4, verticalAlign: "middle", marginRight: 6 }} />{(r.cov < PARTIAL ? "~" : "") + m.fmt(r.val)}</> }, pct: { v: r.pct, node: `${r.pct}%` }, place: { v: teamPos.get(r.v.vid) ?? null, node: teamPos.get(r.v.vid) }, seen: { v: r.cov, node: `${Math.round(r.cov * 100)}%` } } }))} />
       <div className="seg" role="tablist" aria-label={t("viz.zoom")}>{[1, 2, 4, 8].map((k) => <button key={k} role="tab" aria-selected={z === k} onClick={() => setZ(k)}>×{k}</button>)}</div>
       <div ref={ref} className="plot" style={{ overflowX: "auto" }} aria-hidden="true">
         <svg width={Wz} height={HS} role="img" aria-label={t("viz.dist.aria")}>
@@ -309,10 +295,7 @@ export function AimChart({ tl }: { tl: BattleTimeline }) {
             </g>; })}
         </svg>
       </div>
-      <div className="tablewrap"><table>
-        <thead><tr><th>{t("viz.player")}</th><th>{t("viz.aim.share")}</th>{!teamMode && <th>{t("viz.aim.gap")}</th>}<th>{t("viz.cmp.seen")}</th></tr></thead>
-        <tbody>{rows.map((r) => <tr key={r.vid} className={!teamMode && !ally(r.vid) ? "foe" : ""}><td className="nm">{name(r.vid)}</td><td>{Math.round(r.share * 100)}%</td>{!teamMode && <td>{Math.round(r.gap ?? 0)}°</td>}<td>{teamMode ? "" : r.n}</td></tr>)}</tbody>
-      </table></div></>}
+      <SortTable sortKey="share" cols={[{ key: "player", label: t("viz.player") }, { key: "share", label: t("viz.aim.share") }, ...(teamMode ? [] : [{ key: "gap", label: t("viz.aim.gap") }]), { key: "seen", label: t("viz.cmp.seen") }]} rows={rows.map((r) => ({ id: r.vid, cls: !teamMode && !ally(r.vid) ? "foe" : "", cells: { player: { v: name(r.vid), node: <span className="nm">{name(r.vid)}</span> }, share: { v: r.share, node: `${Math.round(r.share * 100)}%` }, gap: { v: r.gap ?? 0, node: `${Math.round(r.gap ?? 0)}°` }, seen: { v: teamMode ? null : r.n, node: teamMode ? "" : r.n } } }))} /></>}
       <div className="how-inline"><p><b>{t("gl.how")}.</b> {t(teamMode ? "gl.aimteam.how" : "gl.aimsame.how")}</p><p><b>{t("gl.mean")}.</b> {t(teamMode ? "gl.aimteam.mean" : "gl.aimsame.mean")}</p></div>
     </figure>
   );

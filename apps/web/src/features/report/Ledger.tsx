@@ -3,6 +3,7 @@ import { goodPlaysAll, ledger } from "@wotrep/coach";
 import { vehicleLabel } from "@wotrep/gamedata";
 import type { BattleTimeline } from "@wotrep/model";
 import { t } from "../../i18n";
+import { SortTable } from "./SortTable";
 
 /** Sacrifice ledger for the recorder's team: who made space for teammates' good plays, and who cashed in (docs/METRICS.md §3.12). */
 export function Ledger({ tl }: { tl: BattleTimeline }) {
@@ -11,9 +12,8 @@ export function Ledger({ tl }: { tl: BattleTimeline }) {
   return (
     <div className="ledger" data-testid="ledger">
       <h3>{t("led.title")}</h3>
-      <div className="tablewrap"><table><thead><tr><th>{t("led.player")}</th><th title={t("led.made.tip")}>{t("led.made")}</th><th>{t("led.hp")}</th><th>{t("led.died")}</th><th title={t("led.cashed.tip")}>{t("led.cashed")}</th></tr></thead>
-        <tbody>{rows.map((r) => { const v = info.get(r.vid)!; return (
-          <tr key={r.vid} className={v.isRecorder ? "me" : ""}><td title={vehicleLabel(v.vehicleType).label}>{v.name}</td><td>{r.madeFor}</td><td>{r.absorbedHp || "—"}</td><td>{r.diedFor || "—"}</td><td>{r.plays ? `${r.carried}/${r.plays}` : "—"}</td></tr>); })}</tbody></table></div>
+      <SortTable sortKey="made" cols={[{ key: "name", label: t("led.player") }, { key: "made", label: t("led.made"), title: t("led.made.tip") }, { key: "hp", label: t("led.hp") }, { key: "died", label: t("led.died") }, { key: "cashed", label: t("led.cashed"), title: t("led.cashed.tip") }]}
+          rows={rows.map((r) => { const v = info.get(r.vid)!; return { id: r.vid, cls: v.isRecorder ? "me" : "", cells: { name: { v: v.name, node: <span title={vehicleLabel(v.vehicleType).label}>{v.name}</span> }, made: { v: r.madeFor, node: r.madeFor }, hp: { v: r.absorbedHp, node: r.absorbedHp || "—" }, died: { v: r.diedFor, node: r.diedFor || "—" }, cashed: { v: r.plays ? r.carried / r.plays : null, node: r.plays ? `${r.carried}/${r.plays}` : "—" } } }; })} />
       <details className="how"><summary>{t("gl.how")} · {t("gl.mean")}</summary><p>{t("gl.ledger.how")}</p><p>{t("gl.ledger.mean")}</p></details>
     </div>
   );

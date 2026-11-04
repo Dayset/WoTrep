@@ -3,6 +3,7 @@ import { dangerSpots, type DangerSpot } from "@wotrep/coach";
 import { vehicleLabel } from "@wotrep/gamedata";
 import type { BattleTimeline } from "@wotrep/model";
 import { t } from "../../i18n";
+import { SortTable } from "./SortTable";
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -20,9 +21,8 @@ export function Danger({ tl }: { tl: BattleTimeline }) {
       <h3>{t("dg.title")}</h3>
       <div className="chips"><button type="button" aria-pressed={side === "own"} onClick={() => setSide("own")}>{t("dg.own")}</button><button type="button" aria-pressed={side === "enemy"} onClick={() => setSide("enemy")}>{t("dg.enemy")}</button></div>
       {rows.length === 0 ? <p>{t("dg.none")}</p> : (
-        <div className="tablewrap"><table><thead><tr><th>{t("led.player")}</th><th>{t("dg.when")}</th><th>{t("dg.lost")}</th><th>{t("dg.cause")}</th><th>{t("dg.advice")}</th></tr></thead>
-          <tbody>{rows.map((d) => { const v = info.get(d.vid)!; return (
-            <tr key={d.vid} className={v.isRecorder ? "me" : ""}><td title={vehicleLabel(v.vehicleType).label}>{v.name}</td><td>{mmss(d.tStart)}</td><td>{d.got} / {d.dealt}{d.died ? " ☠" : ""}</td><td>{t(`dg.cause.${d.cause}`)}{d.cause === "alone" && d.nearestAllyM != null ? ` (${d.nearestAllyM} m)` : ""}{d.cause === "crossfire" ? ` (${d.foes.length})` : ""}</td><td>{t(`dg.do.${d.cause}`)}</td></tr>); })}</tbody></table></div>)}
+        <SortTable sortKey="lost" cols={[{ key: "player", label: t("led.player") }, { key: "when", label: t("dg.when") }, { key: "lost", label: t("dg.lost") }, { key: "cause", label: t("dg.cause") }, { key: "advice", label: t("dg.advice") }]}
+          rows={rows.map((d) => { const v = info.get(d.vid)!; const cause = t(`dg.cause.${d.cause}`); return { id: `${d.vid}-${d.tStart}`, cls: v.isRecorder ? "me" : "", cells: { player: { v: v.name, node: <span title={vehicleLabel(v.vehicleType).label}>{v.name}</span> }, when: { v: d.tStart, node: mmss(d.tStart) }, lost: { v: d.got - d.dealt, node: `${d.got} / ${d.dealt}${d.died ? " ☠" : ""}` }, cause: { v: cause, node: `${cause}${d.cause === "alone" && d.nearestAllyM != null ? ` (${d.nearestAllyM} m)` : ""}${d.cause === "crossfire" ? ` (${d.foes.length})` : ""}` }, advice: { v: t(`dg.do.${d.cause}`), node: t(`dg.do.${d.cause}`) } } }; })} />)}
       <details className="how"><summary>{t("gl.how")} · {t("gl.mean")}</summary><p>{t("gl.danger.how")}</p><p>{t("gl.danger.mean")}</p></details>
     </div>
   );
