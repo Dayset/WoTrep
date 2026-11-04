@@ -185,10 +185,10 @@ type MetricKey = "bold" | "paid" | "costly" | "impact" | "threat" | "onthreats" 
 type Row = { h: ReturnType<typeof playerHeuristics>; s: ReturnType<typeof playerStats>[number]; b?: ReturnType<typeof boldnessAll> extends Map<number, infer B> ? B : never };
 const pct0 = (v: number) => `${v.toFixed(0)}%`;
 /** exact = from battle results (all players, no coverage caveat); otherwise from per-hit events (coverage applies). */
-const METRICS: { key: MetricKey; label: string; exact: boolean; get: (r: Row) => number | null; fmt: (v: number) => string }[] = [
+const METRICS: { key: MetricKey; label: string; exact: boolean; low?: boolean; get: (r: Row) => number | null; fmt: (v: number) => string }[] = [
   { key: "bold", label: "adv.bold", exact: true, get: (r) => (r.b?.rate == null ? null : r.b.rate * 100), fmt: pct0 },
   { key: "paid", label: "adv.paid", exact: true, get: (r) => (r.b?.rewardedShare == null ? null : r.b.rewardedShare * 100), fmt: pct0 },
-  { key: "costly", label: "adv.costly", exact: true, get: (r) => (r.b?.costlyShare == null ? null : r.b.costlyShare * 100), fmt: pct0 },
+  { key: "costly", label: "adv.costly", exact: true, low: true, get: (r) => (r.b?.costlyShare == null ? null : r.b.costlyShare * 100), fmt: pct0 },
   { key: "impact", label: "adv.impact", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.impactPts : null), fmt: (v) => `${sgn(v)} pts` },
   { key: "threat", label: "adv.threat", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.threatWeighted : null), fmt: (v) => String(Math.round(v)) },
   { key: "onthreats", label: "adv.onthreats", exact: false, get: (r) => (r.h && r.h.damage > 0 ? r.h.shareOnThreats * 100 : null), fmt: pct0 },
@@ -210,7 +210,7 @@ export function CompareChart({ tl }: { tl: BattleTimeline }) {
   const base = all.flatMap((r) => { const val = m.get(r); return val == null ? [] : [{ ...r, val, cov: m.exact ? 1 : r.h?.coverage ?? 0, mine: r.v.isRecorder, ally: r.v.team === tl.recorder.team }]; });
   if (base.length < 2) return null;
   const vals = base.map((r) => r.val);
-  const rows = base.map((r) => ({ ...r, pct: percentileRank(vals, r.val) ?? 0 })).sort((a, b) => b.val - a.val);
+  const rows = base.map((r) => ({ ...r, pct: percentileRank(vals, r.val) ?? 0 })).sort((a, b) => (m.low ? a.val - b.val : b.val - a.val)); // rank 1 = best for this metric
   const lo = Math.min(0, ...vals), hiV = Math.max(1, ...vals);
   const barW = (v: number) => `${Math.max(0, ((v - lo) / (hiV - lo)) * 100)}%`;
   const teamPos = new Map<number, string>();
