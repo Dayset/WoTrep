@@ -6,10 +6,10 @@ import type { MapBounds } from "../../lib/mapStore";
 
 /** Low-poly 3D view of the replay on flat ground (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
  *  Heights and cover are not known yet, so ground is flat and nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
-export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync }: {
-  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number;
+export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync, trails }: {
+  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number; trails: boolean;
 }) {
-  const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom, lock }); live.current = { vid, mode, zoom, lock };
+  const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom, lock, trails }); live.current = { vid, mode, zoom, lock, trails };
   useEffect(() => { look.current = { yaw: 0, pitch: 0.28, dist: look.current.dist }; }, [resync, lock]);
   useEffect(() => {
     const el = host.current; if (!el) return;
@@ -59,6 +59,12 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     place(cloud, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, fog: false }), 28, (o) => { o.position.set(bounds.x0 - 400 + rnd() * (W + 800), hMax + 160 + rnd() * 120, -(bounds.z0 - 400 + rnd() * (D + 800))); o.scale.set(40 + rnd() * 60, 10 + rnd() * 8, 25 + rnd() * 30); });
     const mount = new THREE.ConeGeometry(1, 1, 5);
     place(mount, new THREE.MeshLambertMaterial({ color: 0x6f7f95, flatShading: true, fog: false }), 26, (o) => { const a = rnd() * Math.PI * 2, R = Math.max(W, D) * (0.95 + rnd() * 0.5), h = 120 + rnd() * 220; o.position.set((bounds.x0 + bounds.x1) / 2 + Math.cos(a) * R, hMin + h / 2 - 5, -(bounds.z0 + bounds.z1) / 2 + Math.sin(a) * R); o.scale.set(h * 1.6, h, h * 1.6); });
+    // track marks: a flat ribbon behind every tank we have seen, only along stretches where it was visible
+    const TRAIL_S = 25, PTS = 60, QMAX = tl.vehicles.length * PTS, tpos2 = new Float32Array(QMAX * 4 * 3), tcol2 = new Float32Array(QMAX * 4 * 4), tidx = new Uint32Array(QMAX * 6);
+    for (let q = 0; q < QMAX; q++) tidx.set([q * 4, q * 4 + 1, q * 4 + 2, q * 4 + 1, q * 4 + 3, q * 4 + 2], q * 6);
+    const rgeo = new THREE.BufferGeometry(); rgeo.setAttribute("position", new THREE.BufferAttribute(tpos2, 3)); rgeo.setAttribute("color", new THREE.BufferAttribute(tcol2, 4)); rgeo.setIndex(new THREE.BufferAttribute(tidx, 1)); rgeo.setDrawRange(0, 0);
+    const ribbon = new THREE.Mesh(rgeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide })); ribbon.frustumCulled = false; ribbon.renderOrder = 2; scene.add(ribbon);
+    const visAt = (tr: { visible: [number, number][] }, tt: number) => tr.visible.some(([a, b]) => tt >= a && tt <= b);
     const cam = new THREE.PerspectiveCamera(65, 1, 0.5, 4000);
     const size = () => { const w = el.clientWidth || 640, h = el.clientHeight || 360; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); };
     const dom = renderer.domElement, ptr = new Map<number, { x: number; y: number }>(); let pinch = 0; dom.style.touchAction = "none"; dom.style.cursor = "grab";
@@ -90,9 +96,25 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
         if (L.mode === "fp") { cam.position.set(p.x, p.y + 2.9, p.z); cam.lookAt(p.x - Math.sin(ay) * 50, p.y + 2.9 + Math.tan(pitchNow) * 50 - (K.pitch - 0.28) * 50, p.z - Math.cos(ay) * 50); }
         else { const cx = p.x + Math.sin(ay) * cp * K.dist, cz = p.z + Math.cos(ay) * cp * K.dist; cam.position.set(cx, Math.max(gh(cx, -cz) + 1.2, p.y + 1.5 + Math.sin(K.pitch) * K.dist), cz); cam.lookAt(p.x, p.y + 2, p.z); }
       }
+      { let q = 0; const T = clock.current.t;
+        if (L.trails) for (const v of tl.vehicles) {
+          const tr = tl.tracks[v.vid]; if (!tr || !tr.t.length) continue; const mine = v.team === tl.recorder.team, rgb = mine ? ally : foe;
+          let hi = 0; { let lo = 0, up = tr.t.length - 1; while (lo < up) { const m = (lo + up + 1) >> 1; if (tr.t[m]! <= T) lo = m; else up = m - 1; } hi = lo; }
+          let prev: { x: number; z: number; t: number } | null = null, nx = 0, nz = 0;
+          for (let i = hi, got = 0; i >= 0 && got < PTS && tr.t[i]! >= T - TRAIL_S && q < QMAX; i -= 1) {
+            const tt = tr.t[i]!; if (prev && prev.t - tt < 0.3) continue; if (!visAt(tr, tt)) { prev = null; continue; }
+            const x = tr.x[i]!, z = tr.z[i]!;
+            if (prev) { const dx = x - prev.x, dz = z - prev.z, len = Math.hypot(dx, dz); if (prev.t - tt > 1.5 || len > 30 || len < 0.2) { prev = len > 30 || prev.t - tt > 1.5 ? null : prev; if (!prev) { prev = { x, z, t: tt }; } continue; }
+              nx = -dz / len * 0.4; nz = dx / len * 0.4; const a0 = Math.max(0, 1 - (T - prev.t) / TRAIL_S) * 0.7, a1 = Math.max(0, 1 - (T - tt) / TRAIL_S) * 0.7, y0 = gh(prev.x, prev.z) + 0.2, y1 = gh(x, z) + 0.2, o = q * 12, c = q * 16;
+              tpos2.set([prev.x - nx, y0, -(prev.z - nz), prev.x + nx, y0, -(prev.z + nz), x - nx, y1, -(z - nz), x + nx, y1, -(z + nz)], o);
+              tcol2.set([rgb.r, rgb.g, rgb.b, a0, rgb.r, rgb.g, rgb.b, a0, rgb.r, rgb.g, rgb.b, a1, rgb.r, rgb.g, rgb.b, a1], c); q++; got++; }
+            prev = { x, z, t: tt };
+          }
+        }
+        rgeo.setDrawRange(0, q * 6); (rgeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true; (rgeo.getAttribute("color") as THREE.BufferAttribute).needsUpdate = true; }
       renderer.render(scene, cam);
     }; loop();
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); dom.removeEventListener("pointerdown", down); dom.removeEventListener("pointermove", move); dom.removeEventListener("pointerup", up); dom.removeEventListener("pointercancel", up); dom.removeEventListener("wheel", wheel); dom.removeEventListener("dblclick", reset); for (const g of deco) g.dispose(); for (const m of decoMat) m.dispose(); renderer.dispose(); tgeo.dispose(); for (const l of labels) { (l.material as THREE.SpriteMaterial).map?.dispose(); l.material.dispose(); } geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); rgeo.dispose(); (ribbon.material as THREE.Material).dispose(); dom.removeEventListener("pointerdown", down); dom.removeEventListener("pointermove", move); dom.removeEventListener("pointerup", up); dom.removeEventListener("pointercancel", up); dom.removeEventListener("wheel", wheel); dom.removeEventListener("dblclick", reset); for (const g of deco) g.dispose(); for (const m of decoMat) m.dispose(); renderer.dispose(); tgeo.dispose(); for (const l of labels) { (l.material as THREE.SpriteMaterial).map?.dispose(); l.material.dispose(); } geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };
   }, [tl, img, bounds, clock]);
   return <div ref={host} className="povhost" data-testid="pov" data-mode={mode} />;
 }
