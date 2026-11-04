@@ -9,6 +9,9 @@ export async function loadMap(name: string): Promise<StoredMap | null> {
 export async function saveMap(m: StoredMap): Promise<boolean> {
   try { const db = await open(); return await new Promise((res) => { const q = db.transaction("maps", "readwrite").objectStore("maps").put(m); q.onsuccess = () => res(true); q.onerror = () => res(false); }); } catch { return false; }
 }
+export async function deleteMap(name: string): Promise<boolean> {
+  try { const db = await open(); return await new Promise((res) => { const q = db.transaction("maps", "readwrite").objectStore("maps").delete(name); q.onsuccess = () => res(true); q.onerror = () => res(false); }); } catch { return false; }
+}
 
 /** Reads the playable-area box from an arena definition XML: <boundingBox><bottomLeft>x z</bottomLeft><upperRight>x z</upperRight></boundingBox>. */
 export function parseBounds(xml: string): MapBounds | null {

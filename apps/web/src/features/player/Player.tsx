@@ -64,7 +64,7 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
   const flank = useMemo(() => flankModel(tl), [tl]), flankRef = useRef(flank); flankRef.current = flank;
   const [curve, setCurve] = useState<"wp" | "dmg" | "dpm" | "hit" | "flank">("wp"), curveCv = useRef<HTMLCanvasElement>(null), curveVidRef = useRef(tl.recorder.vid);
   const [mapInfo, setMapInfo] = useState<{ img: HTMLImageElement; b: MapBounds } | null>(null), [mapPanel, setMapPanel] = useState(false), [mapTick, setMapTick] = useState(0);
-  useEffect(() => { let url = "", on = true; void loadMap(tl.arena.map).then((m) => { if (!m || !on) return; url = URL.createObjectURL(m.image); const i = new Image(); i.onload = () => { if (on) { cam.current = null; setMapInfo({ img: i, b: m.bounds }); } }; i.src = url; }); return () => { on = false; if (url) URL.revokeObjectURL(url); }; }, [tl.arena.map, mapTick]);
+  useEffect(() => { let url = "", on = true; void loadMap(tl.arena.map).then((m) => { if (!on) return; if (!m) { cam.current = null; setMapInfo(null); return; } url = URL.createObjectURL(m.image); const i = new Image(); i.onload = () => { if (on) { cam.current = null; setMapInfo({ img: i, b: m.bounds }); } }; i.src = url; }); return () => { on = false; if (url) URL.revokeObjectURL(url); }; }, [tl.arena.map, mapTick]);
   const trackBounds = useMemo(() => {
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     for (const tr of Object.values(tl.tracks)) for (let i = 0; i < tr.x.length; i++) { x0 = Math.min(x0, tr.x[i]!); x1 = Math.max(x1, tr.x[i]!); z0 = Math.min(z0, tr.z[i]!); z1 = Math.max(z1, tr.z[i]!); }

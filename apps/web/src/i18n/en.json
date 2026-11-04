@@ -273,6 +273,8 @@
   "map.save": "Save map",
   "map.cancel": "Cancel",
   "map.savefail": "Could not save in this browser.",
+  "map.remove": "Remove uploaded map",
+  "map.removefail": "Could not remove in this browser.",
   "curve.wp": "Win chance",
   "curve.dmg": "Damage",
   "curve.dpm": "Damage/min",
