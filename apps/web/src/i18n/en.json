@@ -345,7 +345,7 @@
   "pov.off": "Top-down",
   "pov.fp": "First person",
   "pov.chase": "Behind the tank",
-  "pov.note": "Simple 3D: drag to look around, wheel or pinch to zoom, double-click to reset. Flat ground, boxes for tanks; trees, bushes, clouds and mountains are decoration only and do not show real cover. Yellow = enemy that hit the followed tank in the last 4 s. Turret direction and the aim counter are estimates: the turret points along each shell's path and turns at an assumed 30°/s; aim time is an assumed 2.3 s (typical medium gun). Real values need gun data.",
+  "pov.note": "Simple 3D: drag to look around, wheel or pinch to zoom, double-click to reset. Flat ground, boxes for tanks; trees, bushes, clouds and mountains are decoration only and do not show real cover. Yellow = enemy that hit the followed tank in the last 4 s. Turret direction and the aim counter are estimates: the turret points along each shell's path and turns at an assumed 30°/s; aim time is an assumed 2.3 s (typical medium gun). Real values need gun data. In first person the view zooms in automatically (scope) while the shooter is estimated to be aimed at a target.",
   "pov.show": "Show from their view",
   "mp.l.vanish": "Enemy vanishes",
   "mp.l.vanish.how": "Each time an enemy tank that is still alive leaves our team's vision, it is counted in the cell where it was last seen. Short flickers and deaths are left out.",
@@ -354,5 +354,7 @@
   "mp.all": "All players",
   "mp.you": "you",
   "pov.aim": "Aim",
-  "pov.turning": "turret turning"
+  "pov.turning": "turret turning",
+  "pov.scope": "Scope",
+  "pov.scope.off": "No scope"
 }

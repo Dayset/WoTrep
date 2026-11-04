@@ -6,10 +6,10 @@ import type { MapBounds } from "../../lib/mapStore";
 
 /** Low-poly 3D view of the replay on flat ground (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
  *  Heights and cover are not known yet, so ground is flat and nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
-export default function PovView({ tl, clock, vid, mode, img, bounds }: {
-  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds;
+export default function PovView({ tl, clock, vid, mode, img, bounds, zoom }: {
+  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number;
 }) {
-  const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode }); live.current = { vid, mode };
+  const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom }); live.current = { vid, mode, zoom };
   useEffect(() => {
     const el = host.current; if (!el) return;
     const css = (n: string, d: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || d;
@@ -63,13 +63,13 @@ export default function PovView({ tl, clock, vid, mode, img, bounds }: {
     dom.addEventListener("pointerdown", down); dom.addEventListener("pointermove", move); dom.addEventListener("pointerup", up); dom.addEventListener("pointercancel", up); dom.addEventListener("wheel", wheel, { passive: false }); dom.addEventListener("dblclick", reset);
     size(); const ro = new ResizeObserver(size); ro.observe(el);
     let raf = 0; const loop = () => {
-      raf = requestAnimationFrame(loop); let turretYaw = 0; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
+      raf = requestAnimationFrame(loop); let turretYaw = 0, onTarget = false; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
       const hit = new Set<number>(); for (const e of tl.events) if (e.k === "damage" && e.target === L.vid && e.t <= clock.current.t && e.t >= clock.current.t - 4) hit.add(e.attacker);
       for (const u of s.units) {
         const k = tanks.get(u.vid)!; k.g.visible = u.known !== "never" && !(L.mode === "fp" && u.vid === L.vid && u.alive);
         k.g.position.set(u.x, 0, -u.z); k.g.rotation.y = -u.yaw; k.mat.opacity = !u.alive ? 0.5 : u.known === "ghost" ? 0.3 : 1;
         k.mat.color.copy(!u.alive ? new THREE.Color(0x444444) : hit.has(u.vid) ? new THREE.Color(0xffd23f) : u.team === tl.recorder.team ? ally : foe);
-        k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = u.alive ? aimAt(tl, u.vid, clock.current.t) : null; (k.g.children[1] as THREE.Group).rotation.y = aim ? u.yaw - aim.yaw : 0; if (u.vid === L.vid) turretYaw = aim ? aim.yaw : u.yaw;
+        k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = u.alive ? aimAt(tl, u.vid, clock.current.t) : null; (k.g.children[1] as THREE.Group).rotation.y = aim ? u.yaw - aim.yaw : 0; if (u.vid === L.vid) { turretYaw = aim ? aim.yaw : u.yaw; onTarget = !!aim?.onTarget; }
       }
       let n = 0; for (const sh of shots) { if (sh.t > clock.current.t) break; if (sh.t < clock.current.t - 1.2 || n >= MAXS) continue; tpos.set([sh.x0, 2.6, -sh.z0, sh.x1, 2.6, -sh.z1], n * 6); n++; }
       tgeo.setDrawRange(0, n * 2); (tgeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
@@ -80,6 +80,9 @@ export default function PovView({ tl, clock, vid, mode, img, bounds }: {
         else { cam.position.set(p.x + Math.sin(ay) * cp * K.dist, Math.max(1, 1.5 + Math.sin(K.pitch) * K.dist), p.z + Math.cos(ay) * cp * K.dist); cam.lookAt(p.x, 2, p.z); }
         void f;
       }
+      { const k = cam.fov / 65; for (const l of labels) l.scale.set(16 * k, 4 * k, 1); }
+      const wantFov = L.mode === "fp" && L.zoom > 1 && onTarget ? (2 * Math.atan(Math.tan((65 * Math.PI) / 360) / L.zoom) * 180) / Math.PI : 65;
+      if (Math.abs(cam.fov - wantFov) > 0.05) { cam.fov += (wantFov - cam.fov) * 0.18; cam.updateProjectionMatrix(); }
       renderer.render(scene, cam);
     }; loop();
     return () => { cancelAnimationFrame(raf); ro.disconnect(); dom.removeEventListener("pointerdown", down); dom.removeEventListener("pointermove", move); dom.removeEventListener("pointerup", up); dom.removeEventListener("pointercancel", up); dom.removeEventListener("wheel", wheel); dom.removeEventListener("dblclick", reset); for (const g of deco) g.dispose(); for (const m of decoMat) m.dispose(); renderer.dispose(); tgeo.dispose(); for (const l of labels) { (l.material as THREE.SpriteMaterial).map?.dispose(); l.material.dispose(); } geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };
