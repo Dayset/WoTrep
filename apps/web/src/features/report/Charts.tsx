@@ -105,34 +105,56 @@ export function ImpactChart({ tl }: { tl: BattleTimeline }) {
 }
 
 /** Chart 3 — damage by target; bar length is raw damage, the notch is threat-weighted damage. */
+/** Damage dealt to enemies, weighted by how threatening each target was. "All" lists every player's totals; picking a
+ *  player breaks their damage down by target. */
 export function TargetChart({ tl }: { tl: BattleTimeline }) {
   const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null);
-  const h = recorderHeuristics(tl); if (!h || !h.hits.length) return null;
-  const by = new Map<number, { dmg: number; w: number }>();
-  for (const d of h.hits) { const c = by.get(d.target) ?? { dmg: 0, w: d.threat }; c.dmg += d.amount; by.set(d.target, c); }
-  const rows = [...by].map(([vid, c]) => ({ vid, ...c, tw: Math.round(c.dmg * c.w), name: tl.vehicles.find((v) => v.vid === vid)?.name ?? "?" })).sort((a, b) => b.tw - a.tw);
-  const mx = Math.max(...rows.map((r) => Math.max(r.dmg, r.tw))), lab = Math.min(120, Math.floor(W * 0.32)), bh = 14, gap = 12, H = rows.length * (bh + gap) + 6;
+  const [sel, setSel] = useState<number | "all">("all");
+  const all = useMemo(() => tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid) })).filter((r) => r.h && r.h.hits.length), [tl]);
+  if (!all.length) return null;
+  const nm = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
+  const short = (n: string) => (n.length > 14 ? n.slice(0, 13) + "…" : n);
+  const rows: { key: number; name: string; dmg: number; w: number; tw: number; mine: boolean; ally: boolean; cov: number }[] =
+    sel === "all"
+      ? all.map(({ v, h }) => ({ key: v.vid, name: v.name, dmg: h!.damage, w: Math.round(h!.threatWeightedPerDamage * 100) / 100, tw: h!.threatWeighted, mine: v.isRecorder, ally: v.team === tl.recorder.team, cov: h!.coverage }))
+      : (() => { const h = all.find((r) => r.v.vid === sel)?.h; if (!h) return []; const by = new Map<number, { dmg: number; w: number }>();
+          for (const d of h.hits) { const c = by.get(d.target) ?? { dmg: 0, w: d.threat }; c.dmg += d.amount; by.set(d.target, c); }
+          const me = tl.vehicles.find((v) => v.vid === sel)!;
+          return [...by].map(([vid, c]) => ({ key: vid, name: nm(vid), dmg: c.dmg, w: c.w, tw: Math.round(c.dmg * c.w), mine: false, ally: tl.vehicles.find((v) => v.vid === vid)?.team === me.team, cov: 1 })); })();
+  rows.sort((a, b) => b.tw - a.tw);
+  if (!rows.length) return null;
+  const mx = Math.max(1, ...rows.map((r) => Math.max(r.dmg, r.tw))), lab = Math.min(120, Math.floor(W * 0.32)), bh = 14, gap = 12, H = rows.length * (bh + gap) + 6;
   const bx = (v: number) => (v / mx) * (W - lab - 110);
+  const hiRow = hi == null ? null : rows[hi] ?? null;
+  const caption = sel === "all" ? t("viz.targets.sub") : `${nm(sel)} → ${t("viz.target")}`;
   return (
-    <Frame id="chart.targets" title={t("viz.targets")} sub={t("viz.targets.sub")} legend={[["--c-you", t("viz.targets.raw")], ["--c-ink", t("viz.targets.weighted")]]}
-      table={<table><thead><tr><th>{t("viz.target")}</th><th>dmg</th><th>×</th><th>{t("viz.targets.weighted")}</th></tr></thead><tbody>{rows.map((r) => <tr key={r.vid}><td className="nm">{r.name}</td><td>{r.dmg}</td><td>{r.w}</td><td>{r.tw}</td></tr>)}</tbody></table>}>
+    <figure className="chart">
+      <figcaption><b>{t("viz.targets")}</b><span className="muted"> · {caption}</span> <Vote id="chart.targets" /></figcaption>
+      <div className="legend"><span><i style={{ background: "var(--c-you)" }} />{t("viz.targets.raw")}</span><span><i style={{ background: "var(--c-ink)" }} />{t("viz.targets.weighted")}</span></div>
+      <label><select value={sel} onChange={(e) => { setSel(e.target.value === "all" ? "all" : Number(e.target.value)); setHi(null); }}>
+        <option value="all">{t("viz.cmp.allies")} + {t("viz.cmp.enemies")}</option>
+        {all.map(({ v }) => <option key={v.vid} value={v.vid}>{v.name}</option>)}
+      </select></label>
       <div ref={ref} className="plot" onPointerLeave={() => setHi(null)}>
         <svg width={W} height={H} role="img" aria-label={t("viz.targets.aria")}>
           {rows.map((r, i) => { const yy = 3 + i * (bh + gap);
-            return <g key={r.vid} opacity={hi == null || hi === i ? 1 : 0.4} onPointerEnter={() => setHi(i)} onPointerDown={() => setHi(i)}>
+            return <g key={r.key} opacity={hi == null || hi === i ? 1 : 0.4} onPointerEnter={() => setHi(i)} onPointerDown={() => setHi(i)}>
               <rect x={0} y={yy - gap / 2} width={W} height={bh + gap} fill="transparent" />
-              <text x={lab - 8} y={yy + bh - 3} className="ax lbl" textAnchor="end">{r.name.length > 14 ? r.name.slice(0, 13) + "…" : r.name}</text>
-              <rect x={lab} y={yy} width={Math.max(2, bx(r.dmg))} height={bh} rx={4} className="bup" />
+              <text x={lab - 8} y={yy + bh - 3} className={`ax lbl${r.mine ? " mine" : ""}`} textAnchor="end">{short(r.name)}</text>
+              <rect x={lab} y={yy} width={Math.max(2, bx(r.dmg))} height={bh} rx={4} className={r.ally ? "bup" : "bdn"} />
               <line x1={lab + bx(r.tw)} x2={lab + bx(r.tw)} y1={yy - 3} y2={yy + bh + 3} className="notch" />
               <text x={lab + Math.max(bx(r.dmg), bx(r.tw)) + 8} y={yy + bh - 3} className="ax lbl">{r.dmg} · ×{r.w}</text>
             </g>; })}
         </svg>
-        {hi != null && <div className="tip" style={{ right: 0, top: 0 }}><b>{rows[hi]!.name}</b><div>{rows[hi]!.dmg} dmg × {rows[hi]!.w} = {rows[hi]!.tw}</div></div>}
+        {hiRow && <div className="tip" style={{ right: 0, top: 0 }}><b>{hiRow.name}</b><div>{hiRow.dmg} dmg × {hiRow.w} = {hiRow.tw}</div>{hiRow.cov < 1 && <div className="muted">{t("viz.cmp.seen")}: {Math.round(hiRow.cov * 100)}%</div>}</div>}
       </div>
-    </Frame>
+      <div className="tablewrap"><table>
+        <thead><tr><th>{sel === "all" ? t("viz.player") : t("viz.target")}</th><th>dmg</th><th>×</th><th>{t("viz.targets.weighted")}</th>{sel === "all" && <th>{t("viz.cmp.seen")}</th>}</tr></thead>
+        <tbody>{rows.map((r) => <tr key={r.key} className={r.mine ? "me" : ""}><td className="nm">{r.name}</td><td>{r.dmg}</td><td>{r.w}</td><td>{r.tw}</td>{sel === "all" && <td>{Math.round(r.cov * 100)}%</td>}</tr>)}</tbody>
+      </table></div>
+    </figure>
   );
 }
-
 
 type MetricKey = "bold" | "paid" | "costly" | "impact" | "threat" | "onthreats" | "cleanup" | "acc" | "pen" | "life";
 type Row = { h: ReturnType<typeof playerHeuristics>; s: ReturnType<typeof playerStats>[number]; b?: ReturnType<typeof boldnessAll> extends Map<number, infer B> ? B : never };
@@ -152,8 +174,7 @@ const METRICS: { key: MetricKey; label: string; exact: boolean; get: (r: Row) =>
 ];
 const PARTIAL = 0.75;
 
-/** One stats table for all players: the metric value, a bar scaled to the battle, the percentile (share of players at or
- *  below) and how much of the battle the value covers. Percentiles are within this battle's players only. */
+
 export function CompareChart({ tl }: { tl: BattleTimeline }) {
   const [mk, setMk] = useState<MetricKey>("bold");
   const all = useMemo(() => { const st = new Map(playerStats(tl).map((x) => [x.vid, x])); const bd = boldnessAll(tl); return tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid), s: st.get(v.vid)!, b: bd.get(v.vid) })); }, [tl]);
