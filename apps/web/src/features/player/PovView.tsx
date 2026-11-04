@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
-import { tracerLines, aimAt, heightField, heightAt } from "@wotrep/analysis";
+import { tracerLines, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, type ReloadEstimate } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
 import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, trainerMatch, type TrainerSel } from "./viewConfig";
 
@@ -16,10 +16,10 @@ function noiseTexture(size: number, base: [number, number, number], spread: numb
 
 /** Low-poly 3D view of the replay on flat ground (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
  *  Heights and cover are not known yet, so ground is flat and nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
-export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync, trails, trainer }: {
-  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number; trails: boolean; trainer: { on: boolean; sel: TrainerSel };
+export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync, trails, trainer, reload }: {
+  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number; trails: boolean; trainer: { on: boolean; sel: TrainerSel }; reload: boolean;
 }) {
-  const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom, lock, trails, trainer }); live.current = { vid, mode, zoom, lock, trails, trainer };
+  const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom, lock, trails, trainer, reload }); live.current = { vid, mode, zoom, lock, trails, trainer, reload };
   useEffect(() => { look.current = { yaw: 0, pitch: 0.28, dist: look.current.dist }; }, [resync, lock]);
   useEffect(() => {
     const el = host.current; if (!el) return;
@@ -72,6 +72,15 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       const mat = new THREE.MeshLambertMaterial({ color: 0x8c8c8c, flatShading: true, transparent: true, opacity: 0, depthWrite: false });
       const puffs = Array.from({ length: 5 }, () => { const m = new THREE.Mesh(puffGeo, mat); m.visible = false; m.frustumCulled = false; scene.add(m); return m; });
       smoke.set(v.vid, { puffs, mat }); }
+    // reload spinners: a camera-facing arc above each reloading tank, sweeping as the averaged reload runs out
+    const spinTimes = new Map<number, number[]>(), spinEst = new Map<number, ReloadEstimate>(), SPIN_N = 24, SPIN_R = 2.2;
+    const spins = new Map<number, { line: THREE.Line; pos: Float32Array; geo: THREE.BufferGeometry }>();
+    for (const v of tl.vehicles) {
+      const ts = shotTimes(tl, v.vid); spinTimes.set(v.vid, ts); spinEst.set(v.vid, estimateReload(ts));
+      const pos = new Float32Array((SPIN_N + 1) * 3), geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setDrawRange(0, SPIN_N + 1);
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffffff, fog: false, depthTest: false, transparent: true, opacity: 0.9 })); line.visible = false; line.frustumCulled = false; line.renderOrder = 9; scene.add(line);
+      spins.set(v.vid, { line, pos, geo });
+    }
     const labels: THREE.Sprite[] = [], shots = tracerLines(tl, {}), MAXS = 80;
     for (const v of tl.vehicles) {
       const c = document.createElement("canvas"); c.width = 256; c.height = 64; const g2 = c.getContext("2d")!; g2.font = "bold 34px sans-serif"; g2.textAlign = "center"; g2.fillStyle = "rgba(0,0,0,0.55)"; g2.fillRect(0, 8, 256, 48); g2.fillStyle = v.team === tl.recorder.team ? "#9fd0ff" : "#ffb0b0"; g2.fillText(v.name.slice(0, 14), 128, 46);
@@ -166,6 +175,12 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
               sk.puffs.forEach((p, j) => { const a = age * 0.25 + j * 1.3, sway = 4 + age * 0.08;
                 p.position.set(u.x + Math.sin(a) * sway, base + rise - j * 5, -u.z + Math.cos(a) * sway);
                 p.scale.setScalar(Math.min(45, 7 + age * 0.35 + j * 2.5)); p.rotation.set(a, a * 0.7, 0); }); } } }
+        { const sp = spins.get(u.vid)!, rp = L.reload && u.alive && u.known === "live" ? reloadProgress(spinTimes.get(u.vid)!, spinEst.get(u.vid)!, clock.current.t) : null;
+          sp.line.visible = rp != null;
+          if (rp != null) { const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion), cx = u.x, cy = gh(u.x, u.z) + 7, cz = -u.z;
+            for (let i = 0; i <= SPIN_N; i++) { const a = -Math.PI / 2 + (2 * Math.PI * rp * i) / SPIN_N, ca = Math.cos(a) * SPIN_R, sa = Math.sin(a) * SPIN_R;
+              sp.pos[i * 3] = cx + ca * right.x + sa * up.x; sp.pos[i * 3 + 1] = cy + ca * right.y + sa * up.y; sp.pos[i * 3 + 2] = cz + ca * right.z + sa * up.z; }
+            (sp.geo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true; } }
         k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = aim0; (k.g.children[1] as THREE.Group).rotation.y = aim ? sm.h - sm.g : 0; if (u.vid === L.vid) { turretYaw = sm.g; hullYawS = sm.h; onTarget = !!aim?.onTarget; turretPitch = aim ? aim.pitch : 0; }
       }
       let n = 0; const T = clock.current.t; const fpO: [number, number, number] | null = L.mode === "fp" && me && me.known !== "never" ? [me.x, gh(me.x, me.z) + 2.9, -me.z] : null; // first person: tracers start at the camera

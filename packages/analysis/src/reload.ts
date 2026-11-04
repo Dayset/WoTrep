@@ -10,6 +10,8 @@ export interface ReloadEstimate {
   reloadS: number | null;  // shortest gap between bursts we saw. A player cannot fire before the gun is ready, so this is an UPPER bound on the true reload (skilled players fire the moment it is ready, so it is usually close). null if never seen
   confidence: number;      // 0..1
   shots: number;
+  /** mean gap between bursts over the whole battle: the averaged reload used for the spinner. Undefined when too few shots. */
+  avgReloadS?: number | null;
 }
 export interface ReloadState { state: "ready" | "bursting" | "reloading" | "unknown"; secondsLeft: number; shotsInClip: number | null; confidence: number }
 
@@ -32,7 +34,8 @@ export function estimateReload(times: number[]): ReloadEstimate {
   const reloadS = long.length ? Math.min(...long) : null;
   // A "reload" under 1 s means a gun firing continuously without a clear burst structure (rapid-fire / special weapons): the estimate is meaningless.
   const capped = reloadS != null && reloadS < 1 ? Math.min(conf, 0.2) : conf;
-  return { clipSize: clip, intraMaxS: intraMax, reloadS, confidence: Math.round(capped * 100) / 100, shots: t.length };
+  const avgReloadS = long.length ? long.reduce((a, b) => a + b, 0) / long.length : null;
+  return { clipSize: clip, intraMaxS: intraMax, reloadS, confidence: Math.round(capped * 100) / 100, shots: t.length, avgReloadS };
 }
 
 /** State of the gun at time `t` given the shots seen so far. */
@@ -49,4 +52,12 @@ export function reloadStateAt(times: number[], est: ReloadEstimate, t: number): 
 
 export function shotTimes(tl: BattleTimeline, vid: number): number[] {
   return tl.events.flatMap((e) => (e.k === "shot" && e.shooter === vid ? [e.t] : []));
+}
+
+/** Reload spinner value: 0..1 while the gun is reloading, measured against the averaged reload; null when ready, bursting or unknown. */
+export function reloadProgress(times: number[], est: ReloadEstimate, t: number): number | null {
+  if (est.confidence === 0 || est.avgReloadS == null) return null;
+  const st = reloadStateAt(times, { ...est, reloadS: est.avgReloadS }, t);
+  if (st.state !== "reloading") return null;
+  return Math.min(1, Math.max(0, 1 - st.secondsLeft / est.avgReloadS));
 }
