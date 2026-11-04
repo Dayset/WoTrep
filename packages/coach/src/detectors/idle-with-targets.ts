@@ -11,7 +11,9 @@ type Detection = ReturnType<Parameters<typeof defineDetector>[0]["detect"]>[numb
  *  so this is exactly equivalent to subtracting reload seconds from the stretch. The exclusion needs
  *  a trustworthy autoloader estimate, so it is skipped for single-shot guns and low-confidence
  *  estimates (those subjects keep the old behaviour). The scope's spotting exclusion is still
- *  vacuous: no spot events exist in v1 data. */
+ *  vacuous: no spot events exist in v1 data.
+ *  Only seconds with a live position count: for a teammate the recorder sees a ghost (last known spot) most of the time, and a ghost
+ *  cannot show movement, so ghost seconds must not extend an idle stretch. */
 export const idleWithTargets = defineDetector({
   id: "idle-with-targets", version: 1, needs: ["P", "T", "R"], config,
   detect({ tl, cfg, subject: subjectVid }) {
@@ -32,6 +34,8 @@ export const idleWithTargets = defineDetector({
     };
     for (let t = 0; t <= end; t++) {
       const a = around(tl, t, cfg.viewM as number, me.vid); if (!a || !a.me.alive) { flush(t); continue; }
+      // A ghost position is the last spotted one, not where the tank is: a stretch cannot be judged idle from it (no movement can be seen).
+      if (a.me.known !== "live") { flush(t); continue; }
       const shot = shots.some((s) => s > t - 1 && s <= t), moved = anchor ? Math.hypot(a.me.x - anchor.x, a.me.z - anchor.z) > (cfg.moveM as number) : false;
       const reloading = reloadKnown && reloadStateAt(shots, est, t).state === "reloading";
       if (shot || moved || reloading) { flush(t); }
