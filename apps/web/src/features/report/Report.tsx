@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { BattleTimeline, VehicleInfo } from "@wotrep/model";
-import { boldnessAll, flankModel, playerHeuristics, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
+import { boldnessAll, flankModel, playerCoverage, playerHeuristics, recorderHeuristics, reinforce, teamShape, teamplayAll } from "@wotrep/analysis";
 import { vehicleLabel } from "@wotrep/gamedata";
 import { t } from "../../i18n";
 import { AimChart, CompareChart, ImpactChart, TargetChart, WpChart } from "./Charts";
@@ -98,6 +98,9 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
   /** The player the Stats and Coach tabs are about. Falls back to the recorder when the stored vid is not in this battle. */
   const subjectVid = tl.vehicles.some((v) => v.vid === subject) ? subject : tl.recorder.vid;
   const findings = useMemo(() => rank(runDetectors(tl, detectors, subjectVid)), [tl, subjectVid]);
+  /** Share of each player's alive time the replay has position data for, shown next to the name. */
+  const cov = useMemo(() => new Map(tl.vehicles.map((v) => [v.vid, playerCoverage(tl, v.vid)])), [tl]);
+  const pc = (vid: number) => { const x = cov.get(vid); return x == null ? "—" : `${Math.round(x * 100)}%`; };
   const h = useMemo(() => recorderHeuristics(tl), [tl]);
   const me = tl.vehicles.find((v) => v.isRecorder)!, w = tl.arena.winnerTeam, mr = tl.results?.players[tl.recorder.vid];
   const res = w == null ? t("report.unfinished") : w === 0 ? t("report.draw") : w === tl.recorder.team ? t("report.win") : t("report.loss");
@@ -131,10 +134,11 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
       {(tab === "stats" || tab === "coach") && (
         <div className="pane">
           <label>{t("report.subject")} <select value={subjectVid} onChange={(e) => setSubject(Number(e.target.value))} aria-label={t("report.subject")}>
-            <option value={tl.recorder.vid}>👁 {me.name} ({t("pov.me")})</option>
-            <optgroup label={t("pov.team")}>{tl.vehicles.filter((v) => v.team === tl.recorder.team && !v.isRecorder).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
-            <optgroup label={t("pov.foes")}>{tl.vehicles.filter((v) => v.team !== tl.recorder.team).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
+            <option value={tl.recorder.vid}>👁 {me.name} ({t("pov.me")}) · {pc(tl.recorder.vid)}</option>
+            <optgroup label={t("pov.team")}>{tl.vehicles.filter((v) => v.team === tl.recorder.team && !v.isRecorder).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name} · {pc(v.vid)}</option>)}</optgroup>
+            <optgroup label={t("pov.foes")}>{tl.vehicles.filter((v) => v.team !== tl.recorder.team).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name} · {pc(v.vid)}</option>)}</optgroup>
           </select></label>
+          <p className="muted">{t("report.subjectCoverage")}</p>
           {subjectVid !== tl.recorder.vid && <p className="muted">{t("report.subjectPartial")}</p>}
         </div>
       )}

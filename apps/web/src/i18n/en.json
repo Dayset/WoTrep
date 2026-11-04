@@ -14,6 +14,7 @@
   "report.you": "You",
   "report.subject": "Player",
   "report.subjectPartial": "Numbers for other players are partial: the replay only saw what the recorder's side could see, so damage taken and unspotted positions are incomplete.",
+  "report.subjectCoverage": "% next to a name is the share of that player's alive time the replay has position data for.",
   "report.allies": "Your team",
   "report.enemies": "Enemy team",
   "report.duration": "Duration",
