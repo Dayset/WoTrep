@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
+import { sfxStart, sfxShot, type ShotKind } from "./sfx";
 import { stateAt, type BattleTimeline, type Unit } from "@wotrep/model";
 import { vehicleLabel } from "@wotrep/gamedata";
 import { wpSeries } from "@wotrep/analysis";
@@ -24,12 +25,29 @@ interface Cam { cx: number; cz: number; s: number }
 
 /** 2D tactical player (docs/UX.md §3), first cut: grid map (no minimap image until game data lands), units with fog-of-war ghosts,
  *  trails, shots/hits/kills, team bars with win probability, timeline with kill ticks, keyboard controls. Canvas 2D, no map assets. */
+
+/** Smoke over a destroyed tank: puffs drift up for ~45 s, then fade out by 60 s. Deterministic per frame. */
+const SMOKE_S = 60;
+function smoke(g: CanvasRenderingContext2D, X: number, Y: number, age: number) {
+  const life = Math.max(0, 1 - age / SMOKE_S), rise = Math.min(age, 45) * 3;
+  for (let k = 0; k < 6; k++) {
+    const sway = Math.sin(k * 1.3 + age * 0.4) * (3 + age * 0.12);
+    g.globalAlpha = 0.5 * life * (1 - k * 0.1); g.fillStyle = "rgb(120,120,120)";
+    g.beginPath(); g.arc(X + sway, Y - 10 - rise - k * 6, 4 + age * 0.1 + k * 0.8, 0, 7); g.fill();
+  }
+  g.globalAlpha = 1;
+}
+
 export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; findings: Finding[]; startAt?: number; seekTo?: { t: number; n: number } }) {
   const end = Math.floor(tl.arena.durationS ?? tl.events.at(-1)?.t ?? 0);
   const [playing, setPlaying] = useState(false), [speed, setSpeed] = useState(1), [uiT, setUiT] = useState(Math.max(0, startAt ?? 0));
   const [coach, setCoach] = useState(false), [seenIds, setSeenIds] = useState<string[]>([]);
   const [pauseOn, setPauseOn] = useState<string[]>(["mistake", "good", "info"]), [resumeS, setResumeS] = useState(0), [resumeGoodS, setResumeGoodS] = useState(8), [slowS, setSlowS] = useState(6), coachPaused = useRef<string | false>(false);
   const [view3d, setView3d] = useState<"off" | "fp" | "chase">("off"), [scope, setScope] = useState(6), [lockView, setLockView] = useState(false), [resync, setResync] = useState(0), [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [logOn, setLogOn] = useState(() => window.matchMedia?.("(min-width: 1100px)").matches === true), [setOpen, setSetOpen] = useState(false), [sel, setSel] = useState<number | null>(null);
+  const [sfxOn, setSfxOn] = useState(false), sfxRef = useRef(false), sfxLast = useRef(0);
+  const shotList = useMemo(() => { const tm = new Map(tl.vehicles.map((v) => [v.vid, v.team])); return tl.events.flatMap((e) => e.k === "shot" ? [{ t: e.t, kind: (e.shooter === tl.recorder.vid ? "own" : tm.get(e.shooter) === tl.recorder.team ? "ally" : "enemy") as ShotKind }] : []).sort((a, b) => a.t - b.t); }, [tl]);
+  const shotsRef = useRef(shotList); shotsRef.current = shotList;
+  const deathT = useMemo(() => { const d = new Map<number, number>(); for (const e of tl.events) if (e.k === "kill" && e.t >= 0 && !d.has(e.victim)) d.set(e.victim, e.t); return d; }, [tl]);
   const clock = useRef({ t: Math.max(0, startAt ?? 0), playing: false, speed: 1 }), cam = useRef<Cam | null>(null), opts = useRef({ follow: false, names: true, trails: true, sel: null as number | null });
   const canvas = useRef<HTMLCanvasElement>(null), tline = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
   const maxHp = useMemo(() => { const m = { 1: 0, 2: 0 }; for (const v of tl.vehicles) m[v.team] += v.maxHealth; return m; }, [tl]);
@@ -108,6 +126,7 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
     for (const u of snap.units) {
       if (u.known === "never") continue;
       const X = sx(u.x), Y = sy(u.z), isMe = u.vid === tl.recorder.vid;
+      if (!u.alive) { const dth = deathT.get(u.vid); if (dth != null && T >= dth && T - dth < SMOKE_S) smoke(g, X, Y, T - dth); }
       if (!u.alive) { g.strokeStyle = muted; g.globalAlpha = 0.6; g.lineWidth = 2; g.beginPath(); g.moveTo(X - 4, Y - 4); g.lineTo(X + 4, Y + 4); g.moveTo(X + 4, Y - 4); g.lineTo(X - 4, Y + 4); g.stroke(); g.globalAlpha = 1; continue; }
       if (u.known === "ghost") { const a = Math.max(0, 1 - (u.ageS ?? 0) / GHOST_FADE_S); if (a <= 0.03) continue; arrow(u, 7, false, 0.15 + 0.6 * a); if (o.names) { g.fillStyle = muted; g.globalAlpha = 0.3 + 0.5 * a; g.textBaseline = "top"; g.fillText(`${Math.round(u.ageS ?? 0)}s`, X + 9, Y - 5); g.globalAlpha = 1; } continue; }
       arrow(u, 8, true, 1);
@@ -189,6 +208,11 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
         if (c.playing) c.t = nt;
         if (c.t >= end) { c.playing = false; setPlaying(false); }
       }
+      if (sfxRef.current && c.playing && c.t > sfxLast.current && c.t - sfxLast.current < 1.5) {
+        const sh = shotsRef.current; let lo = 0, hi = sh.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (sh[mid]!.t <= sfxLast.current) lo = mid + 1; else hi = mid; }
+        for (let i = lo; i < sh.length && sh[i]!.t <= c.t; i++) sfxShot(sh[i]!.kind);
+      }
+      sfxLast.current = c.t;
       const q = Math.floor(c.t * 10); if (q !== lastUi) { lastUi = q; setUiT(c.t); }
       draw(); raf = requestAnimationFrame(frame);
     };
@@ -313,6 +337,7 @@ export function Player({ tl, findings, startAt, seekTo }: { tl: BattleTimeline; 
             <optgroup label={t("pov.foes")}>{tl.vehicles.filter((v) => v.team !== tl.recorder.team).sort((a, b) => a.name.localeCompare(b.name)).map((v) => <option key={v.vid} value={v.vid}>{v.name}</option>)}</optgroup>
           </select>
           {sel != null && <button type="button" onClick={() => setSel(null)} data-testid="backme" title={t("pov.me")} aria-label={t("pov.me")}>↩</button>}
+          <button type="button" aria-pressed={sfxOn} onClick={() => { const on = !sfxOn; if (on) sfxStart(); sfxRef.current = on; setSfxOn(on); }} data-testid="sfxbtn">🔊 {t("player.sound")}</button>
           <button type="button" aria-pressed={coach} onClick={() => setCoach(!coach)} data-testid="coachbtn">🎓 {t("ui.coach")}</button>
           <button type="button" aria-pressed={setOpen} onClick={() => setSetOpen(!setOpen)} aria-label={t("ui.settings")} title={t("ui.settings")} data-testid="settings">⚙</button>
         </div>
