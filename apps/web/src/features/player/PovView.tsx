@@ -34,12 +34,12 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     const geo = new THREE.BufferGeometry(), nv = field.cols * field.rows, pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), col = new Float32Array(nv * 3), idx: number[] = [];
     for (let r = 0; r < field.rows; r++) for (let c = 0; c < field.cols; c++) {
       const i = r * field.cols + c, x = field.x0 + c * field.cell, z = field.z0 + r * field.cell, y = field.h[i]!, k = (y - hMin) / Math.max(1, hMax - hMin);
-      pos.set([x, y, -z], i * 3); uv.set([(x - bounds.x0) / W, (z - bounds.z0) / D], i * 2); col.set([0.27 + 0.10 * k, 0.27 + 0.10 * k, 0.28 + 0.10 * k], i * 3);
+      pos.set([x, y, -z], i * 3); uv.set([(x - bounds.x0) / W, (z - bounds.z0) / D], i * 2); col.set([0.29 + 0.02 * k, 0.29 + 0.02 * k, 0.30 + 0.02 * k], i * 3);
       if (r < field.rows - 1 && c < field.cols - 1) idx.push(i, i + 1, i + field.cols, i + 1, i + field.cols + 1, i + field.cols);
     }
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
     let tex: THREE.Texture | null = null; if (img) { tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true; }
-    const grain = noiseTexture(128, [72, 72, 74], 46); grain.repeat.set(W / 12, D / 12);
+    const grain = noiseTexture(128, [74, 74, 76], 16); grain.repeat.set(W / 6, D / 6);
     const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff, map: tex ?? grain, vertexColors: !tex, flatShading: true })); scene.add(ground);
     // sky dome: blue dithering that stays with the camera
     const skyTex = noiseTexture(64, [186, 210, 232], 34); skyTex.repeat.set(28, 14);
@@ -88,7 +88,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     // trees and bushes: a solid copy and a 70% transparent copy of every instance; the ones close in front of the camera use the transparent copy (they are not real cover)
     type Item = { x: number; y: number; z: number; sx: number; sy: number; sz: number };
     const trees: Item[] = Array.from({ length: 220 }, () => { const x = rx(), z = rz(), k = 0.8 + rnd() * 0.7; return { x, y: gh(x, -z), z, sx: k, sy: k, sz: k }; });
-    const bushes: Item[] = Array.from({ length: 260 }, () => { const x = rx(), z = rz(); return { x, y: gh(x, -z), z, sx: 0.8 + rnd(), sy: 0.6 + rnd() * 0.6, sz: 0.8 + rnd() }; });
+    const BUSHES_N = 900, bushes: Item[] = Array.from({ length: BUSHES_N }, () => { const x = rx(), z = rz(); return { x, y: gh(x, -z), z, sx: 0.8 + rnd(), sy: 0.6 + rnd() * 0.6, sz: 0.8 + rnd() }; });
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
     const dual: { items: Item[]; solid: THREE.InstancedMesh; ghost: THREE.InstancedMesh; faded: Map<Item, boolean> }[] = [];
     const addDual = (g: THREE.BufferGeometry, color: number, items: Item[]) => {
@@ -97,7 +97,14 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       items.forEach((it, i) => { M.compose(P.set(it.x, it.y, it.z), Q, S.set(it.sx, it.sy, it.sz)); solid.setMatrixAt(i, M); ghost.setMatrixAt(i, ZERO); }); dual.push({ items, solid, ghost, faded: new Map() });
     };
     addDual(trunk, 0x6b4a2b, trees); addDual(crown, 0x2f6b34, trees);
-    const bush = new THREE.IcosahedronGeometry(1.4, 0); bush.translate(0, 0.9, 0); addDual(bush, 0x3f7a3c, bushes);
+    // bushes: two crossed low vertical quads, light green at 5% opacity, scattered across the map
+    const cross = (() => { const a = new THREE.PlaneGeometry(2.4, 1.2); a.translate(0, 0.6, 0); const b = a.clone(); b.rotateY(Math.PI / 2);
+      const g = new THREE.BufferGeometry(), pa = a.attributes.position!.array as Float32Array, pb = b.attributes.position!.array as Float32Array, ia = a.index!.array, ib = b.index!.array, n = pa.length / 3;
+      g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([...pa, ...pb]), 3)); g.setIndex([...Array.from(ia), ...Array.from(ib, (i) => i + n)]); return g; })();
+    const bushMat = new THREE.MeshBasicMaterial({ color: 0x9ccc6e, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false });
+    const bushIm = new THREE.InstancedMesh(cross, bushMat, BUSHES_N), bo = new THREE.Object3D();
+    bushes.forEach((b, i) => { bo.position.set(b.x, b.y, -b.z); bo.rotation.set(0, rnd() * Math.PI, 0); bo.scale.set(b.sx * 1.4, b.sy * 0.7, b.sz * 1.4); bo.updateMatrix(); bushIm.setMatrixAt(i, bo.matrix); });
+    bushIm.frustumCulled = false; scene.add(bushIm); deco.push(cross); decoMat.push(bushMat);
     const updateFade = (camPos: THREE.Vector3, fwd: THREE.Vector3, halfFovH: number) => {
       const fl = Math.hypot(fwd.x, fwd.z) || 1, fx = fwd.x / fl, fz = fwd.z / fl, cosMax = Math.cos(halfFovH + 0.17);
       for (const d of dual) { let changed = false;
