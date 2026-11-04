@@ -12,8 +12,8 @@ export function Ledger({ tl }: { tl: BattleTimeline }) {
   return (
     <div className="ledger" data-testid="ledger">
       <h3>{t("led.title")}</h3>
-      <SortTable sortKey="made" cols={[{ key: "name", label: t("led.player") }, { key: "made", label: t("led.made"), title: t("led.made.tip") }, { key: "hp", label: t("led.hp") }, { key: "died", label: t("led.died") }, { key: "cashed", label: t("led.cashed"), title: t("led.cashed.tip") }]}
-          rows={rows.map((r) => { const v = info.get(r.vid)!; return { id: r.vid, cls: v.isRecorder ? "me" : "", cells: { name: { v: v.name, node: <span title={vehicleLabel(v.vehicleType).label}>{v.name}</span> }, made: { v: r.madeFor, node: r.madeFor }, hp: { v: r.absorbedHp, node: r.absorbedHp || "—" }, died: { v: r.diedFor, node: r.diedFor || "—" }, cashed: { v: r.plays ? r.carried / r.plays : null, node: r.plays ? `${r.carried}/${r.plays}` : "—" } } }; })} />
+      <SortTable sortKey="made" cols={[{ key: "name", label: t("led.player"), name: true }, { key: "made", label: t("led.made"), title: t("led.made.tip") }, { key: "hp", label: t("led.hp") }, { key: "died", label: t("led.died") }, { key: "cashed", label: t("led.cashed"), title: t("led.cashed.tip") }]}
+          rows={rows.map((r) => { const v = info.get(r.vid)!; return { id: r.vid, cls: v.isRecorder ? "me" : "", side: v.team === tl.recorder.team ? "ally" : "foe", cells: { name: { v: v.name, node: <span title={vehicleLabel(v.vehicleType).label}>{v.name}</span> }, made: { v: r.madeFor, node: r.madeFor }, hp: { v: r.absorbedHp, node: r.absorbedHp || "—" }, died: { v: r.diedFor, node: r.diedFor || "—" }, cashed: { v: r.plays ? r.carried / r.plays : null, node: r.plays ? `${r.carried}/${r.plays}` : "—" } } }; })} />
       <details className="how"><summary>{t("gl.how")} · {t("gl.mean")}</summary><p>{t("gl.ledger.how")}</p><p>{t("gl.ledger.mean")}</p></details>
     </div>
   );

@@ -1,9 +1,9 @@
 import { useMemo, useState, type ReactNode } from "react";
 
 /** Sortable data table: click a header to sort, click again to flip. Missing values (null) always sort last. */
-export interface SortCol { key: string; label: ReactNode; title?: string }
+export interface SortCol { key: string; label: ReactNode; title?: string; name?: boolean }
 export interface SortCell { v: number | string | null; node: ReactNode }
-export interface SortRow { id: string | number; cls?: string; cells: Record<string, SortCell> }
+export interface SortRow { id: string | number; cls?: string; side?: "ally" | "foe"; cells: Record<string, SortCell> }
 
 export function SortTable({ cols, rows, sortKey, dir = -1, wrapClass, testId }: { cols: SortCol[]; rows: SortRow[]; sortKey: string; dir?: 1 | -1; wrapClass?: string; testId?: string }) {
   const [sort, setSort] = useState<{ k: string; dir: 1 | -1 }>({ k: sortKey, dir });
@@ -20,18 +20,18 @@ export function SortTable({ cols, rows, sortKey, dir = -1, wrapClass, testId }: 
     return out;
   }, [rows, sort]);
   return (
-    <div className={`tablewrap ${wrapClass ?? ""}`.trim()} data-testid={testId}>
+    <div className={`tablewrap sortwrap ${wrapClass ?? ""}`.trim()} data-testid={testId}>
       <table>
         <thead>
-          <tr>{cols.map((c) => (
-            <th key={c.key} title={c.title} aria-sort={sort.k === c.key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+          <tr><th className="rkc" title="#">#</th>{cols.map((c) => (
+            <th key={c.key} className={c.name ? "nmc" : undefined} title={c.title} aria-sort={sort.k === c.key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
               <button type="button" className="sortbtn" onClick={() => setSort((s) => (s.k === c.key ? { k: c.key, dir: (-s.dir) as 1 | -1 } : { k: c.key, dir: -1 }))}>
                 {c.label}{sort.k === c.key ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
               </button>
             </th>))}</tr>
         </thead>
-        <tbody>{sorted.map((r) => (
-          <tr key={r.id} className={r.cls}>{cols.map((c) => <td key={c.key}>{r.cells[c.key]?.node ?? "—"}</td>)}</tr>))}</tbody>
+        <tbody>{sorted.map((r, i) => (
+          <tr key={r.id} className={r.cls}><td className="rkc">{i + 1}</td>{cols.map((c) => <td key={c.key} className={c.name ? `nmc${r.side ? ` nm-${r.side}` : ""}` : undefined}>{r.cells[c.key]?.node ?? "—"}</td>)}</tr>))}</tbody>
       </table>
     </div>
   );

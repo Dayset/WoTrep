@@ -252,3 +252,15 @@ select.pick { width: auto; max-width: min(100%, 220px); font-size: 13px; padding
 .outro.lose b { color: #8d96a0; font-weight: 300; text-shadow: 0 0 18px rgba(0, 0, 0, .8); }
 .outro.draw b { color: #b8b8b8; font-weight: 300; }
 @keyframes outro-shine { from { background-position: 150% 0; } to { background-position: -150% 0; } }
+
+/* Report tables (SortTable): names coloured by side with the Ps2 Elite KD palette (blue = allies, red = enemies),
+   a pinned # column, the name pinned next to it, sticky header, and a scrollable body on both axes. */
+.nm-ally { color: #3e8ef7; } .nm-foe { color: #e0453a; }
+.sortwrap { max-height: 70vh; overflow: auto; -webkit-overflow-scrolling: touch; }
+.sortwrap th, .sortwrap td { white-space: nowrap; }
+.sortwrap .rkc { position: sticky; left: 0; z-index: 2; background: var(--panel); text-align: right; color: var(--muted); width: 2.4rem; min-width: 2.4rem; }
+.sortwrap thead th.rkc { z-index: 4; }
+.sortwrap .nmc { position: sticky; left: 2.4rem; z-index: 1; background: var(--panel); text-align: left; box-shadow: 4px 0 8px -4px var(--shadow, #0008); }
+.sortwrap thead th.nmc { z-index: 3; }
+.sortwrap tbody tr:nth-child(even) > td { background: color-mix(in srgb, var(--panel) 92%, var(--text)); }
+.sortwrap tbody tr:hover > td { background: color-mix(in srgb, var(--panel) 80%, var(--text)); }
