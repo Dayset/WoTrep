@@ -26,7 +26,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
   const end = Math.floor(tl.arena.durationS ?? tl.events.at(-1)?.t ?? 0);
   const [playing, setPlaying] = useState(false), [speed, setSpeed] = useState(1), [uiT, setUiT] = useState(Math.max(0, startAt ?? 0));
   const [coach, setCoach] = useState(false), [seenIds, setSeenIds] = useState<string[]>([]);
-  const [view3d, setView3d] = useState<"off" | "fp" | "chase">("off"), [scope, setScope] = useState(4), [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [logOn, setLogOn] = useState(false), [sel, setSel] = useState<number | null>(null);
+  const [view3d, setView3d] = useState<"off" | "fp" | "chase">("off"), [scope, setScope] = useState(6), [follow, setFollow] = useState(false), [names, setNames] = useState(true), [trails, setTrails] = useState(true), [logOn, setLogOn] = useState(false), [sel, setSel] = useState<number | null>(null);
   const clock = useRef({ t: Math.max(0, startAt ?? 0), playing: false, speed: 1 }), cam = useRef<Cam | null>(null), opts = useRef({ follow: false, names: true, trails: true, sel: null as number | null });
   const canvas = useRef<HTMLCanvasElement>(null), tline = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
   const maxHp = useMemo(() => { const m = { 1: 0, 2: 0 }; for (const v of tl.vehicles) m[v.team] += v.maxHealth; return m; }, [tl]);
@@ -281,7 +281,7 @@ export function Player({ tl, findings, startAt, onClose }: { tl: BattleTimeline;
         <span className="ptime">{mmss(uiT)} / {mmss(end)}</span>
         <span className="pspeed">{SPEEDS.map((s) => <button type="button" key={s} aria-pressed={speed === s} onClick={() => setSpeed(s)}>{s}×</button>)}</span>
         <button type="button" onClick={() => jump(-1)} aria-label={t("coach.prev")} title={t("coach.prev")}>⏮</button><button type="button" onClick={() => jump(1)} aria-label={t("coach.next")} title={t("coach.next")}>⏭</button>
-        <span className="pview" role="group" aria-label={t("pov.view")}>{view3d === "fp" && <select value={scope} onChange={(e) => setScope(Number(e.target.value))} aria-label={t("pov.scope")} data-testid="scope">{[1, 2, 4, 8].map((z) => <option key={z} value={z}>{z === 1 ? t("pov.scope.off") : `${t("pov.scope")} ${z}×`}</option>)}</select>}{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)}>{t(`pov.${m}`)}</button>)}</span>
+        <span className="pview" role="group" aria-label={t("pov.view")}>{view3d === "fp" && <select value={scope} onChange={(e) => setScope(Number(e.target.value))} aria-label={t("pov.scope")} data-testid="scope">{[1, 3, 6, 12].map((z) => <option key={z} value={z}>{z === 1 ? t("pov.scope.off") : `${t("pov.scope")} ${z}×`}</option>)}</select>}{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)}>{t(`pov.${m}`)}</button>)}</span>
         <label><input type="checkbox" checked={coach} onChange={(e) => setCoach(e.target.checked)} /> {t("coach.mode")}</label>
         <label><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> {t("player.follow")}</label>
         <label><input type="checkbox" checked={logOn} onChange={(e) => setLogOn(e.target.checked)} /> {t("log.toggle")}</label>
