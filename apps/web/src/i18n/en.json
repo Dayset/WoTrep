@@ -78,6 +78,7 @@
   "viz.cmp.note": "Dashed bars with ~ are partial: the replay only records hits that happened where the recorder could see, so we saw under 75% of that player's damage. Win-probability swing for others is measured from their own team's side.",
   "viz.place": "Place in team (1 = highest)",
   "viz.side.all": "All",
+  "viz.side.both": "Both teams",
   "viz.zoom": "Zoom",
   "player.sound": "Sound",
   "player.trainer": "Trainer",

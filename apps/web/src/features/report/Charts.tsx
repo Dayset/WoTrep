@@ -79,37 +79,41 @@ function SideSeg({ value, set }: { value: Side; set: (s: Side) => void }) {
 }
 
 /** Who the impact view follows: the recorder, a whole side, or one named player. */
-type ImpactMode = "you" | "ally" | "enemy" | number;
-type ImpactHit = { t: number; who: string; target: number; amount: number; threat: number; dWpPts: number; cumPts: number };
+type ImpactMode = "you" | "ally" | "enemy" | "both" | number;
+type ImpactHit = { t: number; who: string; side: "you" | "ally" | "enemy"; target: number; amount: number; threat: number; dWpPts: number; cumPts: number };
 /** Hits for the chosen mode, time-ordered. For a group the running total is the sum of each member's win-probability change. */
 function impactHits(tl: BattleTimeline, mode: ImpactMode): ImpactHit[] {
   const nameOf = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
   if (mode === "you") {
-    return (recorderHeuristics(tl)?.hits ?? []).map((d) => ({ ...d, who: nameOf(tl.recorder.vid) }));
+    return (recorderHeuristics(tl)?.hits ?? []).map((d) => ({ ...d, who: nameOf(tl.recorder.vid), side: "you" as const }));
   }
-  const members = tl.vehicles.filter((v) => typeof mode === "number" ? v.vid === mode : mode === "ally" ? v.team === tl.recorder.team : v.team !== tl.recorder.team);
-  const evs = members.flatMap((v) => (playerHeuristics(tl, v.vid)?.hits ?? []).map((d) => ({ ...d, who: v.name }))).sort((a, b) => a.t - b.t);
+  // "both": allies count as they are; an enemy hit that helped their team hurt ours, so its change is negated.
+  const members = tl.vehicles.filter((v) => typeof mode === "number" ? v.vid === mode : mode === "both" || (mode === "ally" ? v.team === tl.recorder.team : v.team !== tl.recorder.team));
+  const evs = members.flatMap((v) => { const ally = v.team === tl.recorder.team, sg = mode === "both" && !ally ? -1 : 1;
+    return (playerHeuristics(tl, v.vid)?.hits ?? []).map((d) => ({ ...d, who: v.name, side: (ally ? "ally" : "enemy") as "ally" | "enemy", dWpPts: Math.round(sg * d.dWpPts * 100) / 100 })); }).sort((a, b) => a.t - b.t);
   let cum = 0;
   return evs.map((d) => { cum += d.dWpPts; return { ...d, cumPts: Math.round(cum * 100) / 100 }; });
 }
 
 export function ImpactChart({ tl }: { tl: BattleTimeline }) {
-  const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null); const [mode, setMode] = useState<ImpactMode>("you");
+  const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null); const [mode, setMode] = useState<ImpactMode>("both");
   const hits = useMemo(() => impactHits(tl, mode), [tl, mode]);
   if (!hits.length) return null;
-  const H = 210, end = tl.arena.durationS ?? hits.at(-1)!.t;
-  const vals = [0, ...hits.flatMap((d) => [d.dWpPts, d.cumPts])];
+  const both = mode === "both", H = 210, end = tl.arena.durationS ?? hits.at(-1)!.t;
+  // per-side running totals for the both view (allies and enemies, in our win-chance terms)
+  let sa = 0, se = 0; const allyRun = hits.map((d) => (d.side === "ally" ? (sa += d.dWpPts) : sa)), enemyRun = hits.map((d) => (d.side === "enemy" ? (se += d.dWpPts) : se));
+  const vals = [0, ...hits.flatMap((d) => [d.dWpPts, d.cumPts]), ...(both ? [...allyRun, ...enemyRun] : [])];
   const lo = Math.min(...vals), hiV = Math.max(1, ...vals);
   const x = (v: number) => M.l + (v / end) * (W - M.l - M.r), y = (v: number) => M.t + (1 - (v - lo) / (hiV - lo)) * (H - M.t - M.b);
-  let path = `M${x(0)},${y(0)}`, last = 0;
-  for (const d of hits) { path += `L${x(d.t).toFixed(1)},${y(last).toFixed(1)}L${x(d.t).toFixed(1)},${y(d.cumPts).toFixed(1)}`; last = d.cumPts; }
-  path += `L${x(end)},${y(last)}`;
+  const stepPath = (run: number[]) => { let p = `M${x(0)},${y(0)}`, last = 0; hits.forEach((d, i) => { p += `L${x(d.t).toFixed(1)},${y(last).toFixed(1)}L${x(d.t).toFixed(1)},${y(run[i]!).toFixed(1)}`; last = run[i]!; }); return p + `L${x(end)},${y(last)}`; };
+  const path = stepPath(hits.map((d) => d.cumPts));
   const nm = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
   const hh = hi == null ? null : hits[hi]!;
   return (
-    <Frame id="chart.impact" title={t("viz.impact")} sub={t("viz.impact.sub")} legend={[["--c-you", t("viz.impact.up")], ["--c-foe", t("viz.impact.down")], ["--c-ink", t("viz.impact.total")]]}
+    <Frame id="chart.impact" title={t("viz.impact")} sub={t("viz.impact.sub")} legend={both ? [["--c-you", t("viz.cmp.allies")], ["--c-foe", t("viz.cmp.enemies")], ["--c-ink", t("viz.impact.total")]] : [["--c-you", t("viz.impact.up")], ["--c-foe", t("viz.impact.down")], ["--c-ink", t("viz.impact.total")]]}
       table={<table><thead><tr><th>{t("viz.time")}</th><th>{t("viz.player")}</th><th>{t("viz.target")}</th><th>dmg</th><th>×</th><th>Δ WP</th><th>Σ</th></tr></thead><tbody>{hits.map((d, i) => <tr key={i}><td>{mmss(d.t)}</td><td>{d.who}</td><td>{nm(d.target)}</td><td>{d.amount}</td><td>{d.threat}</td><td>{sgn(d.dWpPts)}</td><td>{sgn(d.cumPts)}</td></tr>)}</tbody></table>}>
-      <label><select value={String(mode)} onChange={(e) => { const v = e.target.value; setMode(v === "you" || v === "ally" || v === "enemy" ? v : Number(v)); setHi(null); }}>
+      <label><select value={String(mode)} onChange={(e) => { const v = e.target.value; setMode(v === "you" || v === "ally" || v === "enemy" || v === "both" ? v : Number(v)); setHi(null); }}>
+        <option value="both">{t("viz.side.both")}</option>
         <option value="you">{t("report.you")}</option>
         <option value="ally">{t("viz.cmp.allies")}</option>
         <option value="enemy">{t("viz.cmp.enemies")}</option>
@@ -120,7 +124,9 @@ export function ImpactChart({ tl }: { tl: BattleTimeline }) {
           {[...new Set([lo, 0, hiV])].map((v) => <g key={v}><line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} className={v === 0 ? "ref" : "grid"} /><text x={M.l - 6} y={y(v) + 4} className="ax" textAnchor="end">{v === 0 ? "0" : sgn(v)}</text></g>)}
           {Array.from({ length: Math.floor(end / 120) + 1 }, (_, i) => i * 120).map((v) => <text key={v} x={x(v)} y={H - 6} className="ax" textAnchor="middle">{mmss(v)}</text>)}
           {hits.map((d, i) => { const top = Math.min(y(0), y(d.dWpPts)), hgt = Math.max(2, Math.abs(y(d.dWpPts) - y(0)));
-            return <rect key={i} x={x(d.t) - 2.5} width={5} y={top} height={hgt} rx={2} className={d.dWpPts >= 0 ? "bup" : "bdn"} opacity={hi == null || hi === i ? 1 : 0.35} />; })}
+            const cls = both ? undefined : d.dWpPts >= 0 ? "bup" : "bdn", fill = both ? (d.side === "ally" ? "var(--c-you)" : "var(--c-foe)") : undefined;
+            return <rect key={i} x={x(d.t) - 2.5} width={5} y={top} height={hgt} rx={2} className={cls} fill={fill} opacity={hi == null || hi === i ? 1 : 0.35} />; })}
+          {both && <><path d={stepPath(allyRun)} fill="none" stroke="var(--c-you)" strokeWidth={2} /><path d={stepPath(enemyRun)} fill="none" stroke="var(--c-foe)" strokeWidth={2} /></>}
           <path d={path} className="cumline" />
           {hits.map((d, i) => <rect key={i} x={x(d.t) - 9} width={18} y={M.t} height={H - M.t - M.b} fill="transparent" onPointerEnter={() => setHi(i)} onPointerDown={() => setHi(i)} />)}
         </svg>
