@@ -213,3 +213,6 @@ Limits: **enemies count only while seen** (live, or ghost under 20 s), so the ra
 
 ### 3.14 Data coverage badge
 `coverage()` in `packages/analysis/src/coverage.ts`, shown at the top of the report (`CoverageBadge`). Values: damage the replay reports / official damage of all players; shot events / official shots; share of alive time with a known position for own and enemy team (enemy only while visible); whether kills were rebuilt from results. Level: **good** = damage >= 85% and enemy seen >= 40%; **low** = damage < 50%; otherwise **partial**. It is context for trusting every other number, not a score of the player.
+
+### 3.15 Danger spots (per player)
+Mirror of good plays (§3.11). Rule = the `bad-trade` rule applied to every player: an engagement (hits within `gapS` 8 s) with received >= 25% max HP and dealt/received < 0.5. Cause, first match: `alone` (nearest living ally > 120 m at the start), `crossfire` (>= 2 different enemies), `early` (before 60 s battle time), else `outtraded`. Each cause maps to a "what not to do + why" line. Config `packages/coach/config/danger.json` (all initial guesses, recalibrate in E13). Limits: hits on players the recorder never saw are missing (see coverage), cause is a likely reason not a verdict, no class/gun data (#42). UI: report panel `Danger.tsx`, own/enemy toggle, worst spot per player.

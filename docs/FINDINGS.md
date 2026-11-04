@@ -124,3 +124,7 @@ Rule kept from `REPLAY_FORMAT.md` §8: we do not build cross-battle profiles of 
 - Reinforce (episodes answered/total): Lesta fixture 4/4 (reaction 15-30 s), WG Overlord 2/2, Prohorovka 1/4, Lakeville 2/3. Epic battle (60 players): 2/3 but not meaningful, the flank model assumes 15v15.
 - Coverage: Lesta fixture damage 89%, own positions 90%, enemy 39% -> "partial"; WG Overlord 67% / 65% / 19%; Lakeville 70% / 77% / 19%; Epic Battle 84% / 31% / 4%. Nothing reached "good" yet because the enemy is rarely visible for 40% of its time; the 40% threshold is a guess, recalibrate when more replays exist (E13).
 - Epic Battle (60 players, battleType 27) and Tundra (14) are not supported by the coach or flank model: the badge is the only honest signal for now. Candidate: a "mode not supported" banner from `battleType`.
+
+## Danger spots (2026-11-03)
+- Lesta fixture: 32 danger spots over all players (alone 12, crossfire 10, outtraded 9, early 1). Recorder: one, at 4:13, 421 lost / 51 dealt, nearest ally 49 m, so "outtraded".
+- Ideas not done: danger heat layer on the map page (deaths + danger spots by cell), line-of-sight/cover reasoning (needs map geometry), "should have retreated" check using the retreat path, danger markers on the player timeline, per-class thresholds.
