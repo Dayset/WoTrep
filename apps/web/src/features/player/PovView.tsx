@@ -78,7 +78,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true })); sp.scale.set(16, 4, 1); sp.position.y = 6; sp.renderOrder = 5; tanks.get(v.vid)!.g.add(sp); labels.push(sp);
     }
     const tgeo = new THREE.BufferGeometry(), tpos = new Float32Array(MAXS * 6); tgeo.setAttribute("position", new THREE.BufferAttribute(tpos, 3)); tgeo.setDrawRange(0, 0);
-    const tlines = new THREE.LineSegments(tgeo, new THREE.LineBasicMaterial({ color: 0xffe066 })); tlines.frustumCulled = false; scene.add(tlines);
+    const tlines = new THREE.LineSegments(tgeo, new THREE.LineBasicMaterial({ color: 0xffe066, depthTest: false, fog: false })); tlines.frustumCulled = false; tlines.renderOrder = 10; scene.add(tlines);
     // decoration only (no map data yet): seeded trees, bushes, clouds and far mountains
     let seed = 12345; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     const deco: THREE.BufferGeometry[] = [], decoMat: THREE.Material[] = [];
