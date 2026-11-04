@@ -135,13 +135,14 @@ export function ImpactChart({ tl }: { tl: BattleTimeline }) {
 export function TargetChart({ tl }: { tl: BattleTimeline }) {
   const [ref, W] = useWidth(); const [hi, setHi] = useState<number | null>(null);
   const [sel, setSel] = useState<number | "all">("all");
+  const [side, setSide] = useState<Side>("all");
   const all = useMemo(() => tl.vehicles.map((v) => ({ v, h: playerHeuristics(tl, v.vid) })).filter((r) => r.h && r.h.hits.length), [tl]);
   if (!all.length) return null;
   const nm = (vid: number) => tl.vehicles.find((v) => v.vid === vid)?.name ?? "?";
   const short = (n: string) => (n.length > 14 ? n.slice(0, 13) + "…" : n);
   const rows: { key: number; name: string; dmg: number; w: number; tw: number; mine: boolean; ally: boolean; cov: number }[] =
     sel === "all"
-      ? all.map(({ v, h }) => ({ key: v.vid, name: v.name, dmg: h!.damage, w: Math.round(h!.threatWeightedPerDamage * 100) / 100, tw: h!.threatWeighted, mine: v.isRecorder, ally: v.team === tl.recorder.team, cov: h!.coverage }))
+      ? all.filter(({ v }) => side === "all" || (side === "ally") === (v.team === tl.recorder.team)).map(({ v, h }) => ({ key: v.vid, name: v.name, dmg: h!.damage, w: Math.round(h!.threatWeightedPerDamage * 100) / 100, tw: h!.threatWeighted, mine: v.isRecorder, ally: v.team === tl.recorder.team, cov: h!.coverage }))
       : (() => { const h = all.find((r) => r.v.vid === sel)?.h; if (!h) return []; const by = new Map<number, { dmg: number; w: number }>();
           for (const d of h.hits) { const c = by.get(d.target) ?? { dmg: 0, w: d.threat }; c.dmg += d.amount; by.set(d.target, c); }
           const me = tl.vehicles.find((v) => v.vid === sel)!;
@@ -156,6 +157,7 @@ export function TargetChart({ tl }: { tl: BattleTimeline }) {
     <figure className="chart">
       <figcaption><b>{t("viz.targets")}</b><span className="muted"> · {caption}</span> <Vote id="chart.targets" /></figcaption>
       <div className="legend"><span><i style={{ background: "var(--c-you)" }} />{t("viz.targets.raw")}</span><span><i style={{ background: "var(--c-ink)" }} />{t("viz.targets.weighted")}</span></div>
+      {sel === "all" && <SideSeg value={side} set={setSide} />}
       <label><select value={sel} onChange={(e) => { setSel(e.target.value === "all" ? "all" : Number(e.target.value)); setHi(null); }}>
         <option value="all">{t("viz.cmp.allies")} + {t("viz.cmp.enemies")}</option>
         {all.map(({ v }) => <option key={v.vid} value={v.vid}>{v.name}</option>)}
