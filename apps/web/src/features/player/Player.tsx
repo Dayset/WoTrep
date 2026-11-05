@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
-import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, reachBlockers, shadowPolygon, trainerMatch, type TrainerSel } from "./viewConfig";
+import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, ghostThreats, reachBlockers, shadowPolygon, trainerMatch, type TrainerSel } from "./viewConfig";
 import { drawReachDisc } from "./reachDraw";
 import { sfxStart, sfxShot, type ShotKind } from "./sfx";
 import { stateAt, type BattleTimeline, type Unit } from "@wotrep/model";
@@ -124,6 +124,8 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
     for (let x = gx0; x <= bounds.x1; x += GRID_M) { g.beginPath(); g.moveTo(sx(x), sy(bounds.z0)); g.lineTo(sx(x), sy(bounds.z1)); g.stroke(); g.fillText(String.fromCharCode(65 + Math.round((x - gx0) / GRID_M) % 26), sx(x) + 3, sy(bounds.z1) + 2); }
     for (let z = gz0; z <= bounds.z1; z += GRID_M) { g.beginPath(); g.moveTo(sx(bounds.x0), sy(z)); g.lineTo(sx(bounds.x1), sy(z)); g.stroke(); g.fillText(String(Math.round((z - gz0) / GRID_M) + 1), sx(bounds.x0) + 3, sy(z) + 2); }
     const col = (team: number) => (team === tl.recorder.team ? you : foe);
+    // threat markers: living friendlies an enemy ghost could shoot, now or within its 30 s window.
+    const threats = ghostThreats(snap.units.filter((u) => u.known === "ghost"), snap.units, tl.recorder.team);
     // trails: only through real samples, broken at gaps (never interpolated across fog)
     if (o.trails) for (const u of snap.units) {
       const tr = tl.tracks[u.vid]; if (!tr || !u.alive) continue;
@@ -177,6 +179,15 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
       g.fillStyle = grid; g.fillRect(X - 10, Y + 11, 20, 3); g.fillStyle = frac > 0.3 ? col(u.team) : ink; g.fillRect(X - 10, Y + 11, 20 * frac, 3);
       if (o.names) { g.fillStyle = ink; g.textBaseline = "bottom"; g.fillText(vehicle.get(u.vid)?.name.slice(0, 12) ?? "", X - 10, Y - 11); }
     }
+    // threat markers: a ring around every living friendly an enemy ghost could shoot, with the seconds
+    // until the ghost could first be in firing range (0s = it may already be there) and a faint line
+    // to the nearest point of the ghost's reach disc. The line is dropped when the direct approach is
+    // shadowed or the friendly is already inside the disc. No words — the number is language-neutral,
+    // the ring is the warning.
+    for (const [vid, th] of threats) { const f = by.get(vid); if (!f || f.known !== "live") continue; const X = sx(f.x), Y = sy(f.z);
+      if (th.edge) { g.strokeStyle = foe; g.globalAlpha = 0.35 * th.alpha; g.lineWidth = 1; g.setLineDash([2, 4]); g.beginPath(); g.moveTo(X, Y); g.lineTo(sx(th.edge.x), sy(th.edge.z)); g.stroke(); g.setLineDash([]); }
+      g.strokeStyle = foe; g.globalAlpha = 0.8 * th.alpha; g.lineWidth = 2; g.beginPath(); g.arc(X, Y, 24, 0, 7); g.stroke();
+      g.fillStyle = foe; g.globalAlpha = 0.9 * th.alpha; g.font = "bold 11px system-ui"; g.textBaseline = "top"; g.fillText(`${Math.max(0, Math.round(th.secs))}s`, X + 10, Y + 14); g.font = "10px system-ui"; g.globalAlpha = 1; }
     // combat: fire lines (0.4 s), shot flashes (0.35 s), damage floaters (1.5 s), kill crosses (4 s)
     for (const e of tl.events) {
       if (e.t > T) break; const age = T - e.t;

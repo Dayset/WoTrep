@@ -36,6 +36,8 @@ describe("stateAt", () => {
     expect(b.reachM!).toBeGreaterThan(a.reachM!);
     // the same fastest speed behind both: reach / age is constant as the circle grows
     expect(a.reachM! / a.ageS!).toBeCloseTo(b.reachM! / b.ageS!, 1);
+    // the speed behind the radius is carried too, so callers can turn distance into time
+    expect(a.reachSpeedMps).toBeCloseTo(5.57, 1); expect(a.reachSpeedMps).toBeCloseTo(b.reachSpeedMps!, 1);
   });
   it("reach is absent for live, never-seen and dead ghosts", () => {
     expect(u(100, ME).reachM).toBeUndefined();

@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
 import { tracerLines, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, type ReloadEstimate } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
-import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, trainerMatch, type TrainerSel } from "./viewConfig";
+import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, ghostThreats, trainerMatch, type TrainerSel } from "./viewConfig";
 
 /** Seeded per-pixel noise (dithering) as a canvas texture: a base colour with a small random spread per pixel. */
 function noiseTexture(size: number, base: [number, number, number], spread: number): THREE.CanvasTexture {
@@ -97,6 +97,16 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       const mesh = new THREE.Mesh(sphereGeo, mat); mesh.visible = false; mesh.frustumCulled = false; mesh.renderOrder = 2; scene.add(mesh);
       spheres.set(v.vid, { mesh, mat });
     }
+    // threat rings: a flat red ring on the ground under every living friendly an enemy ghost could
+    // shoot, now or within its 30 s window. One shared geometry, one material per tank (opacity
+    // varies per frame with the ghost's fade). No seconds label in 3D — the 2D player carries it.
+    const ringGeo = new THREE.RingGeometry(6, 8, 32);
+    const rings = new Map<number, { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial }>();
+    for (const v of tl.vehicles) {
+      const mat = new THREE.MeshBasicMaterial({ color: foe, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(ringGeo, mat); mesh.rotation.x = -Math.PI / 2; mesh.visible = false; mesh.frustumCulled = false; mesh.renderOrder = 2; scene.add(mesh);
+      rings.set(v.vid, { mesh, mat });
+    }
     // smoke over destroyed tanks: a few low-poly puffs per tank, rising high and staying visible from far away
     const puffGeo = new THREE.IcosahedronGeometry(1, 0), SMOKE_END_S = 120;
     const deathAt = new Map<number, number>(); for (const e of tl.events) if (e.k === "kill" && e.t >= 0 && !deathAt.has(e.victim)) deathAt.set(e.victim, e.t);
@@ -185,12 +195,16 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       let turretYaw = 0, turretPitch = 0, onTarget = false, hullYawS = 0; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
       const hit = new Set<number>(); for (const e of tl.events) if (e.k === "damage" && e.target === L.vid && e.t <= clock.current.t && e.t >= clock.current.t - 4) hit.add(e.attacker);
       let nFriends = 0; for (const o of s.units) if (o.team === tl.recorder.team && o.alive && o.known === "live" && nFriends < 15) { friendPos[nFriends * 2] = o.x; friendPos[nFriends * 2 + 1] = -o.z; nFriends++; }
+      const threats = ghostThreats(s.units.filter((u) => u.known === "ghost"), s.units, tl.recorder.team);
       for (const u of s.units) {
         const k = tanks.get(u.vid)!; k.g.visible = u.known !== "never" && !(L.mode === "fp" && u.vid === L.vid && u.alive);
         k.g.position.set(u.x, gh(u.x, u.z), -u.z); const aim0 = u.alive ? aimAt(tl, u.vid, clock.current.t) : null, sm = smY.get(u.vid) ?? { h: u.yaw, g: aim0 ? aim0.yaw : u.yaw }; if (jump || !smY.has(u.vid)) { sm.h = u.yaw; sm.g = aim0 ? aim0.yaw : u.yaw; } else { sm.h += wrap(u.yaw - sm.h) * kS; sm.g += wrap((aim0 ? aim0.yaw : u.yaw) - sm.g) * kS; } smY.set(u.vid, sm); k.g.rotation.y = -sm.h; k.mat.opacity = !u.alive ? 0.5 : u.known === "ghost" ? 0.3 : 1;
         { const sp = spheres.get(u.vid)!, show = u.alive && u.known === "ghost" && !!u.reachM && (u.ageS ?? 0) < SPHERE_FADE_S;
           sp.mesh.visible = show;
           if (show) { sp.mesh.position.set(u.x, gh(u.x, u.z) + 1.5, -u.z); sp.mesh.scale.setScalar(u.reachM!); sp.mat.uniforms.uCount!.value = u.team === tl.recorder.team ? 0 : nFriends; sp.mat.uniforms.uCenter!.value.set(u.x, -u.z); sp.mat.uniforms.uOpacity!.value = 0.3 * (1 - (u.ageS ?? 0) / SPHERE_FADE_S); } }
+        { const rg = rings.get(u.vid)!, th = threats.get(u.vid);
+          rg.mesh.visible = !!th && u.alive && u.known === "live";
+          if (th) { rg.mesh.position.set(u.x, gh(u.x, u.z) + 0.3, -u.z); rg.mat.opacity = 0.6 * th.alpha; } }
         k.mat.color.copy(!u.alive ? new THREE.Color(0x444444) : hit.has(u.vid) ? new THREE.Color(0xffd23f) : u.team === tl.recorder.team ? ally : foe);
         { const cn = vcones.get(u.vid)!, show = L.trainer.on && u.known === "live" && u.alive && trainerMatch(L.trainer.sel, u.vid, u.team, tl.recorder.team);
           cn.fan.visible = cn.ring.visible = show;
@@ -286,7 +300,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       if (Math.abs(cam.fov - wantFov) > 0.05) { cam.fov += (wantFov - cam.fov) * 0.18; cam.updateProjectionMatrix(); }
       renderer.render(scene, cam);
     }; loop();
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); rgeo.dispose(); (ribbon.material as THREE.Material).dispose(); dom.removeEventListener("pointerdown", down); dom.removeEventListener("pointermove", move); dom.removeEventListener("pointerup", up); dom.removeEventListener("pointercancel", up); dom.removeEventListener("wheel", wheel); dom.removeEventListener("dblclick", reset); for (const g of deco) g.dispose(); for (const m of decoMat) m.dispose(); renderer.dispose(); tgeo.dispose(); for (const l of labels) { (l.material as THREE.SpriteMaterial).map?.dispose(); l.material.dispose(); } geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); sphereGeo.dispose(); for (const s of spheres.values()) s.mat.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); rgeo.dispose(); (ribbon.material as THREE.Material).dispose(); dom.removeEventListener("pointerdown", down); dom.removeEventListener("pointermove", move); dom.removeEventListener("pointerup", up); dom.removeEventListener("pointercancel", up); dom.removeEventListener("wheel", wheel); dom.removeEventListener("dblclick", reset); for (const g of deco) g.dispose(); for (const m of decoMat) m.dispose(); renderer.dispose(); tgeo.dispose(); for (const l of labels) { (l.material as THREE.SpriteMaterial).map?.dispose(); l.material.dispose(); } geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); sphereGeo.dispose(); for (const s of spheres.values()) s.mat.dispose(); ringGeo.dispose(); for (const r of rings.values()) r.mat.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };
   }, [tl, img, bounds, clock]);
   return <div ref={host} className="povhost" data-testid="pov" data-mode={mode} />;
 }

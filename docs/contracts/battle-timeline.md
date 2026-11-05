@@ -108,14 +108,15 @@ interface Snapshot {
   t: number;
   units: Array<{ vid: number; alive: boolean; hp: number; x: number; z: number; yaw: number;
                  known: "live" | "ghost" | "never";  // ghost = last known position, with ageS
-                 ageS?: number; reachM?: number; lastShotT?: number; reloadEstimate?: ReloadState }>;
+                 ageS?: number; reachM?: number; reachSpeedMps?: number; lastShotT?: number; reloadEstimate?: ReloadState }>;
   teamHp: { 1: number; 2: number }; alive: { 1: number; 2: number };
 }
 ```
 `reachM` (ghost, alive only) is the radius of where the tank could have got to by `t`: its fastest 2 s-window
 speed observed up to the last-seen sample, times `ageS`. It is a worst-case bound, not a predicted position —
 it assumes the tank kept going flat-out in any direction — and it is gone the moment the tank is live again.
-Dead ghosts carry no `reachM`.
+Dead ghosts carry no `reachM`. `reachSpeedMps` carries that fastest speed itself (m/s), so callers can turn a
+distance into a time without dividing by a possibly-zero `ageS`.
 `ReloadState` comes from game data (reload time, autoloader clip/intra-clip) plus observed shots: it is an
 *estimate* with `confidence`. Detectors must treat it as such (see COACHING.md).
 

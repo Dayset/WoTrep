@@ -62,3 +62,44 @@ export function shadowPolygon(vx: number, vz: number, R: number, fx: number, fz:
   pts.push({ x: vx + t * Math.cos(a2), z: vz + t * Math.sin(a2) });
   return pts;
 }
+
+/** Threat markers: for each living friendly, the soonest an enemy ghost could be in firing range.
+ *  Firing range is the game max view range (445 m) — the actual tank's view range may be shorter,
+ *  so this is an upper bound, and it ignores line of sight (bushes, terrain) entirely. `secs` is the
+ *  earliest the ghost could shoot the friendly, driving straight at it at its fastest seen speed:
+ *  positive counts down, zero or less means it may already be in range. The marker shows only while
+ *  the ghost is still tracked (the caller's ghost list) and the arrival falls inside that 30 s window.
+ *  `edge` is the nearest point of the ghost's reach disc toward the friendly — the line to draw —
+ *  null when the friendly is already inside the disc, or the direct approach is shadowed. */
+export interface GhostThreat { ghostVid: number; secs: number; alpha: number; edge: { x: number; z: number } | null }
+const THREAT_WINDOW_S = 30; // the ghost's tracked life: the reach disc stops being drawn after this
+
+export function ghostThreats(ghosts: Unit[], units: Unit[], recorderTeam: number): Map<number, GhostThreat> {
+  const out = new Map<number, GhostThreat>();
+  const friends = units.filter((f) => f.team === recorderTeam && f.alive && f.known === "live");
+  for (const g of ghosts) {
+    if (!g.alive || g.known !== "ghost" || g.team === recorderTeam || g.reachSpeedMps == null) continue;
+    const age = g.ageS ?? 0, alpha = Math.max(0, 1 - age / THREAT_WINDOW_S);
+    if (alpha <= 0.03) continue;
+    const R = g.reachM ?? 0, blockers = reachBlockers(units, g, recorderTeam);
+    for (const f of friends) {
+      const d = Math.hypot(f.x - g.x, f.z - g.z);
+      // A stationary ghost threatens only what is already in firing range; a moving one counts down.
+      let arrival: number;
+      if (g.reachSpeedMps > 0) arrival = (d - VIEW_RANGE_M.value) / g.reachSpeedMps;
+      else if (d <= VIEW_RANGE_M.value) arrival = 0;
+      else continue;
+      if (arrival > THREAT_WINDOW_S) continue;
+      const secs = arrival - age;
+      const prev = out.get(f.vid);
+      if (prev && prev.secs <= secs) continue;
+      let edge: { x: number; z: number } | null = null;
+      if (d > R) {
+        const ex = g.x + (R / d) * (f.x - g.x), ez = g.z + (R / d) * (f.z - g.z);
+        if (!blockers.some((b) => isShadowed(g.x, g.z, ex, ez, b.x, b.z))) edge = { x: ex, z: ez };
+      }
+      out.set(f.vid, { ghostVid: g.vid, secs, alpha, edge });
+    }
+  }
+  return out;
+}

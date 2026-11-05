@@ -9,6 +9,10 @@ export interface Unit {
    *  prediction: it assumes the tank kept going flat-out, in any direction, from the last known spot.
    *  Dead tanks never move again, so they carry no reach. */
   reachM?: number;
+  /** Ghost, alive only: the fastest 2 s-window speed (m/s) behind `reachM` — the speed the reach
+   *  radius grows at. Carried separately so callers can turn a distance into a time ("in how many
+   *  seconds could it be there") without dividing by a possibly-zero `ageS`. */
+  reachSpeedMps?: number;
 }
 export interface Snapshot { t: number; units: Unit[]; teamHp: Record<Team, number>; alive: Record<Team, number> }
 
@@ -81,7 +85,8 @@ export function stateAt(tl: BattleTimeline, t: number): Snapshot {
           const ageS = Math.round((t - tr.t[i]!) * 100) / 100;
           u = { ...u, known: "ghost", x: tr.x[i]!, z: tr.z[i]!, yaw: tr.yaw[i]!, ageS };
           if (!dead) {
-            const r = (ix.reach.get(v.vid)?.[i] ?? 0) * ageS;
+            const vMax = ix.reach.get(v.vid)?.[i] ?? 0, r = vMax * ageS;
+            u.reachSpeedMps = Math.round(vMax * 10) / 10;
             if (r > 0) u.reachM = Math.round(r * 10) / 10;
           }
         }

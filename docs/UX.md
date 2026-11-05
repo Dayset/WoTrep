@@ -101,6 +101,13 @@ Map layer
   current position and ignores the short way around the bubble's edge, so it is an approximation — the
   50 m hole is the hard fact. Toggle "merged view" when several replays of the same battle
   (same `arenaUniqueId`) are loaded — then more is visible (badge shows "3 POVs merged").
+- **Threat markers**: a living friendly an enemy ghost could shoot gets a red ring, with the seconds until
+  the ghost could first be in firing range — `0s` means it may already be there — and a faint line to the
+  nearest point of the ghost's reach disc. Firing range is the game's 445 m max view range, so this is an
+  upper bound: the real tank may see less far, and the estimate ignores line of sight (bushes, terrain).
+  The seconds count down from the vanish moment at the ghost's fastest seen speed, driving straight at the
+  friendly; a bubble in the way makes the real arrival later. The MiniMap shows the ring only; the 3D view
+  shows a flat red ring on the ground under the threatened tank.
 - Tracers (short-lived lines), hit markers (pen / bounce / no-damage when decodable), floating damage numbers,
   kill crosses with time, spot lines, base circles and capture progress.
 - Optional layers: view range circle, 445 m spotting limit, 565 m draw distance, heat of where you spent time,
@@ -129,7 +136,9 @@ Opened from the player (P) at a given second. Loads ±10 s around it.
 - 3D terrain + tanks at their positions, your camera (from recorder aim data), aim line, shell traces, the enemy you
   could not see shown as a ghost — with a wireframe sphere around its last known spot, growing to everywhere it
   could have reached at full speed and fading over 30 s, same rule as the 2D dotted circle, with the same
-  50 m holes cut around living friendlies and the same shadow behind each bubble.
+  50 m holes cut around living friendlies and the same shadow behind each bubble. A living friendly an
+  enemy ghost could shoot gets a flat red ring on the ground under it (same 445 m upper-bound rule as the
+  2D threat markers, no seconds label in 3D).
 - Two asset modes, shown in a badge: **"Your game files"** (models/terrain loaded from the user's local install,
   never uploaded) or **"Simple"** (generic low-poly hulls by class, flat-shaded height map).
 - Scrub only inside the loaded window; "back to 2D" keeps the time.
