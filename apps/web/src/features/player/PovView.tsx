@@ -385,6 +385,6 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       renderer.render(scene, cam);
     }; loop();
     return () => { cancelAnimationFrame(raf); ro.disconnect(); rgeo.dispose(); (ribbon.material as THREE.Material).dispose(); dom.removeEventListener("pointerdown", down); dom.removeEventListener("pointermove", move); dom.removeEventListener("pointerup", up); dom.removeEventListener("pointercancel", up); dom.removeEventListener("wheel", wheel); dom.removeEventListener("dblclick", reset); for (const g of deco) g.dispose(); for (const m of decoMat) m.dispose(); renderer.dispose(); tgeo.dispose(); for (const l of labels) { (l.material as THREE.SpriteMaterial).map?.dispose(); l.material.dispose(); } geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); sphereGeo.dispose(); for (const s of spheres.values()) s.mat.dispose(); ringGeo.dispose(); for (const r of rings.values()) r.mat.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };
-  }, [tl, img, bounds, clock, obstacles]);
+  }, [tl, img, bounds, clock, real, obstacles]);
   return <div ref={host} className="povhost" data-testid="pov" data-mode={mode} />;
 }
