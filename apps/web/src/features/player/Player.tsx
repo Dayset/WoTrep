@@ -138,11 +138,12 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
     // trainer: view range circle and field-of-view cone for every known live tank, friend or foe, at 20% opacity
     if (o.trainer !== null) for (const u of snap.units) {
       if (u.known !== "live" || !u.alive || !trainerMatch(o.trainer, u.vid, u.team, tl.recorder.team)) continue;
-      const X = sx(u.x), Y = sy(u.z), R = VIEW_RANGE_M.value * cm.s, half = (VIEW_FOV_DEG.value * Math.PI) / 360, mid = u.yaw - Math.PI / 2;
+      const ay = aimAt(tl, u.vid, T)?.yaw ?? u.yaw, X = sx(u.x), Y = sy(u.z), R = VIEW_RANGE_M.value * cm.s, half = (VIEW_FOV_DEG.value * Math.PI) / 360, mid = ay - Math.PI / 2;
       g.globalAlpha = VIEW_ALPHA.value; g.fillStyle = col(u.team); g.strokeStyle = col(u.team); g.lineWidth = 1;
       g.beginPath(); g.moveTo(X, Y); g.arc(X, Y, R, mid - half, mid + half); g.closePath(); g.fill();
       g.setLineDash([4, 4]); g.beginPath(); g.arc(X, Y, R, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
       g.globalAlpha = 1;
+      g.strokeStyle = col(u.team); g.lineWidth = 2; g.beginPath(); g.moveTo(X, Y); g.lineTo(X + Math.sin(ay) * 14, Y - Math.cos(ay) * 14); g.stroke();
     }
     // dead tanks: small cross at last position; ghosts: hollow, fading over 30 s with age; live: filled
     for (const u of snap.units) {

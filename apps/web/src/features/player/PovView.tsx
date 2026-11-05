@@ -159,10 +159,11 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
           cn.fan.visible = cn.ring.visible = show;
           if (show) {
             const R = VIEW_RANGE_M.value, half = (VIEW_FOV_DEG.value * Math.PI) / 360;
-            // heading convention as in the 2D view: a point at angle a sits at (x + R sin a, z - R cos a); 3D z is -z
-            const pt = (a: number, r: number, out: Float32Array, at: number) => { const px = u.x + r * Math.sin(a), pz = u.z - r * Math.cos(a); out[at] = px; out[at + 1] = gh(px, pz) + 0.4; out[at + 2] = -pz; };
+            // heading convention as in the 2D view: a point at angle a sits at model (x + R sin a, z + R cos a); 3D z is -z.
+            // The fan follows the smoothed turret yaw (sm.g), the same value the turret mesh turns by, so cone and tower move as one.
+            const pt = (a: number, r: number, out: Float32Array, at: number) => { const px = u.x + r * Math.sin(a), pz = u.z + r * Math.cos(a); out[at] = px; out[at + 1] = gh(px, pz) + 0.4; out[at + 2] = -pz; };
             pt(0, 0, cn.fanPos, 0); cn.fanPos[0] = u.x; cn.fanPos[1] = gh(u.x, u.z) + 0.4; cn.fanPos[2] = -u.z;
-            for (let i = 0; i <= CN; i++) pt(u.yaw - half + (2 * half * i) / CN, R, cn.fanPos, (i + 1) * 3);
+            for (let i = 0; i <= CN; i++) pt(sm.g - half + (2 * half * i) / CN, R, cn.fanPos, (i + 1) * 3);
             for (let j = 0; j < RN; j++) pt((2 * Math.PI * j) / RN, R, cn.ringPos, j * 3);
             (cn.fan.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
             (cn.ring.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
