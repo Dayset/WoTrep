@@ -136,4 +136,22 @@ describe("ghostThreats with line of sight", () => {
     const walled = ghostThreats([g], [g, near], 2, losCtx(flatField(), [wall(100, 300, -20, 20)]));
     expect(walled.has(2)).toBe(false); // the only firing position is behind the wall
   });
+  // Path fix (2026-11-05): the whole vanish→firing-position segment is checked against every
+  // friendly's bubble, not just the reach blockers near the vanish point. Ghost at (0,0), friendly
+  // at (300,0), walled in on the west/north/south — the only LOS-clear firing positions are the
+  // east ones, (400,0) and (550,0), and the straight line to either runs through the friendly.
+  it("a firing position reached only by driving through the victim's own bubble is no marker", () => {
+    const f = u({ vid: 2, x: 300, z: 0 });
+    const ctx = losCtx(flatField(), [wall(268, 272, -60, 60), wall(260, 340, 28, 32), wall(260, 340, -32, -28)]);
+    expect(ghostThreats([fastGhost({ vid: 1 })], [fastGhost({ vid: 1 }), f], 2, ctx).has(2)).toBe(false);
+  });
+  it("a firing position whose path clears the friendly's bubble still marks", () => {
+    const f = u({ vid: 2, x: 300, z: 0 });
+    // Same walls minus the north one: the first LOS-clear candidate is (300,100) on the 100 m
+    // ring — its path from the vanish point clears the friendly by ~95 m, so the marker stands.
+    const ctx = losCtx(flatField(), [wall(268, 272, -60, 60), wall(260, 340, -32, -28)]);
+    const th = ghostThreats([fastGhost({ vid: 1 })], [fastGhost({ vid: 1 }), f], 2, ctx).get(2)!;
+    expect(th.secs).toBeCloseTo(Math.hypot(300, 100) / 20 - 5, 1); // arrival 15.81 s, age 5
+    expect(th.edge!.x).toBeCloseTo(300, 0); expect(th.edge!.z).toBeCloseTo(100, 0);
+  });
 });

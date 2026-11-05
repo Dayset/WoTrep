@@ -108,8 +108,13 @@ function losClear(from: { x: number; z: number }, to: { x: number; z: number }, 
  *  arrival: the direct point (the closest firing position to the vanish point), then the
  *  rings around the friendly, nearest first. A candidate must be reachable inside the 30 s
  *  window, outside every friendly's 50 m proximity bubble, not in a proximity shadow, and
- *  have a clear line. A stationary ghost can only shoot from where it vanished. */
-function findFiringPosition(g: Unit, f: Unit, friends: Unit[], blockers: Unit[], los: LosContext, tanks: TankBlocker[]): FiringPosition | null {
+ *  have a clear line. The shadow check runs against EVERY living friendly — the whole
+ *  vanish→firing-position segment, not just the reach blockers near the vanish point:
+ *  the search ranges to speed × 30 s, far beyond the reach disc, so a far-side candidate
+ *  could otherwise be reached by driving straight through a friendly's bubble (2026-11-05:
+ *  a T=91 marker's path passed 44.9 m from its own victim, a T=45 one 0.3 m). A stationary
+ *  ghost can only shoot from where it vanished. */
+function findFiringPosition(g: Unit, f: Unit, friends: Unit[], los: LosContext, tanks: TankBlocker[]): FiringPosition | null {
   const vx = g.x, vz = g.z, speed = g.reachSpeedMps ?? 0;
   const d = Math.hypot(f.x - vx, f.z - vz);
   const candidates: { x: number; z: number }[] = [];
@@ -128,7 +133,7 @@ function findFiringPosition(g: Unit, f: Unit, friends: Unit[], blockers: Unit[],
     const arrival = speed > 0 ? dist / speed : dist === 0 ? 0 : Infinity;
     if (arrival > THREAT_WINDOW_S) continue;
     if (friends.some((o) => Math.hypot(o.x - p.x, o.z - p.z) < PROXIMITY_SPOT_M.value)) continue;
-    if (blockers.some((b) => isShadowed(vx, vz, p.x, p.z, b.x, b.z))) continue;
+    if (friends.some((o) => isShadowed(vx, vz, p.x, p.z, o.x, o.z))) continue;
     if (!losClear(p, f, los, tanks, exclude)) continue;
     return { x: p.x, z: p.z, arrival };
   }
@@ -161,7 +166,7 @@ export function ghostThreats(ghosts: Unit[], units: Unit[], recorderTeam: number
         }
       } else {
         // Line-of-sight rule: the ghost must reach a firing position with a clear line.
-        const fp = findFiringPosition(g, f, friends, blockers, los, tanks);
+        const fp = findFiringPosition(g, f, friends, los, tanks);
         if (!fp) continue;
         arrival = fp.arrival;
         if (arrival > THREAT_WINDOW_S) continue;
