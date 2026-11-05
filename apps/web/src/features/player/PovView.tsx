@@ -87,7 +87,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true })); sp.scale.set(16, 4, 1); sp.position.y = 6; sp.renderOrder = 5; tanks.get(v.vid)!.g.add(sp); labels.push(sp);
     }
     // shot tracers: a thin flat ribbon per shot (not a 1 px line), bright and fading over TRACER_S
-    const TRACER_S = 1.2, TRACER_HALF = 0.35;
+    const TRACER_S = 1.2, TRACER_HALF = 0.35, TRACER_NEAR_M = 5;
     const tgeo = new THREE.BufferGeometry(), tpos = new Float32Array(MAXS * 18), tcolT = new Float32Array(MAXS * 18);
     tgeo.setAttribute("position", new THREE.BufferAttribute(tpos, 3)); tgeo.setAttribute("color", new THREE.BufferAttribute(tcolT, 3)); tgeo.setDrawRange(0, 0);
     const tlines = new THREE.Mesh(tgeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide, fog: false }));
@@ -184,14 +184,34 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
             (sp.geo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true; } }
         k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = aim0; (k.g.children[1] as THREE.Group).rotation.y = aim ? sm.h - sm.g : 0; if (u.vid === L.vid) { turretYaw = sm.g; hullYawS = sm.h; onTarget = !!aim?.onTarget; turretPitch = aim ? aim.pitch : 0; }
       }
-      let n = 0; const T = clock.current.t; const fpO: [number, number, number] | null = L.mode === "fp" && me && me.known !== "never" ? [me.x, gh(me.x, me.z) + 2.9, -me.z] : null; // first person: tracers start at the camera
+      let n = 0; const T = clock.current.t; const fpO: [number, number, number] | null = L.mode === "fp" && me && me.known !== "never" ? [me.x, gh(me.x, me.z) + 2.9, -me.z] : null; // first person: the followed tank's own tracers start at the camera
       for (const sh of shots) { if (sh.t > T) break; const age = T - sh.t; if (age > TRACER_S || n >= MAXS) continue;
-        const x0 = fpO ? fpO[0] : sh.x0, y0 = fpO ? fpO[1] : (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, z0 = fpO ? fpO[2] : -sh.z0;
-        const x1 = sh.x1, y1 = (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, z1 = -sh.z1;
+        // the camera start is only for the followed tank's own shots: everyone else's tracers keep their recorded
+        // direction (enemy -> player), instead of all being drawn backwards out of the camera
+        const own = sh.shooter === L.vid;
+        let x0 = fpO && own ? fpO[0] : sh.x0, y0 = fpO && own ? fpO[1] : (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, z0 = fpO && own ? fpO[2] : -sh.z0;
+        let x1 = sh.x1, y1 = (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, z1 = -sh.z1;
+        // endpoints on the camera blow up on screen (a vertex at the camera projects to infinity): push any endpoint
+        // closer than TRACER_NEAR_M out along the shot. A segment clipped to nothing keeps a 0.5 m stub at its end.
+        { const s0 = new THREE.Vector3(x0, y0, z0), s1 = new THREE.Vector3(x1, y1, z1), dir = new THREE.Vector3().subVectors(s1, s0), len = dir.length();
+          if (len > 1e-6) { dir.divideScalar(len);
+            const d0 = s0.distanceTo(cam.position), d1 = s1.distanceTo(cam.position);
+            if (d0 < TRACER_NEAR_M) s0.addScaledVector(dir, TRACER_NEAR_M - d0);
+            if (d1 < TRACER_NEAR_M) s1.addScaledVector(dir, -(TRACER_NEAR_M - d1));
+            if (new THREE.Vector3().subVectors(s1, s0).dot(dir) <= 0) s0.copy(s1).addScaledVector(dir, -0.5);
+            x0 = s0.x; y0 = s0.y; z0 = s0.z; x1 = s1.x; y1 = s1.y; z1 = s1.z; } }
         // billboard: the ribbon's width runs across the view, so it never turns edge-on (a flat ribbon vanishes from a low first-person camera)
         const dvec = new THREE.Vector3(x1 - x0, y1 - y0, z1 - z0), mid = new THREE.Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
-        const side = new THREE.Vector3().crossVectors(dvec, new THREE.Vector3().subVectors(cam.position, mid));
-        if (side.lengthSq() < 1e-9) side.set(0, 1, 0); side.setLength(TRACER_HALF);
+        const toCam = new THREE.Vector3().subVectors(cam.position, mid);
+        let side = new THREE.Vector3().crossVectors(dvec, toCam);
+        if (side.lengthSq() < 0.0025 * dvec.lengthSq() * toCam.lengthSq()) {
+          // camera on (or near) the tracer line: first-person own shots start at the camera, so the cross product
+          // degenerates and the old absolute fallback made the ribbon vertical. Take the width from the camera's
+          // up instead, so it stays across the view; straight up/down shots fall back to the camera's right.
+          side = new THREE.Vector3().crossVectors(dvec, new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion));
+          if (side.lengthSq() < 1e-9) side = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+        }
+        side.setLength(TRACER_HALF);
         const px = side.x, py = side.y, pz = side.z;
         const fade = Math.max(0, 1 - age / TRACER_S), k = n * 18;
         tpos.set([x0 - px, y0 - py, z0 - pz, x0 + px, y0 + py, z0 + pz, x1 - px, y1 - py, z1 - pz, x0 + px, y0 + py, z0 + pz, x1 + px, y1 + py, z1 + pz, x1 - px, y1 - py, z1 - pz], k);
