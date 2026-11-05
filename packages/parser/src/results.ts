@@ -20,6 +20,16 @@ export function normalizeResults(block1: unknown): { results: BattleResults; com
     movingAvgDamage: pa.movingAvgDamage, damageRating: pa.damageRating, marksOnGun: pa.marksOnGun, xp: pa.xp, credits: pa.credits,
     potentialDamageReceived: pa.potentialDamageReceived, damageReceivedFromInvisibles: pa.damageReceivedFromInvisibles,
     noDamageDirectHitsReceived: pa.noDamageDirectHitsReceived,
+    // Battle economy: totals are xp/credits above; bases and costs were dropped
+    // before, so a replay's end-screen numbers (base → total, repair, ammo,
+    // profit) could not be shown. autoLoadCost is [credits, gold]; only the
+    // credits part is the ammo cost on the end screen. Fields are added only
+    // when present: an undefined-valued key would fail timeline validation
+    // and the compact codec, which both expect numbers.
+    ...(pa.originalXP != null ? { xpBase: pa.originalXP } : {}),
+    ...(pa.originalCredits != null ? { creditsBase: pa.originalCredits } : {}),
+    ...((pa.repair ?? pa.autoRepairCost) != null ? { repairCost: pa.repair ?? pa.autoRepairCost } : {}),
+    ...(Array.isArray(pa.autoLoadCost) && pa.autoLoadCost[0] != null ? { ammoCost: pa.autoLoadCost[0] } : {}),
   };
   return { results: { players, ...(personal ? { personal } : {}) }, common: r.common, accountOf };
 }

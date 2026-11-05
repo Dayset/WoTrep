@@ -13,6 +13,7 @@ import { Movement } from "./Movement";
 import { CoverageBadge } from "./CoverageBadge";
 import { FindingsPanel } from "./Findings";
 import { Scoreboard } from "./Scoreboard";
+import { Economy } from "./Economy";
 import { alignment, detectors, goodPlaysAll, rank, runDetectors } from "@wotrep/coach";
 import { Vote, FeedbackExport } from "./Feedback";
 import { StyleTable } from "./StyleTable";
@@ -127,6 +128,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
           {(tl.arena.battleType !== 1 || tl.vehicles.length !== 30) && <details className="covbadge partial" data-testid="modebanner"><summary>{t("ui.mode")}</summary><p>{t("report.mode")}</p></details>}
         </div>
       </div>
+      <Economy tl={tl} />
       <nav className="tabs" role="tablist" aria-label={t("ui.tabs")}>
         {(["replay", "stats", "coach", "teams", "charts"] as const).map((k) => <button type="button" role="tab" key={k} aria-selected={tab === k} onClick={() => go(k)} data-testid={`tab-${k}`}>{t(`ui.tab.${k}`)}{k === "coach" && nCoach > 0 && <span className="badge">{nCoach}</span>}</button>)}
       </nav>

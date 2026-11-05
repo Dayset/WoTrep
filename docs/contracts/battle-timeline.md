@@ -86,7 +86,9 @@ export interface BattleResults {
     movingAvgDamage?: number; damageRating?: number; marksOnGun?: number;
     xp?: number; credits?: number; potentialDamageReceived?: number;
     damageReceivedFromInvisibles?: number; noDamageDirectHitsReceived?: number;
-  };
+    xpBase?: number; creditsBase?: number; // pre-multiplier bases (originalXP/originalCredits)
+    repairCost?: number; ammoCost?: number; // repair (or autoRepairCost); credits part of autoLoadCost[0]
+  };                                       // profit = credits − repairCost − ammoCost (derived in the UI)
 }
 
 export interface PlayerResult {

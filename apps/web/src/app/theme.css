@@ -162,6 +162,7 @@ details > summary::before { content: "▸ "; color: var(--muted); } details[open
 .notes .covbadge { margin: 0; padding: 3px 8px; font-size: 12.5px; } .notes .covbadge[open] { flex-basis: 100%; }
 .notes .covbadge summary::before { content: ""; }
 
+.econ { border: 1px solid var(--line); background: var(--panel); padding: 6px 10px; margin: 0 0 10px; font-size: 13.5px; font-variant-numeric: tabular-nums; } .econ > b { display: block; margin-bottom: 2px; } .econ p { margin: 2px 0 0; font-size: 12px; }
 .tabs { position: sticky; top: 0; z-index: 20; display: flex; overflow-x: auto; scrollbar-width: none; background: var(--bg); border-bottom: 1px solid var(--line); margin: 0 -12px 10px; padding: 0 12px; }
 .tabs button { flex: 0 0 auto; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 8px 14px; min-height: 44px; white-space: nowrap; color: var(--muted); font-weight: 600; }
 .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }

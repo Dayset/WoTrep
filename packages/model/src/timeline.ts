@@ -57,5 +57,11 @@ export interface BattleResults {
   personal?: {
     movingAvgDamage?: number; damageRating?: number; marksOnGun?: number; xp?: number; credits?: number;
     potentialDamageReceived?: number; damageReceivedFromInvisibles?: number; noDamageDirectHitsReceived?: number;
+    // Battle economy (recorder only, from block 1 `personal`): xp/credits are the
+    // totals after multipliers; xpBase/creditsBase are the pre-multiplier bases
+    // (`originalXP`/`originalCredits`); repairCost is `repair` (falling back to
+    // `autoRepairCost`); ammoCost is the credits part of `autoLoadCost[0]`.
+    // Profit is derived in the UI: credits − repairCost − ammoCost.
+    xpBase?: number; creditsBase?: number; repairCost?: number; ammoCost?: number;
   };
 }
