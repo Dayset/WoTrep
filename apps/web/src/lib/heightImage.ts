@@ -1,7 +1,7 @@
 import { heightAt, type HeightField } from "@wotrep/analysis";
 
 /** Colour-and-hillshade picture of an estimated height field (docs/METRICS.md §3.19). North is up (higher z = higher on the picture).
- *  Cells that tanks actually drove through are solid; filled-in guesses are faded and crossed by thin diagonal lines. */
+ *  Cells with measured heights — tracks, or loaded real heights — are solid; filled-in guesses are faded and crossed by thin diagonal lines. */
 export function heightImage(f: HeightField, scale = 4): { canvas: HTMLCanvasElement; min: number; max: number; x0: number; z0: number; w: number; h: number } {
   const w = f.cols * scale, h = f.rows * scale, cv = document.createElement("canvas"); cv.width = w; cv.height = h; const g = cv.getContext("2d")!, img = g.createImageData(w, h);
   let min = Infinity, max = -Infinity; for (const v of f.h) { if (v < min) min = v; if (v > max) max = v; } if (!Number.isFinite(min)) { min = 0; max = 1; }

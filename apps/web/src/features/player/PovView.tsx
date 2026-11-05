@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
-import { tracerLines, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, type ReloadEstimate } from "@wotrep/analysis";
+import { tracerLines, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, type RealSource, type ReloadEstimate } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
 import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, ghostThreats, trainerMatch, type TrainerSel } from "./viewConfig";
 
@@ -14,10 +14,11 @@ function noiseTexture(size: number, base: [number, number, number], spread: numb
   const tx = new THREE.CanvasTexture(c); tx.magFilter = THREE.NearestFilter; tx.wrapS = tx.wrapT = THREE.RepeatWrapping; return tx;
 }
 
-/** Low-poly 3D view of the replay on flat ground (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
- *  Heights and cover are not known yet, so ground is flat and nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
-export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync, trails, trainer, reload }: {
-  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number; trails: boolean; trainer: { on: boolean; sel: TrainerSel }; reload: boolean;
+/** Low-poly 3D view of the replay over the terrain (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
+ *  Ground follows the height field (estimated from tank tracks, or real game heights when the player loaded them for this map);
+ *  cover is not modelled, so nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
+export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync, trails, trainer, reload, real }: {
+  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number; trails: boolean; trainer: { on: boolean; sel: TrainerSel }; reload: boolean; real?: RealSource;
 }) {
   const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom, lock, trails, trainer, reload }); live.current = { vid, mode, zoom, lock, trails, trainer, reload };
   useEffect(() => { look.current = { yaw: 0, pitch: 0.28, dist: look.current.dist }; }, [resync, lock]);
@@ -28,7 +29,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); el.appendChild(renderer.domElement); renderer.domElement.style.cssText = "width:100%;height:100%;display:block";
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0xbcd4e6); scene.fog = new THREE.Fog(0xbcd4e6, 300, 1400);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x667766, 1.1)); const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(-200, 400, 150); scene.add(sun);
-    const W = bounds.x1 - bounds.x0, D = bounds.z1 - bounds.z0, field = heightField(tl, bounds, 25), gh = (x: number, z: number) => heightAt(field, x, z);
+    const W = bounds.x1 - bounds.x0, D = bounds.z1 - bounds.z0, field = heightField(tl, bounds, 25, real), gh = (x: number, z: number) => heightAt(field, x, z);
     let hMin = Infinity, hMax = -Infinity; for (const v of field.h) { hMin = Math.min(hMin, v); hMax = Math.max(hMax, v); }
     if (!Number.isFinite(hMin)) { hMin = 0; hMax = 1; }
     const geo = new THREE.BufferGeometry(), nv = field.cols * field.rows, pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), col = new Float32Array(nv * 3), idx: number[] = [];

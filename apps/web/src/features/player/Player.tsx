@@ -3,18 +3,19 @@ import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, ghostThreats,
 import { drawReachDisc } from "./reachDraw";
 import { sfxStart, sfxShot, type ShotKind } from "./sfx";
 import { stateAt, type BattleTimeline, type Unit } from "@wotrep/model";
-import { vehicleLabel } from "@wotrep/gamedata";
+import { vehicleLabel, terrainPlacement } from "@wotrep/gamedata";
 import { wpSeries } from "@wotrep/analysis";
 import type { Finding } from "@wotrep/coach";
 import { t } from "../../i18n";
 import { loadMap, type MapBounds } from "../../lib/mapStore";
+import { loadHeights } from "../../lib/heightsStore";
 import { MapLoader } from "./MapLoader";
 import { MiniMap } from "./MiniMap";
 import { heightImage } from "../../lib/heightImage";
 const PovView = lazy(() => import("./PovView"));
 import { DamageLog } from "./DamageLog";
 import { ChatLog } from "./ChatLog";
-import { flankModel, flankState, seriesFor, aimAt, heightField, estimateReload, reloadProgress, shotTimes, type ReloadEstimate } from "@wotrep/analysis";
+import { flankModel, flankState, seriesFor, aimAt, heightField, estimateReload, reloadProgress, shotTimes, type RealHeights, type RealSource, type ReloadEstimate } from "@wotrep/analysis";
 import { goodPlaysAll, dangerSpots, detectors, rank, runDetectors, type GoodPlay, type DangerSpot } from "@wotrep/coach";
 import { FindingCard } from "../report/Findings";
 
@@ -73,7 +74,12 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
     return { x0: x0 - 40, x1: x1 + 40, z0: z0 - 40, z1: z1 + 40 };
   }, [tl]);
   const bounds = mapInfo?.b ?? trackBounds;
-  const [heights, setHeights] = useState(false), hmap = useMemo(() => (heights ? heightImage(heightField(tl, bounds, 25)) : null), [tl, bounds, heights]);
+  // Real heights for this map, if the player loaded them (a heights ZIP from their own game files, stored on-device).
+  // Without them, or without a measured placement for the map, the ground stays estimated from tank tracks.
+  const [realHeights, setRealHeights] = useState<RealHeights | null>(null);
+  useEffect(() => { let on = true; void loadHeights(tl.arena.map).then((h) => { if (on) setRealHeights(h); }); return () => { on = false; }; }, [tl.arena.map, mapTick]);
+  const real: RealSource | null = useMemo(() => { if (!realHeights) return null; const p = terrainPlacement(tl.arena.map); return p ? { heights: realHeights, offset: p.offset } : null; }, [realHeights, tl.arena.map]);
+  const [heights, setHeights] = useState(false), hmap = useMemo(() => (heights ? heightImage(heightField(tl, bounds, 25, real ?? undefined)) : null), [tl, bounds, heights, real]);
   const wp = useMemo(() => wpSeries(tl, tl.recorder.team, 1), [tl]);
   const kills = useMemo(() => tl.events.flatMap((e) => (e.k === "kill" && e.t >= 0 ? [e] : [])), [tl]);
   const vehicle = useMemo(() => new Map(tl.vehicles.map((v) => [v.vid, v])), [tl]);
@@ -370,7 +376,7 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
       <div className="pmap" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} onClick={dismissCard} onDoubleClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); setFollow(false); }}>
         <div className="pstage"><canvas ref={canvas} aria-label={t("player.aria")} role="img" />
           <div ref={outroRef} className={`outro ${outcome}`} aria-hidden="true" style={{ opacity: 0 }}><b>{t(`outro.${outcome}`)}</b></div></div>
-        {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={dismissCard}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView reload={reloadOn} trainer={{ on: trainer, sel: trainerSel }} tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} /></Suspense>{<div ref={outro3dRef} className={`outro ${outcome}`} aria-hidden="true" style={{ opacity: 0, zIndex: 4 }}><b>{t(`outro.${outcome}`)}</b></div>}{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
+        {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={dismissCard}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView reload={reloadOn} trainer={{ on: trainer, sel: trainerSel }} tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} real={real ?? undefined} /></Suspense>{<div ref={outro3dRef} className={`outro ${outcome}`} aria-hidden="true" style={{ opacity: 0, zIndex: 4 }}><b>{t(`outro.${outcome}`)}</b></div>}{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
         <div className="pviewsw" role="group" aria-label={t("pov.view")} onPointerDown={(e) => e.stopPropagation()}>{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)} title={t(`pov.${m}`)} data-testid={`v3d-${m}`}>{t(`ui.v.${m}`)}</button>)}</div>
         {view3dCtl}
         {sv && su && <div className="pinfo"><b>{sv.name}</b> · {vehicleLabel(sv.vehicleType).label}<div>{su.alive ? `${Math.round(su.hp)} / ${sv.maxHealth} HP` : "✕"}{su.known === "ghost" ? ` · ${t("player.lastseen", { s: Math.round(su.ageS ?? 0) })}` : ""}</div></div>}

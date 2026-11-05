@@ -1,5 +1,6 @@
 export const name = "@wotrep/gamedata";
 export * from "./lesta";
+export * from "./terrain";
 
 /** Display names for vehicles. Real data (#42: Lesta/WG vehicle API, needs an application id) will replace `OVERRIDES`;
  *  until then a readable label is derived from the internal tag, e.g. `intunion:Un15_SBM_44` → "SBM 44". */
