@@ -45,7 +45,7 @@ export function MapLoader({ mapName, onSaved, onClose }: { mapName: string; onSa
     if (await deleteMap(mapName)) { onSaved(); onClose(); } else setMsg(t("map.removefail"));
   };
   return (
-    <div className="maploader" onPointerDown={(e) => e.stopPropagation()}>
+    <div className="maploader" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
       <b>{t("map.title", { name: mapName })}</b>
       <p className="muted">{t("map.help")}</p>
       <label>{t("map.image")} <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setImg(e.target.files?.[0] ?? null)} /></label>
