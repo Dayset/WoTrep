@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { validateTimeline } from "@wotrep/model";
-import { heightField, heightAt, realHeightAt, type RealHeights } from "../src/index";
+import { heightField, heightAt, realHeightAt, REAL_HEIGHT_CELL_M, type RealHeights } from "../src/index";
 
 const r = validateTimeline(JSON.parse(readFileSync(new URL("../../../fixtures/timelines/lesta-1.46-overlord-sbm44.timeline.json", import.meta.url), "utf8")));
 if (!r.ok) throw new Error("fixture invalid");
@@ -71,6 +71,12 @@ describe("heightField with real heights", () => {
     const empty: RealHeights = { chunkSize: 100, chunks: new Map(), minM: 0, maxM: 0 };
     const f = heightField(tl, b, 25, { heights: empty, offset: { dx: 0, dz: 0 } });
     expect(f.h).toEqual(guessed.h); expect(f.seen).toEqual(guessed.seen);
+  });
+  it("builds a finer field at REAL_HEIGHT_CELL_M when real data is loaded", () => {
+    expect(REAL_HEIGHT_CELL_M).toBe(5);
+    const f5 = heightField(tl, b, REAL_HEIGHT_CELL_M, { heights: flat(), offset: { dx: 0, dz: 0 } });
+    expect(f5.cell).toBe(5); expect(f5.cols).toBeGreaterThan(real.cols); expect(f5.rows).toBeGreaterThan(real.rows);
+    for (let i = 0; i < f5.h.length; i++) { expect(f5.h[i]).toBe(50); expect(f5.seen[i]).toBe(1); }
   });
   it("fills cells no tank visited when the real data covers them", () => {
     // find a cell the guess had to invent (seen 0) and check the real field measures it

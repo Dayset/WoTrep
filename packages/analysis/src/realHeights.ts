@@ -11,6 +11,13 @@ export interface RealHeights { chunkSize: number; chunks: Map<string, RealHeight
 export interface RealOffset { dx: number; dz: number }
 export interface RealSource { heights: RealHeights; offset: RealOffset }
 
+/** HeightField cell (m) used when real heights are loaded. Measured 2026-11-05 on the Overlord fixture:
+ *  resampling the 0.76 m real grid to 25 m cells leaves 5% of the map >2 m off the measured ground
+ *  (up to 14 m on the western cliffs, slope-driven); at 5 m cells the field is the direct sampler
+ *  to 0.02 m median on a dense grid. The guessed field stays at 25 m — a finer guess would be
+ *  noisier where tracks are sparse, and with real data loaded the guess barely matters. */
+export const REAL_HEIGHT_CELL_M = 5;
+
 /** Bilinear sample of the real heights at replay coordinates, or null outside the covered chunks. */
 export function realHeightAt(real: RealHeights, offset: RealOffset, x: number, z: number): number | null {
   const cx = x + offset.dx, cz = z + offset.dz;

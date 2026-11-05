@@ -15,7 +15,7 @@ import { heightImage } from "../../lib/heightImage";
 const PovView = lazy(() => import("./PovView"));
 import { DamageLog } from "./DamageLog";
 import { ChatLog } from "./ChatLog";
-import { flankModel, flankState, seriesFor, aimAt, heightField, estimateReload, reloadProgress, shotTimes, type RealHeights, type RealSource, type ReloadEstimate } from "@wotrep/analysis";
+import { flankModel, flankState, seriesFor, aimAt, heightField, estimateReload, reloadProgress, shotTimes, REAL_HEIGHT_CELL_M, type RealHeights, type RealSource, type ReloadEstimate } from "@wotrep/analysis";
 import { goodPlaysAll, dangerSpots, detectors, rank, runDetectors, type GoodPlay, type DangerSpot } from "@wotrep/coach";
 import { FindingCard } from "../report/Findings";
 
@@ -79,7 +79,7 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
   const [realHeights, setRealHeights] = useState<RealHeights | null>(null);
   useEffect(() => { let on = true; void loadHeights(tl.arena.map).then((h) => { if (on) setRealHeights(h); }); return () => { on = false; }; }, [tl.arena.map, mapTick]);
   const real: RealSource | null = useMemo(() => { if (!realHeights) return null; const p = terrainPlacement(tl.arena.map); return p ? { heights: realHeights, offset: p.offset } : null; }, [realHeights, tl.arena.map]);
-  const [heights, setHeights] = useState(false), hmap = useMemo(() => (heights ? heightImage(heightField(tl, bounds, 25, real ?? undefined)) : null), [tl, bounds, heights, real]);
+  const [heights, setHeights] = useState(false), hmap = useMemo(() => (heights ? heightImage(heightField(tl, bounds, real ? REAL_HEIGHT_CELL_M : 25, real ?? undefined)) : null), [tl, bounds, heights, real]);
   const wp = useMemo(() => wpSeries(tl, tl.recorder.team, 1), [tl]);
   const kills = useMemo(() => tl.events.flatMap((e) => (e.k === "kill" && e.t >= 0 ? [e] : [])), [tl]);
   const vehicle = useMemo(() => new Map(tl.vehicles.map((v) => [v.vid, v])), [tl]);

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
-import { tracerLines, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, type RealSource, type ReloadEstimate } from "@wotrep/analysis";
+import { tracerLines, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, REAL_HEIGHT_CELL_M, type RealSource, type ReloadEstimate } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
 import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, ghostThreats, trainerMatch, type TrainerSel } from "./viewConfig";
 
@@ -29,7 +29,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); el.appendChild(renderer.domElement); renderer.domElement.style.cssText = "width:100%;height:100%;display:block";
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0xbcd4e6); scene.fog = new THREE.Fog(0xbcd4e6, 300, 1400);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x667766, 1.1)); const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(-200, 400, 150); scene.add(sun);
-    const W = bounds.x1 - bounds.x0, D = bounds.z1 - bounds.z0, field = heightField(tl, bounds, 25, real), gh = (x: number, z: number) => heightAt(field, x, z);
+    const W = bounds.x1 - bounds.x0, D = bounds.z1 - bounds.z0, field = heightField(tl, bounds, real ? REAL_HEIGHT_CELL_M : 25, real), gh = (x: number, z: number) => heightAt(field, x, z);
     let hMin = Infinity, hMax = -Infinity; for (const v of field.h) { hMin = Math.min(hMin, v); hMax = Math.max(hMax, v); }
     if (!Number.isFinite(hMin)) { hMin = 0; hMax = 1; }
     const geo = new THREE.BufferGeometry(), nv = field.cols * field.rows, pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), col = new Float32Array(nv * 3), idx: number[] = [];
