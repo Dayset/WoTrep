@@ -152,7 +152,13 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
       const X = sx(u.x), Y = sy(u.z), isMe = u.vid === tl.recorder.vid;
       if (!u.alive) { const dth = deathT.get(u.vid); if (dth != null && T >= dth && T - dth < SMOKE_S) smoke(g, X, Y, T - dth); }
       if (!u.alive) { g.strokeStyle = muted; g.globalAlpha = 0.6; g.lineWidth = 2; g.beginPath(); g.moveTo(X - 4, Y - 4); g.lineTo(X + 4, Y + 4); g.moveTo(X + 4, Y - 4); g.lineTo(X - 4, Y + 4); g.stroke(); g.globalAlpha = 1; continue; }
-      if (u.known === "ghost") { const a = Math.max(0, 1 - (u.ageS ?? 0) / GHOST_FADE_S); if (a <= 0.03) continue; arrow(u, 7, false, 0.15 + 0.6 * a); if (o.names) { g.fillStyle = muted; g.globalAlpha = 0.3 + 0.5 * a; g.textBaseline = "top"; g.fillText(`${Math.round(u.ageS ?? 0)}s`, X + 9, Y - 5); g.globalAlpha = 1; } continue; }
+      if (u.known === "ghost") {
+        const a = Math.max(0, 1 - (u.ageS ?? 0) / GHOST_FADE_S); if (a <= 0.03) continue;
+        // reach circle: dotted, centred on the last known spot, radius = how far the tank could
+        // have got at the fastest speed it was seen doing before it vanished (Unit.reachM).
+        // It grows while the ghost ages and fades with it; a reappearance drops it outright.
+        if (u.alive && u.reachM) { const R = u.reachM * cm.s; if (R >= 3) { g.setLineDash([3, 4]); g.strokeStyle = col(u.team); g.globalAlpha = 0.55 * a; g.lineWidth = 1.5; g.beginPath(); g.arc(X, Y, R, 0, 7); g.stroke(); g.setLineDash([]); g.globalAlpha = 1; } }
+        arrow(u, 7, false, 0.15 + 0.6 * a); if (o.names) { g.fillStyle = muted; g.globalAlpha = 0.3 + 0.5 * a; g.textBaseline = "top"; g.fillText(`${Math.round(u.ageS ?? 0)}s`, X + 9, Y - 5); g.globalAlpha = 1; } continue; }
       arrow(u, 8, true, 1);
       if (o.reload && u.alive && u.known === "live") { const rd = reloadRef.current.get(u.vid); const rp = rd ? reloadProgress(rd.ts, rd.est, T) : null;
         if (rp != null) { g.strokeStyle = ink; g.globalAlpha = 0.9; g.lineWidth = 2.5; g.beginPath(); g.arc(X, Y, 19, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * rp); g.stroke(); g.globalAlpha = 1; } }

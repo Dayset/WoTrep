@@ -28,6 +28,24 @@ describe("stateAt", () => {
     const first = tl.tracks[e.vid]!.t[0]!;
     expect(u(first - 5, e.vid).known).toBe("never");
   });
+  it("a vanished tank carries a reach circle that grows with age", () => {
+    const SH = 13908105; // shohins2013, last seen 128.8, visible again from 150.6
+    const a = u(135, SH), b = u(140, SH);
+    expect(a.known).toBe("ghost"); expect(a.ageS).toBeCloseTo(6.2, 1);
+    expect(a.reachM).toBeGreaterThan(30); expect(a.reachM).toBeLessThan(40); // ~5.6 m/s fastest x 6.2 s
+    expect(b.reachM!).toBeGreaterThan(a.reachM!);
+    // the same fastest speed behind both: reach / age is constant as the circle grows
+    expect(a.reachM! / a.ageS!).toBeCloseTo(b.reachM! / b.ageS!, 1);
+  });
+  it("reach is absent for live, never-seen and dead ghosts", () => {
+    expect(u(100, ME).reachM).toBeUndefined();
+    const e = tl.vehicles.find((v) => v.team !== tl.recorder.team && tl.tracks[v.vid])!;
+    expect(u(tl.tracks[e.vid]!.t[0]! - 5, e.vid).reachM).toBeUndefined();
+    const d = u(210, 13908112); expect(d.known).toBe("ghost"); expect(d.alive).toBe(false); expect(d.reachM).toBeUndefined();
+  });
+  it("a reappearing tank drops its reach", () => {
+    const r = u(160, 13908105); expect(r.known).toBe("live"); expect(r.reachM).toBeUndefined();
+  });
   it("team totals are consistent and fast (60 calls under 60 ms)", () => {
     const s = stateAt(tl, 100); expect(s.alive[1] + s.alive[2]).toBe(s.units.filter((x) => x.alive).length);
     const t0 = performance.now(); for (let i = 0; i < 60; i++) stateAt(tl, i * 5); expect(performance.now() - t0).toBeLessThan(60);

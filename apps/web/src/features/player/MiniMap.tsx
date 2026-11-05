@@ -5,6 +5,8 @@ import type { MapBounds } from "../../lib/mapStore";
 import { t } from "../../i18n";
 
 /** Small top-down map for the 3D views: the followed tank with its view wedge, everyone else as dots. Size S/M/L; "Near" zooms to ~350 m around the tank. */
+// Ghosts older than this stop carrying a reach circle, same as the 2D player's ghost fade (GHOST_FADE_S there).
+const GHOST_FADE_S = 30;
 export function MiniMap({ tl, clock, vid, img, bounds, fp }: { tl: BattleTimeline; clock: { current: { t: number } }; vid: number; img: HTMLImageElement | null; bounds: MapBounds; fp: boolean }) {
   const cv = useRef<HTMLCanvasElement>(null), [size, setSize] = useState<"s" | "m" | "l" | "x">(() => (window.matchMedia?.("(max-width: 600px)").matches ? "s" : "m")), [near, setNear] = useState(false), live = useRef({ vid, near, fp }); live.current = { vid, near, fp };
   useEffect(() => {
@@ -23,6 +25,8 @@ export function MiniMap({ tl, clock, vid, img, bounds, fp }: { tl: BattleTimelin
       else { g.strokeStyle = "rgba(255,255,255,0.12)"; for (let x = Math.ceil(x0 / 100) * 100; x < x0 + w; x += 100) { g.beginPath(); g.moveTo(sx(x), 0); g.lineTo(sx(x), H); g.stroke(); } for (let z = Math.ceil(z0 / 100) * 100; z < z0 + h; z += 100) { g.beginPath(); g.moveTo(0, sy(z)); g.lineTo(W, sy(z)); g.stroke(); } }
       for (const u of s.units) {
         if (u.known === "never") continue; const X = sx(u.x), Y = sy(u.z); if (X < -5 || Y < -5 || X > W + 5 || Y > H + 5) continue;
+        // reach circle, same rule as the 2D player: dotted, radius = Unit.reachM, fades with the ghost.
+        if (u.known === "ghost" && u.alive && u.reachM && (u.ageS ?? 0) < GHOST_FADE_S) { const R = u.reachM * (W / w); if (R >= 3) { g.save(); g.setLineDash([3, 4]); g.strokeStyle = u.team === tl.recorder.team ? ally : foe; g.globalAlpha = 0.55 * (1 - (u.ageS ?? 0) / GHOST_FADE_S); g.lineWidth = 1.5; g.beginPath(); g.arc(X, Y, R, 0, 7); g.stroke(); g.restore(); } }
         g.globalAlpha = u.known === "ghost" ? 0.4 : 1; g.fillStyle = u.team === tl.recorder.team ? ally : foe;
         if (!u.alive) { g.strokeStyle = "#999"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X - 3, Y - 3); g.lineTo(X + 3, Y + 3); g.moveTo(X + 3, Y - 3); g.lineTo(X - 3, Y + 3); g.stroke(); }
         else { g.beginPath(); g.arc(X, Y, u.vid === L.vid ? 5 : 3.2, 0, 7); g.fill(); }
