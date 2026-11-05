@@ -13,6 +13,15 @@ export interface Unit {
    *  radius grows at. Carried separately so callers can turn a distance into a time ("in how many
    *  seconds could it be there") without dividing by a possibly-zero `ageS`. */
   reachSpeedMps?: number;
+  /** Ghost, alive only: the speed the vanish→edge leg is credited at (m/s) — the 75TH PERCENTILE
+   *  of the per-segment speeds the vehicle was seen driving at before it vanished, counting only
+   *  moving segments. A fast cruise, not the burst behind `reachSpeedMps`: it credits the faster
+   *  half of the tank's demonstrated driving while still capping the 2 s-window burst — a tank
+   *  that once hit 15 m/s for two seconds but usually drives at 6 m/s is credited near the fast
+   *  end of its driving, not at 15. The median proved too aggressive combined with the
+   *  coverage / one-ghost cross-checks (2026-11-05), so the percentile was raised from 50 to 75.
+   *  0 when it never moved visibly (the stationary rule then applies). */
+  sustainSpeedMps?: number;
 }
 export interface Snapshot { t: number; units: Unit[]; teamHp: Record<Team, number>; alive: Record<Team, number> }
 
@@ -24,6 +33,11 @@ interface Idx {
    *  the vehicle was ever seen going up to sample i. Built once per timeline (tracks are 0.1 s
    *  samples, so this is one linear pass) and read by stateAt for ghost reach. */
   reach: Map<number, number[]>;
+  /** Lazily filled 75th percentiles of moving-segment speeds, keyed `${vid}:${sampleIndex}`: the
+   *  sustainable speed behind `sustainSpeedMps` for a ghost that vanished at that sample.
+   *  A ghost's vanish sample never moves while it stays vanished, so each pair is computed
+   *  once per timeline; computing it on every stateAt call would re-sort the track each frame. */
+  sustain: Map<string, number>;
 }
 
 function maxSpeedPrefix(tr: Track): number[] {
@@ -40,6 +54,41 @@ function maxSpeedPrefix(tr: Track): number[] {
   return out;
 }
 
+/** Percentile of the moving-segment speeds credited as the sustainable speed (2026-11-05):
+ *  75 credits the faster half of the tank's demonstrated driving while still capping the
+ *  2 s-window burst. The 50th percentile (median) proved too aggressive combined with the
+ *  coverage / one-ghost cross-checks — the fixture sweep fell 1135 → 179 markers — so the
+ *  percentile was raised; 90 was measured for comparison and not kept. */
+const SUSTAIN_PERCENTILE = 0.75;
+/** Moving-segment floor for the sustainable-speed percentile (m/s): a segment counts as "driving"
+ *  only above this speed, so time spent sitting still does not drag the cruise speed down.
+ *  Initial guess (2026-11-05): a tank repositioning below walking pace is not cruising. */
+const SUSTAIN_MOVING_MPS = 1;
+/** A track segment spanning more than this many seconds crosses an unspotted gap (the track
+ *  holds samples only while the vehicle is visible) and is not a real drive — the same gap
+ *  the interpolation in stateAt refuses to bridge. */
+const SUSTAIN_GAP_S = 1.5;
+
+/** Percentile of the per-segment speeds (m/s) over the track's samples up to index `i`, counting
+ *  only segments where the vehicle was moving. 0 when it never moved visibly. Linear
+ *  interpolation between the two nearest order statistics (the numpy default): a stray teleport
+ *  segment across an unspotted gap is excluded by the gap rule, and one that slips through can
+ *  move the value by at most one rank. */
+function percentileMovingSpeed(tr: Track, i: number, p: number): number {
+  const speeds: number[] = [];
+  for (let j = 1; j <= i; j++) {
+    const dt = tr.t[j]! - tr.t[j - 1]!;
+    if (dt <= 0 || dt > SUSTAIN_GAP_S) continue;
+    const s = Math.hypot(tr.x[j]! - tr.x[j - 1]!, tr.z[j]! - tr.z[j - 1]!) / dt;
+    if (s > SUSTAIN_MOVING_MPS) speeds.push(s);
+  }
+  if (speeds.length === 0) return 0;
+  speeds.sort((a, b) => a - b);
+  const rank = p * (speeds.length - 1);
+  const lo = Math.floor(rank), hi = Math.ceil(rank);
+  return lo === hi ? speeds[lo]! : speeds[lo]! * (hi - rank) + speeds[hi]! * (rank - lo);
+}
+
 const cache = new WeakMap<BattleTimeline, Idx>();
 
 function index(tl: BattleTimeline): Idx {
@@ -51,7 +100,7 @@ function index(tl: BattleTimeline): Idx {
   }
   const reach = new Map<number, number[]>();
   for (const v of tl.vehicles) { const tr = tl.tracks[v.vid]; if (tr && tr.t.length) reach.set(v.vid, maxSpeedPrefix(tr)); }
-  i = { tl, dmg, killT, reach }; cache.set(tl, i); return i;
+  i = { tl, dmg, killT, reach, sustain: new Map() }; cache.set(tl, i); return i;
 }
 
 /** index of the last element <= x, or -1 */
@@ -87,6 +136,10 @@ export function stateAt(tl: BattleTimeline, t: number): Snapshot {
           if (!dead) {
             const vMax = ix.reach.get(v.vid)?.[i] ?? 0, r = vMax * ageS;
             u.reachSpeedMps = Math.round(vMax * 10) / 10;
+            const sKey = `${v.vid}:${i}`;
+            let s = ix.sustain.get(sKey);
+            if (s === undefined) { s = percentileMovingSpeed(tr, i, SUSTAIN_PERCENTILE); ix.sustain.set(sKey, s); }
+            u.sustainSpeedMps = Math.round(s * 10) / 10;
             if (r > 0) u.reachM = Math.round(r * 10) / 10;
           }
         }

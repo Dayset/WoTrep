@@ -108,7 +108,7 @@ interface Snapshot {
   t: number;
   units: Array<{ vid: number; alive: boolean; hp: number; x: number; z: number; yaw: number;
                  known: "live" | "ghost" | "never";  // ghost = last known position, with ageS
-                 ageS?: number; reachM?: number; reachSpeedMps?: number; lastShotT?: number; reloadEstimate?: ReloadState }>;
+                 ageS?: number; reachM?: number; reachSpeedMps?: number; sustainSpeedMps?: number; lastShotT?: number; reloadEstimate?: ReloadState }>;
   teamHp: { 1: number; 2: number }; alive: { 1: number; 2: number };
 }
 ```
@@ -116,7 +116,11 @@ interface Snapshot {
 speed observed up to the last-seen sample, times `ageS`. It is a worst-case bound, not a predicted position —
 it assumes the tank kept going flat-out in any direction — and it is gone the moment the tank is live again.
 Dead ghosts carry no `reachM`. `reachSpeedMps` carries that fastest speed itself (m/s), so callers can turn a
-distance into a time without dividing by a possibly-zero `ageS`.
+distance into a time without dividing by a possibly-zero `ageS`. `sustainSpeedMps` carries the speed the
+vanish→edge leg is actually credited at (m/s): the 75th percentile of the per-segment speeds the vehicle was seen
+driving at before it vanished, counting only moving segments — a fast cruise, not the burst behind
+`reachSpeedMps`. 0 when it never moved visibly. (Raised from the median 2026-11-05: the median proved too
+aggressive combined with the coverage / one-ghost cross-checks.)
 `ReloadState` comes from game data (reload time, autoloader clip/intra-clip) plus observed shots: it is an
 *estimate* with `confidence`. Detectors must treat it as such (see COACHING.md).
 

@@ -140,12 +140,29 @@ describe("segmentBlocked", () => {
     expect(segmentBlocked([0, 2.5, 0], [100, 2.5, 0], flatField(), [])).toBeNull();
     expect(segmentBlocked([50, 2.5, 0], [50, 2.5, 0], flatField(), [wall])).toBeNull();
   });
+  it("a ray ending inside a quad is blocked at its entry, like one starting inside it", () => {
+    // A tree canopy over (0,0): the eye at (0,2.5,0) sits inside it.
+    const tree: SightBlocker = { quad: [[-5, -5], [5, -5], [5, 5], [-5, 5]], top: 20, kind: "tree" };
+    expect(segmentBlocked([0, 2.5, 0], [100, 2.5, 0], flatField(), [tree])?.kind).toBe("tree"); // starts inside: t = 0
+    const back = segmentBlocked([100, 2.5, 0], [0, 2.5, 0], flatField(), [tree]);
+    expect(back?.kind).toBe("tree"); // ends inside: blocked at the entry (x = 5), not clear
+    expect(back!.t).toBeCloseTo(0.95, 9);
+    expect(back!.at[0]).toBeCloseTo(5, 9);
+  });
+  it("a ray ending inside a building is blocked at the entry wall", () => {
+    const hit = segmentBlocked([0, 2.5, 0], [50, 2.5, 0], flatField(), [wall]); // ends at x = 50, inside the wall
+    expect(hit?.kind).toBe("building");
+    expect(hit!.t).toBeCloseTo(0.9, 9); // entry at x = 45
+    expect(hit!.at[0]).toBeCloseTo(45, 9);
+    const out = segmentBlocked([50, 2.5, 0], [0, 2.5, 0], flatField(), [wall]); // starts inside: t = 0
+    expect(out?.kind).toBe("building"); expect(out!.t).toBe(0);
+  });
   it("the grid index agrees with the unindexed scan", () => {
     const blockers: SightBlocker[] = [wall, lowWall, { quad: [[80, 80], [90, 80], [90, 90], [80, 90]], top: 30, kind: "rock" }];
     const idx = buildBlockerIndex(blockers);
     const cases: [Vec3, Vec3][] = [
       [[0, 2.5, 0], [100, 2.5, 0]], [[0, 2.5, 20], [100, 2.5, 20]], [[0, 2.5, 85], [100, 2.5, 85]],
-      [[85, 2.5, 0], [85, 2.5, 100]],
+      [[85, 2.5, 0], [85, 2.5, 100]], [[100, 2.5, 0], [50, 2.5, 0]], // ends inside the wall
     ];
     for (const [from, to] of cases) {
       const a = segmentBlocked(from, to, flatField(), blockers);

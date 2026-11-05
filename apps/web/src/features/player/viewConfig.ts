@@ -75,13 +75,20 @@ export interface LosContext { field: HeightField; blockers: SightBlocker[]; inde
  *  from where it would shoot: terrain (heightmap), buildings/footprints, trees, and other tanks
  *  all block. No reachable firing position with LOS = no marker at all (no ring, no countdown).
  *  `secs` is the earliest the ghost could shoot the friendly: the time to drive from the vanish
- *  point to the nearest firing position with LOS, at its fastest seen speed — positive counts
- *  down, zero or less means it may already be there. The marker shows only while the ghost is
- *  still tracked (the caller's ghost list) and the arrival falls inside that 30 s window.
+ *  point to the nearest firing position with LOS, at its SUSTAINABLE speed (the 75th percentile
+ *  of the speeds it was seen driving at before it vanished — a fast cruise, not the 2 s-window
+ *  burst behind `reachSpeedMps`) — positive counts down, zero or less means it may already be there. The marker
+ *  shows only while the ghost is still tracked (the caller's ghost list) and the arrival falls
+ *  inside that 30 s window. A firing position watched by another living friendly is rejected:
+ *  the ghost could not get there unseen (the victim itself is excluded — every firing position
+ *  is inside its own victim's coverage by construction). And one ghost claims at most one firing
+ *  position across all friendlies: the earliest arrival wins, the rest get no marker from it.
  *  `edge` is the firing position — the line to draw — null when the ghost may already be in
  *  a firing position (inside its current reach disc). Without a LosContext the old rule applies:
  *  range only, and `edge` is the nearest point of the reach disc toward the friendly, null when
- *  the friendly is already inside the disc or the direct approach is shadowed. */
+ *  the friendly is already inside the disc or the direct approach is shadowed. The range-only
+ *  rule is NOT one-ghost-one-position: the disc is a region, not a point, so one ghost can
+ *  threaten several friendlies from it. */
 export interface GhostThreat { ghostVid: number; secs: number; alpha: number; edge: { x: number; z: number } | null }
 const THREAT_WINDOW_S = 30; // the ghost's tracked life: the reach disc stops being drawn after this
 /** Firing-position rings around the friendly (m), far to near, sampled at 45° steps when the
@@ -107,15 +114,21 @@ function losClear(from: { x: number; z: number }, to: { x: number; z: number }, 
  *  null when there is none. Candidates are tested cheapest-first and in order of increasing
  *  arrival: the direct point (the closest firing position to the vanish point), then the
  *  rings around the friendly, nearest first. A candidate must be reachable inside the 30 s
- *  window, outside every friendly's 50 m proximity bubble, not in a proximity shadow, and
- *  have a clear line. The shadow check runs against EVERY living friendly — the whole
- *  vanish→firing-position segment, not just the reach blockers near the vanish point:
- *  the search ranges to speed × 30 s, far beyond the reach disc, so a far-side candidate
- *  could otherwise be reached by driving straight through a friendly's bubble (2026-11-05:
- *  a T=91 marker's path passed 44.9 m from its own victim, a T=45 one 0.3 m). A stationary
- *  ghost can only shoot from where it vanished. */
+ *  window at the ghost's SUSTAINABLE speed, outside every friendly's 50 m proximity bubble,
+ *  not in a proximity shadow, and have a clear line. The shadow check runs against EVERY
+ *  living friendly — the whole vanish→firing-position segment, not just the reach blockers
+ *  near the vanish point: the search ranges to speed × 30 s, far beyond the reach disc, so a
+ *  far-side candidate could otherwise be reached by driving straight through a friendly's
+ *  bubble (2026-11-05: a T=91 marker's path passed 44.9 m from its own victim, a T=45 one
+ *  0.3 m). Last, a candidate watched by another living friendly is rejected: within 445 m
+ *  with a clear line from the watcher to the position, the ghost could not arrive unseen —
+ *  the victim itself is excluded (its coverage is trivially true for every firing position).
+ *  The coverage check runs AFTER the LOS check, only for candidates that pass everything else:
+ *  it costs a LOS test per watcher, so running it on every candidate would multiply the
+ *  per-pair cost — the loop returns on the first passing candidate, so this is ~1 check per
+ *  pair instead of ~15. A stationary ghost can only shoot from where it vanished. */
 function findFiringPosition(g: Unit, f: Unit, friends: Unit[], los: LosContext, tanks: TankBlocker[]): FiringPosition | null {
-  const vx = g.x, vz = g.z, speed = g.reachSpeedMps ?? 0;
+  const vx = g.x, vz = g.z, speed = g.sustainSpeedMps ?? g.reachSpeedMps ?? 0;
   const d = Math.hypot(f.x - vx, f.z - vz);
   const candidates: { x: number; z: number }[] = [];
   if (d <= VIEW_RANGE_M.value) candidates.push({ x: vx, z: vz });
@@ -135,6 +148,10 @@ function findFiringPosition(g: Unit, f: Unit, friends: Unit[], los: LosContext, 
     if (friends.some((o) => Math.hypot(o.x - p.x, o.z - p.z) < PROXIMITY_SPOT_M.value)) continue;
     if (friends.some((o) => isShadowed(vx, vz, p.x, p.z, o.x, o.z))) continue;
     if (!losClear(p, f, los, tanks, exclude)) continue;
+    // Watched by another living friendly? The ghost would be spotted arriving — the
+    // position is not an unseen threat. The watcher is excluded from the tank blockers
+    // (its own eye sits below its tank top), and the victim is not a watcher.
+    if (friends.some((o) => o.vid !== f.vid && Math.hypot(o.x - p.x, o.z - p.z) <= VIEW_RANGE_M.value && losClear(o, p, los, tanks, new Set([o.vid])))) continue;
     return { x: p.x, z: p.z, arrival };
   }
   return null;
@@ -149,34 +166,49 @@ export function ghostThreats(ghosts: Unit[], units: Unit[], recorderTeam: number
     const age = g.ageS ?? 0, alpha = Math.max(0, 1 - age / THREAT_WINDOW_S);
     if (alpha <= 0.03) continue;
     const R = g.reachM ?? 0, blockers = reachBlockers(units, g, recorderTeam);
-    for (const f of friends) {
-      const d = Math.hypot(f.x - g.x, f.z - g.z);
-      let arrival: number, edge: { x: number; z: number } | null;
-      if (!los) {
-        // Range-only rule, as before: no line-of-sight data (obstacles not loaded).
-        // A stationary ghost threatens only what is already in firing range; a moving one counts down.
-        if (g.reachSpeedMps > 0) arrival = (d - VIEW_RANGE_M.value) / g.reachSpeedMps;
+    // The vanish→edge leg is credited at the ghost's SUSTAINABLE speed (75th percentile of the
+    // speeds it was seen driving at), falling back to the burst speed when the field is absent
+    // (synthetic units in tests). 0 means it never moved: the stationary rule then applies.
+    const speed = g.sustainSpeedMps ?? g.reachSpeedMps;
+    if (!los) {
+      // Range-only rule, as before: no line-of-sight data (obstacles not loaded).
+      // A stationary ghost threatens only what is already in firing range; a moving one counts down.
+      for (const f of friends) {
+        const d = Math.hypot(f.x - g.x, f.z - g.z);
+        let arrival: number;
+        if (speed > 0) arrival = (d - VIEW_RANGE_M.value) / speed;
         else if (d <= VIEW_RANGE_M.value) arrival = 0;
         else continue;
         if (arrival > THREAT_WINDOW_S) continue;
-        edge = null;
+        let edge: { x: number; z: number } | null = null;
         if (d > R) {
           const ex = g.x + (R / d) * (f.x - g.x), ez = g.z + (R / d) * (f.z - g.z);
           if (!blockers.some((b) => isShadowed(g.x, g.z, ex, ez, b.x, b.z))) edge = { x: ex, z: ez };
         }
-      } else {
-        // Line-of-sight rule: the ghost must reach a firing position with a clear line.
+        const secs = arrival - age;
+        const prev = out.get(f.vid);
+        if (prev && prev.secs <= secs) continue;
+        out.set(f.vid, { ghostVid: g.vid, secs, alpha, edge });
+      }
+    } else {
+      // Line-of-sight rule: the ghost must reach a firing position with a clear line.
+      // One ghost, one position: it can be in only one place, so across all friendlies it
+      // keeps only its earliest arrival; the rest get no marker from it. The per-friendly
+      // soonest-ghost-wins rule still applies among the survivors.
+      let best: { f: Unit; arrival: number; edge: { x: number; z: number } | null } | null = null;
+      for (const f of friends) {
         const fp = findFiringPosition(g, f, friends, los, tanks);
         if (!fp) continue;
-        arrival = fp.arrival;
-        if (arrival > THREAT_WINDOW_S) continue;
+        if (fp.arrival > THREAT_WINDOW_S) continue;
         const pd = Math.hypot(fp.x - g.x, fp.z - g.z);
-        edge = pd > R ? { x: fp.x, z: fp.z } : null;
+        const edge = pd > R ? { x: fp.x, z: fp.z } : null;
+        if (!best || fp.arrival < best.arrival) best = { f, arrival: fp.arrival, edge };
       }
-      const secs = arrival - age;
-      const prev = out.get(f.vid);
-      if (prev && prev.secs <= secs) continue;
-      out.set(f.vid, { ghostVid: g.vid, secs, alpha, edge });
+      if (best) {
+        const secs = best.arrival - age;
+        const prev = out.get(best.f.vid);
+        if (!prev || prev.secs > secs) out.set(best.f.vid, { ghostVid: g.vid, secs, alpha, edge: best.edge });
+      }
     }
   }
   return out;

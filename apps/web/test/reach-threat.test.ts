@@ -110,7 +110,10 @@ describe("ghostThreats with line of sight", () => {
     expect(ghostThreats([ghost({ vid: 1 })], [ghost({ vid: 1 }), f], 2, ctx).has(2)).toBe(false);
   });
   it("a tank on the direct line pushes the threat to a flank", () => {
-    const f = u({ vid: 2, x: 500, z: 0 }), blocker = u({ vid: 9, x: 250, z: 0 }); // a teammate standing in the way
+    // The blocker is an ENEMY live tank: it blocks the ray, but it is not a threat target, so
+    // the one-ghost-one-position rule cannot steal the marker onto it (a friendly standing
+    // there would be the ghost's earliest firing position instead).
+    const f = u({ vid: 2, x: 500, z: 0 }), blocker = u({ vid: 9, team: 1, x: 250, z: 0 });
     const g = fastGhost({ vid: 1 });
     const th = ghostThreats([g], [g, f, blocker], 2, losCtx(flatField())).get(2)!;
     expect(th.secs).toBeCloseTo(18.26 - 5, 1); // the direct 2.75 s is blocked by the tank
@@ -153,5 +156,84 @@ describe("ghostThreats with line of sight", () => {
     const th = ghostThreats([fastGhost({ vid: 1 })], [fastGhost({ vid: 1 }), f], 2, ctx).get(2)!;
     expect(th.secs).toBeCloseTo(Math.hypot(300, 100) / 20 - 5, 1); // arrival 15.81 s, age 5
     expect(th.edge!.x).toBeCloseTo(300, 0); expect(th.edge!.z).toBeCloseTo(100, 0);
+  });
+});
+
+/** Coverage rejection + one-ghost-one-position (2026-11-05): a ghost cannot threaten from a
+ *  firing position another friendly is watching, and it can be in only one place. */
+describe("ghostThreats coverage and one-ghost-one-position", () => {
+  // Slow ghost (5 m/s, 5 s old, 25 m reach) at (0,0); the only firing position reachable in
+  // the 30 s window is the direct point (55,0) toward (500,0) — every flank point is >30 s away.
+  const slowGhost = (o: Partial<Unit> & { vid: number }): Unit => ghost({ vid: 1, ageS: 5, reachM: 25, reachSpeedMps: 5, ...o });
+  it("a firing position watched by another friendly is no marker", () => {
+    const f = u({ vid: 2, x: 500, z: 0 }), w = u({ vid: 3, x: 55, z: 200 }); // 200 m from (55,0), clear LOS
+    const th = ghostThreats([slowGhost({ vid: 1 })], [slowGhost({ vid: 1 }), f, w], 2, losCtx(flatField()));
+    expect(th.has(2)).toBe(false); // the only firing position is watched
+    expect(th.get(3)).toBeDefined(); // the watcher is itself the ghost's earliest target
+  });
+  it("the victim's own coverage does not kill its marker", () => {
+    const f = u({ vid: 2, x: 500, z: 0 }); // 445 m from (55,0) with a clear line: it watches its own firing position
+    const th = ghostThreats([slowGhost({ vid: 1 })], [slowGhost({ vid: 1 }), f], 2, losCtx(flatField())).get(2)!;
+    expect(th.secs).toBeCloseTo(55 / 5 - 5, 1); // arrival 11 s, age 5
+    expect(th.edge).toEqual({ x: 55, z: 0 });
+  });
+  it("a watcher out of range does not kill the marker", () => {
+    const f = u({ vid: 2, x: 500, z: 0 }), w = u({ vid: 3, x: 55, z: 500 }); // 500 m from (55,0)
+    expect(ghostThreats([slowGhost({ vid: 1 })], [slowGhost({ vid: 1 }), f, w], 2, losCtx(flatField())).has(2)).toBe(true);
+  });
+  it("a watcher whose line to the position is walled off does not kill the marker", () => {
+    const f = u({ vid: 2, x: 500, z: 0 }), w = u({ vid: 3, x: 55, z: 200 });
+    // The first wall stands between the watcher and (55,0); the second stands between the
+    // ghost and the watcher, so the watcher is not itself the ghost's earliest target
+    // (one ghost, one position) and the test pins the coverage rule alone.
+    const ctx = losCtx(flatField(), [wall(45, 65, 90, 110), wall(20, 35, 90, 110)]);
+    expect(ghostThreats([slowGhost({ vid: 1 })], [slowGhost({ vid: 1 }), f, w], 2, ctx).has(2)).toBe(true);
+  });
+  it("one ghost claims only its earliest firing position across friendlies", () => {
+    const g = fastGhost({ vid: 1 }); // (0,0), 20 m/s, age 5, reach 100
+    const f1 = u({ vid: 2, x: 500, z: 0 }); // direct (55,0), arrival 2.75 s
+    const f2 = u({ vid: 3, x: 0, z: 700 }); // direct (0,255), arrival 12.75 s
+    const th = ghostThreats([g], [g, f1, f2], 2, losCtx(flatField()));
+    expect(th.get(2)!.secs).toBeCloseTo(2.75 - 5, 1);
+    expect(th.has(3)).toBe(false); // the same ghost cannot also be 255 m north
+  });
+  it("a second ghost still marks the friendly the first ghost abandoned", () => {
+    const g1 = fastGhost({ vid: 1 });
+    const g2 = fastGhost({ vid: 4, x: 100, z: 600 }); // near f2: direct (100,600), arrival 0
+    const f1 = u({ vid: 2, x: 500, z: 0 }), f2 = u({ vid: 3, x: 0, z: 700 });
+    const th = ghostThreats([g1, g2], [g1, g2, f1, f2], 2, losCtx(flatField()));
+    expect(th.get(2)!.ghostVid).toBe(1); expect(th.get(3)!.ghostVid).toBe(4);
+  });
+  it("the range-only rule still lets one ghost threaten several friendlies", () => {
+    const f1 = u({ vid: 2, x: 300, z: 0 }), f2 = u({ vid: 3, x: 0, z: 300 });
+    const th = ghostThreats([ghost({ vid: 1 })], [ghost({ vid: 1 }), f1, f2], 2);
+    expect(th.has(2)).toBe(true); expect(th.has(3)).toBe(true);
+  });
+});
+
+/** Sustainable speed (2026-11-05): the vanish→edge leg is credited at the median of the
+ *  speeds the ghost was seen driving at, not the 2 s-window burst. */
+describe("ghostThreats sustainable speed", () => {
+  it("a slow cruiser with a fast burst is credited at its cruise speed", () => {
+    const f = u({ vid: 2, x: 600, z: 0 });
+    // Burst 20 m/s would give arrival 7.75 s; sustain 5 m/s gives 31 s — past the window.
+    const slow = ghost({ vid: 1, ageS: 5, reachM: 100, reachSpeedMps: 20, sustainSpeedMps: 5 });
+    expect(ghostThreats([slow], [slow, f], 2, losCtx(flatField())).has(2)).toBe(false);
+    const mid = ghost({ vid: 1, ageS: 5, reachM: 100, reachSpeedMps: 20, sustainSpeedMps: 10 });
+    const th = ghostThreats([mid], [mid, f], 2, losCtx(flatField())).get(2)!;
+    expect(th.secs).toBeCloseTo(15.5 - 5, 1); // arrival 155/10 = 15.5 s, age 5
+  });
+  it("the range-only rule uses the sustainable speed too", () => {
+    const f = u({ vid: 2, x: 600, z: 0 });
+    const slow = ghost({ vid: 1, ageS: 5, reachM: 100, reachSpeedMps: 20, sustainSpeedMps: 5 });
+    expect(ghostThreats([slow], [slow, f], 2).has(2)).toBe(false); // (600-445)/5 = 31 s
+    const mid = ghost({ vid: 1, ageS: 5, reachM: 100, reachSpeedMps: 20, sustainSpeedMps: 10 });
+    expect(ghostThreats([mid], [mid, f], 2).get(2)!.secs).toBeCloseTo(15.5 - 5, 1);
+  });
+  it("a ghost that never moved still threatens only what is already in range", () => {
+    const g = ghost({ vid: 1, reachM: undefined, reachSpeedMps: 0, sustainSpeedMps: 0 });
+    const near = u({ vid: 2, x: 400, z: 0 }), far = u({ vid: 3, x: 500, z: 0 });
+    const th = ghostThreats([g], [g, near, far], 2, losCtx(flatField()));
+    expect(th.has(2)).toBe(true); expect(th.has(3)).toBe(false);
   });
 });

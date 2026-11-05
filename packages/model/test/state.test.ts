@@ -39,6 +39,23 @@ describe("stateAt", () => {
     // the speed behind the radius is carried too, so callers can turn distance into time
     expect(a.reachSpeedMps).toBeCloseTo(5.57, 1); expect(a.reachSpeedMps).toBeCloseTo(b.reachSpeedMps!, 1);
   });
+  it("a vanished tank carries a sustainable speed: the 75th percentile of the speeds it was seen driving at", () => {
+    const SH = 13908105; // shohins2013, last seen 128.8, visible again from 150.6
+    const a = u(135, SH), b = u(140, SH);
+    expect(a.sustainSpeedMps).toBeCloseTo(5.5, 1); // 75th percentile of 66 moving segments; fastest is 5.57
+    expect(a.sustainSpeedMps!).toBeLessThanOrEqual(a.reachSpeedMps!);
+    expect(b.sustainSpeedMps).toBe(a.sustainSpeedMps); // same vanish sample, same cruise speed
+    // Icecreatrus cruises below its burst: 75th percentile 13.1 m/s against a 13.8 m/s fastest window.
+    const ice = u(49, 13908132);
+    expect(ice.sustainSpeedMps).toBeCloseTo(13.1, 1);
+    expect(ice.sustainSpeedMps!).toBeLessThan(ice.reachSpeedMps!);
+  });
+  it("sustain is absent for live, never-seen and dead ghosts", () => {
+    expect(u(100, ME).sustainSpeedMps).toBeUndefined();
+    const e = tl.vehicles.find((v) => v.team !== tl.recorder.team && tl.tracks[v.vid])!;
+    expect(u(tl.tracks[e.vid]!.t[0]! - 5, e.vid).sustainSpeedMps).toBeUndefined();
+    const d = u(210, 13908112); expect(d.known).toBe("ghost"); expect(d.alive).toBe(false); expect(d.sustainSpeedMps).toBeUndefined();
+  });
   it("reach is absent for live, never-seen and dead ghosts", () => {
     expect(u(100, ME).reachM).toBeUndefined();
     const e = tl.vehicles.find((v) => v.team !== tl.recorder.team && tl.tracks[v.vid])!;

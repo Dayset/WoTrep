@@ -343,11 +343,13 @@ export function segmentTankBlocked(from: Vec3, to: Vec3, tanks: TankBlocker[], e
   return best;
 }
 
-/** First parameter t in [0, 1] where the 2D segment crosses the quad, or null. An endpoint
- *  inside the quad crosses at t = 0 (from) or t = 1 (to). */
+/** First parameter t in [0, 1] where the 2D segment crosses the quad, or null. A start inside
+ *  the quad crosses at t = 0; an end inside crosses where the segment ENTERS the quad — the
+ *  edge crossing, not t = 1 — so the answer does not depend on which end is the eye: before
+ *  2026-11-05 the endpoint case returned 1 and `segmentBlocked` discarded it, so a tank
+ *  parked on a tree saw out one way and not the other (`losClear(A→B) ≠ losClear(B→A)`). */
 function segmentQuadCross(x0: number, z0: number, x1: number, z1: number, quad: Quad): number | null {
   if (pointInQuad(x0, z0, quad)) return 0;
-  if (pointInQuad(x1, z1, quad)) return 1;
   let best: number | null = null;
   const dx = x1 - x0, dz = z1 - z0;
   for (let i = 0; i < 4; i++) {
@@ -357,5 +359,8 @@ function segmentQuadCross(x0: number, z0: number, x1: number, z1: number, quad: 
     const t = ((ax - x0) * ez - (az - z0) * ex) / den, u = ((ax - x0) * dz - (az - z0) * dx) / den;
     if (t >= 0 && t <= 1 && u >= 0 && u <= 1 && (best === null || t < best)) best = t;
   }
+  // Degenerate: the endpoint is inside but no edge crossing was found (numerical edge case).
+  // Keep the old sentinel — `segmentBlocked` discards t = 1, exactly as before.
+  if (best === null && pointInQuad(x1, z1, quad)) return 1;
   return best;
 }
