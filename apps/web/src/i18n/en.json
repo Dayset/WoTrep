@@ -284,6 +284,7 @@
   "heights.remove": "Remove saved heights",
   "heights.loaded": "Heights loaded: {n} chunks, {lo}–{hi} m.",
   "heights.none": "No heights saved — ground is estimated from tank tracks.",
+  "heights.close": "Close",
   "curve.wp": "Win chance",
   "curve.dmg": "Damage",
   "curve.dpm": "Damage/min",

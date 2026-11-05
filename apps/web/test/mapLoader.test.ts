@@ -1,0 +1,16 @@
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { MapLoader } from "../src/features/player/MapLoader";
+
+// Server rendering skips effects, so no IndexedDB is touched; the markup is.
+// Regression: after saving heights the panel stayed open with no close control
+// in reach — the only Cancel sat above the heights section.
+describe("MapLoader heights section", () => {
+  it("offers a Close button in the heights row", () => {
+    const html = renderToString(createElement(MapLoader, { mapName: "101_dday", onSaved: () => {}, onClose: () => {} }));
+    expect(html).toContain("Real heights");
+    expect(html).toContain("Save heights");
+    expect(html).toContain(">Close<");
+  });
+});

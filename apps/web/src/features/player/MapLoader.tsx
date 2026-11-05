@@ -44,7 +44,7 @@ export function MapLoader({ mapName, onSaved, onClose }: { mapName: string; onSa
       <p className="muted">{hStored ? t("heights.loaded", { n: hStored.chunks.size, lo: Math.round(hStored.minM), hi: Math.round(hStored.maxM) }) : t("heights.none")}</p>
       <label>{t("heights.file")} <input type="file" accept=".zip,application/zip" onChange={(e) => setHFile(e.target.files?.[0] ?? null)} /></label>
       {hMsg && <p className="muted">{hMsg}</p>}
-      <div className="factions"><button type="button" onClick={() => void saveHeightsFile()}>{t("heights.save")}</button>{hStored && <button type="button" onClick={() => void removeHeightsFile()}>{t("heights.remove")}</button>}</div>
+      <div className="factions"><button type="button" onClick={() => void saveHeightsFile()}>{t("heights.save")}</button>{hStored && <button type="button" onClick={() => void removeHeightsFile()}>{t("heights.remove")}</button>}<button type="button" onClick={onClose}>{t("heights.close")}</button></div>
     </div>
   );
 }
