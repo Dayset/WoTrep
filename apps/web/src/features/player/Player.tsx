@@ -12,6 +12,7 @@ import { MiniMap } from "./MiniMap";
 import { heightImage } from "../../lib/heightImage";
 const PovView = lazy(() => import("./PovView"));
 import { DamageLog } from "./DamageLog";
+import { ChatLog } from "./ChatLog";
 import { flankModel, flankState, seriesFor, aimAt, heightField, estimateReload, reloadProgress, shotTimes, type ReloadEstimate } from "@wotrep/analysis";
 import { goodPlaysAll, dangerSpots, detectors, rank, runDetectors, type GoodPlay, type DangerSpot } from "@wotrep/coach";
 import { FindingCard } from "../report/Findings";
@@ -402,6 +403,7 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
           <canvas ref={curveCv} className="ptimeline" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); scrubC(e); }} onPointerMove={scrubC} aria-label={t("curve.aria")} />
           <details className="how"><summary>{sv ? sv.name : tl.recorder.name} · ?</summary><p className="muted pcurvenote">{t(`curve.${curve}.how`)}{curve !== "wp" && sr.officialDmg != null && sr.officialDmg > 0 && sr.finalDmg < sr.officialDmg * 0.98 ? ` ${t("curve.partial", { p: Math.round((sr.finalDmg / sr.officialDmg) * 100) })}` : ""}</p></details>
         </div>
+        <ChatLog tl={tl} now={uiT} onSeek={seek} />
         {logOn && <DamageLog tl={tl} now={uiT} onSeek={seek} />}
       </aside>
     </div>

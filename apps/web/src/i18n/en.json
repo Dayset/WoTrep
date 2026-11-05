@@ -330,6 +330,8 @@
   "log.empty": "No damage events for this filter.",
   "log.note": "Hits as recorded in the replay; ☠ = destroyed. Click a row to jump 3 s before it.",
   "log.coverage": "The log holds {p}% of the damage in the official results (the replay only reports hits it could see).",
+  "chat.title": "Battle chat",
+  "chat.note": "Messages as recorded in the replay. Click a row to jump 3 s before it.",
   "adv.focus": "Focus fire",
   "adv.company": "Fought with company",
   "adv.hang": "Hung back",
