@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
 import { tracerLines, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, type ReloadEstimate } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
-import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, trainerMatch, type TrainerSel } from "./viewConfig";
+import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, trainerMatch, type TrainerSel } from "./viewConfig";
 
 /** Seeded per-pixel noise (dithering) as a canvas texture: a base colour with a small random spread per pixel. */
 function noiseTexture(size: number, base: [number, number, number], spread: number): THREE.CanvasTexture {
@@ -66,10 +66,34 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     }
     // reach spheres: a wireframe bubble around a vanished tank's last known spot, radius = Unit.reachM.
     // Same rule as the 2D dotted circle: alive ghosts only, fades with the ghost over 30 s, gone on reappearance.
+    // The fragment shader discards the wireframe within PROXIMITY_SPOT_M of any living friendly (proximity
+    // spotting) and in the shadow behind each bubble — ground the ghost could only have reached by driving
+    // through the bubble (straight line from the vanish point, uCenter, crosses it). Friend positions are
+    // ground-plane (x, -z), shared across all sphere materials and refilled every frame; the vanish point
+    // is per sphere.
     const SPHERE_FADE_S = 30, sphereGeo = new THREE.SphereGeometry(1, 24, 16);
-    const spheres = new Map<number, { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial }>();
+    const friendPos = new Float32Array(15 * 2), friendUniform = { value: friendPos };
+    const spheres = new Map<number, { mesh: THREE.Mesh; mat: THREE.ShaderMaterial }>();
     for (const v of tl.vehicles) {
-      const mat = new THREE.MeshBasicMaterial({ color: v.team === tl.recorder.team ? ally : foe, wireframe: true, transparent: true, opacity: 0, depthWrite: false });
+      const mat = new THREE.ShaderMaterial({
+        wireframe: true, transparent: true, depthWrite: false,
+        uniforms: {
+          uFriends: friendUniform,
+          uCount: { value: 0 },
+          uCenter: { value: new THREE.Vector2() },
+          uColor: { value: (v.team === tl.recorder.team ? ally : foe).clone() },
+          uOpacity: { value: 0 },
+        },
+        vertexShader: "varying vec3 vWorld; void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vWorld = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }",
+        fragmentShader: `varying vec3 vWorld; uniform vec2 uFriends[15]; uniform int uCount; uniform vec2 uCenter; uniform vec3 uColor; uniform float uOpacity;
+          void main() { for (int i = 0; i < 15; i++) { if (i >= uCount) break;
+            vec2 fp = vWorld.xz - uFriends[i]; if (dot(fp, fp) < ${(PROXIMITY_SPOT_M.value ** 2).toFixed(1)}) discard;
+            vec2 f = uCenter - uFriends[i]; if (dot(f, f) <= ${(PROXIMITY_SPOT_M.value ** 2).toFixed(1)}) continue;
+            vec2 d = vWorld.xz - uCenter; float a = dot(d, d);
+            if (a > 0.0) { float b = 2.0 * dot(f, d); float cc = dot(f, f) - ${(PROXIMITY_SPOT_M.value ** 2).toFixed(1)}; float disc = b*b - 4.0*a*cc;
+              if (disc > 0.0) { float t = (-b - sqrt(disc)) / (2.0*a); if (t > 0.0 && t < 1.0) discard; } }
+          } gl_FragColor = vec4(uColor, uOpacity); }`,
+      });
       const mesh = new THREE.Mesh(sphereGeo, mat); mesh.visible = false; mesh.frustumCulled = false; mesh.renderOrder = 2; scene.add(mesh);
       spheres.set(v.vid, { mesh, mat });
     }
@@ -160,12 +184,13 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       raf = requestAnimationFrame(loop); const nowMs = performance.now(), dtS = Math.min(0.25, (nowMs - lastMs) / 1000); lastMs = nowMs; const jump = Math.abs(clock.current.t - lastT) > 1.2; lastT = clock.current.t; const kS = 1 - Math.exp(-dtS / 0.16);   // rotation is smoothed over ~0.16 s; seeks snap let turretYaw = 0, turretPitch = 0, onTarget = false; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
       let turretYaw = 0, turretPitch = 0, onTarget = false, hullYawS = 0; const L = live.current, s = stateAt(tl, clock.current.t), me = s.units.find((u) => u.vid === L.vid);
       const hit = new Set<number>(); for (const e of tl.events) if (e.k === "damage" && e.target === L.vid && e.t <= clock.current.t && e.t >= clock.current.t - 4) hit.add(e.attacker);
+      let nFriends = 0; for (const o of s.units) if (o.team === tl.recorder.team && o.alive && o.known === "live" && nFriends < 15) { friendPos[nFriends * 2] = o.x; friendPos[nFriends * 2 + 1] = -o.z; nFriends++; }
       for (const u of s.units) {
         const k = tanks.get(u.vid)!; k.g.visible = u.known !== "never" && !(L.mode === "fp" && u.vid === L.vid && u.alive);
         k.g.position.set(u.x, gh(u.x, u.z), -u.z); const aim0 = u.alive ? aimAt(tl, u.vid, clock.current.t) : null, sm = smY.get(u.vid) ?? { h: u.yaw, g: aim0 ? aim0.yaw : u.yaw }; if (jump || !smY.has(u.vid)) { sm.h = u.yaw; sm.g = aim0 ? aim0.yaw : u.yaw; } else { sm.h += wrap(u.yaw - sm.h) * kS; sm.g += wrap((aim0 ? aim0.yaw : u.yaw) - sm.g) * kS; } smY.set(u.vid, sm); k.g.rotation.y = -sm.h; k.mat.opacity = !u.alive ? 0.5 : u.known === "ghost" ? 0.3 : 1;
         { const sp = spheres.get(u.vid)!, show = u.alive && u.known === "ghost" && !!u.reachM && (u.ageS ?? 0) < SPHERE_FADE_S;
           sp.mesh.visible = show;
-          if (show) { sp.mesh.position.set(u.x, gh(u.x, u.z) + 1.5, -u.z); sp.mesh.scale.setScalar(u.reachM!); sp.mat.opacity = 0.3 * (1 - (u.ageS ?? 0) / SPHERE_FADE_S); } }
+          if (show) { sp.mesh.position.set(u.x, gh(u.x, u.z) + 1.5, -u.z); sp.mesh.scale.setScalar(u.reachM!); sp.mat.uniforms.uCount!.value = u.team === tl.recorder.team ? 0 : nFriends; sp.mat.uniforms.uCenter!.value.set(u.x, -u.z); sp.mat.uniforms.uOpacity!.value = 0.3 * (1 - (u.ageS ?? 0) / SPHERE_FADE_S); } }
         k.mat.color.copy(!u.alive ? new THREE.Color(0x444444) : hit.has(u.vid) ? new THREE.Color(0xffd23f) : u.team === tl.recorder.team ? ally : foe);
         { const cn = vcones.get(u.vid)!, show = L.trainer.on && u.known === "live" && u.alive && trainerMatch(L.trainer.sel, u.vid, u.team, tl.recorder.team);
           cn.fan.visible = cn.ring.visible = show;

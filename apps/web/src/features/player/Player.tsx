@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
-import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, trainerMatch, type TrainerSel } from "./viewConfig";
+import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, reachBlockers, shadowPolygon, trainerMatch, type TrainerSel } from "./viewConfig";
+import { drawReachDisc } from "./reachDraw";
 import { sfxStart, sfxShot, type ShotKind } from "./sfx";
 import { stateAt, type BattleTimeline, type Unit } from "@wotrep/model";
 import { vehicleLabel } from "@wotrep/gamedata";
@@ -157,7 +158,15 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
         // reach circle: dotted, centred on the last known spot, radius = how far the tank could
         // have got at the fastest speed it was seen doing before it vanished (Unit.reachM).
         // It grows while the ghost ages and fades with it; a reappearance drops it outright.
-        if (u.alive && u.reachM) { const R = u.reachM * cm.s; if (R >= 3) { g.setLineDash([3, 4]); g.strokeStyle = col(u.team); g.globalAlpha = 0.55 * a; g.lineWidth = 1.5; g.beginPath(); g.arc(X, Y, R, 0, 7); g.stroke(); g.setLineDash([]); g.globalAlpha = 1; } }
+        // The disc is cut around living friendlies (reachBlockers): 50 m holes where the ghost
+        // would be spotted right now, plus the shadow behind each bubble — ground the ghost could
+        // only have reached by driving through the bubble.
+        if (u.alive && u.reachM) { const R = u.reachM * cm.s; if (R >= 3) {
+          const blockers = reachBlockers(snap.units, u, tl.recorder.team);
+          drawReachDisc(g, c, { cx: X, cy: Y, r: R, color: col(u.team), alpha: a,
+            holes: blockers.map((b) => ({ x: sx(b.x), y: sy(b.z), r: PROXIMITY_SPOT_M.value * cm.s })),
+            shadows: blockers.map((b) => shadowPolygon(u.x, u.z, u.reachM!, b.x, b.z)).filter((p): p is { x: number; z: number }[] => p !== null).map((p) => p.map((q) => ({ x: sx(q.x), y: sy(q.z) }))),
+          }); } }
         arrow(u, 7, false, 0.15 + 0.6 * a); if (o.names) { g.fillStyle = muted; g.globalAlpha = 0.3 + 0.5 * a; g.textBaseline = "top"; g.fillText(`${Math.round(u.ageS ?? 0)}s`, X + 9, Y - 5); g.globalAlpha = 1; } continue; }
       arrow(u, 8, true, 1);
       if (o.reload && u.alive && u.known === "live") { const rd = reloadRef.current.get(u.vid); const rp = rd ? reloadProgress(rd.ts, rd.est, T) : null;

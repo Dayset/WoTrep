@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
 import { aimAt } from "@wotrep/analysis";
+import { PROXIMITY_SPOT_M, reachBlockers, shadowPolygon } from "./viewConfig";
+import { drawReachDisc } from "./reachDraw";
 import type { MapBounds } from "../../lib/mapStore";
 import { t } from "../../i18n";
 
@@ -25,8 +27,14 @@ export function MiniMap({ tl, clock, vid, img, bounds, fp }: { tl: BattleTimelin
       else { g.strokeStyle = "rgba(255,255,255,0.12)"; for (let x = Math.ceil(x0 / 100) * 100; x < x0 + w; x += 100) { g.beginPath(); g.moveTo(sx(x), 0); g.lineTo(sx(x), H); g.stroke(); } for (let z = Math.ceil(z0 / 100) * 100; z < z0 + h; z += 100) { g.beginPath(); g.moveTo(0, sy(z)); g.lineTo(W, sy(z)); g.stroke(); } }
       for (const u of s.units) {
         if (u.known === "never") continue; const X = sx(u.x), Y = sy(u.z); if (X < -5 || Y < -5 || X > W + 5 || Y > H + 5) continue;
-        // reach circle, same rule as the 2D player: dotted, radius = Unit.reachM, fades with the ghost.
-        if (u.known === "ghost" && u.alive && u.reachM && (u.ageS ?? 0) < GHOST_FADE_S) { const R = u.reachM * (W / w); if (R >= 3) { g.save(); g.setLineDash([3, 4]); g.strokeStyle = u.team === tl.recorder.team ? ally : foe; g.globalAlpha = 0.55 * (1 - (u.ageS ?? 0) / GHOST_FADE_S); g.lineWidth = 1.5; g.beginPath(); g.arc(X, Y, R, 0, 7); g.stroke(); g.restore(); } }
+        // reach circle, same rule as the 2D player: dotted, radius = Unit.reachM, fades with the ghost,
+        // faint fill with 50 m holes around living friendlies plus the shadow behind each bubble.
+        if (u.known === "ghost" && u.alive && u.reachM && (u.ageS ?? 0) < GHOST_FADE_S) { const k = W / w, R = u.reachM * k, fade = 1 - (u.ageS ?? 0) / GHOST_FADE_S; if (R >= 3) {
+          const blockers = reachBlockers(s.units, u, tl.recorder.team);
+          drawReachDisc(g, c, { cx: X, cy: Y, r: R, color: u.team === tl.recorder.team ? ally : foe, alpha: fade,
+            holes: blockers.map((b) => ({ x: sx(b.x), y: sy(b.z), r: PROXIMITY_SPOT_M.value * k })),
+            shadows: blockers.map((b) => shadowPolygon(u.x, u.z, u.reachM!, b.x, b.z)).filter((p): p is { x: number; z: number }[] => p !== null).map((p) => p.map((q) => ({ x: sx(q.x), y: sy(q.z) }))),
+          }); } }
         g.globalAlpha = u.known === "ghost" ? 0.4 : 1; g.fillStyle = u.team === tl.recorder.team ? ally : foe;
         if (!u.alive) { g.strokeStyle = "#999"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X - 3, Y - 3); g.lineTo(X + 3, Y + 3); g.moveTo(X + 3, Y - 3); g.lineTo(X - 3, Y + 3); g.stroke(); }
         else { g.beginPath(); g.arc(X, Y, u.vid === L.vid ? 5 : 3.2, 0, 7); g.fill(); }

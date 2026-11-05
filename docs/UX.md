@@ -94,7 +94,12 @@ Map layer
   known position, fading over 30 s, with age label. Around an alive ghost a dotted circle grows: its radius is
   `reachM` — the fastest 2 s-window speed the tank was seen doing before it vanished, times the seconds since —
   so the circle is everywhere the tank could have got to at full speed, not where it is. It fades with the ghost
-  and disappears the moment the tank is seen again. Toggle "merged view" when several replays of the same battle
+  and disappears the moment the tank is seen again. The circle is cut around living friendlies: a 50 m bubble
+  around each (proximity spotting — inside it the ghost would be seen right now), so the tank cannot be
+  standing on top of a teammate. The shadow behind each bubble is cut too: ground the tank could only have
+  reached by driving through the bubble, as seen from where it vanished. The shadow uses the friendly's
+  current position and ignores the short way around the bubble's edge, so it is an approximation — the
+  50 m hole is the hard fact. Toggle "merged view" when several replays of the same battle
   (same `arenaUniqueId`) are loaded — then more is visible (badge shows "3 POVs merged").
 - Tracers (short-lived lines), hit markers (pen / bounce / no-damage when decodable), floating damage numbers,
   kill crosses with time, spot lines, base circles and capture progress.
@@ -123,7 +128,8 @@ Coach mode
 Opened from the player (P) at a given second. Loads ±10 s around it.
 - 3D terrain + tanks at their positions, your camera (from recorder aim data), aim line, shell traces, the enemy you
   could not see shown as a ghost — with a wireframe sphere around its last known spot, growing to everywhere it
-  could have reached at full speed and fading over 30 s, same rule as the 2D dotted circle.
+  could have reached at full speed and fading over 30 s, same rule as the 2D dotted circle, with the same
+  50 m holes cut around living friendlies and the same shadow behind each bubble.
 - Two asset modes, shown in a badge: **"Your game files"** (models/terrain loaded from the user's local install,
   never uploaded) or **"Simple"** (generic low-poly hulls by class, flat-shaded height map).
 - Scrub only inside the loaded window; "back to 2D" keeps the time.
