@@ -30,6 +30,7 @@ export function Upload({ onDone }: { onDone: (tl: BattleTimeline) => void }) {
         onClick={() => input.current?.click()} onKeyDown={(e) => e.key === "Enter" && input.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); run(e.dataTransfer.files[0]); }}>
+        <div className="drop-plus" aria-hidden="true">+</div>
         {busy ? t("upload.parsing") : t("upload.drop")}
         <small>{t("upload.local")}</small>
         <input ref={input} type="file" accept=".wotreplay,.mtreplay" hidden data-testid="file" onChange={(e) => run(e.target.files?.[0])} />

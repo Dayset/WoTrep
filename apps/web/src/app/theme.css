@@ -10,6 +10,7 @@ button, .btn { background: var(--panel); color: var(--text); border: 1px solid v
 button:hover { border-color: var(--accent); }
 .drop { margin: 28px 0 8px; border: 2px dashed var(--line); padding: 56px 16px; text-align: center; cursor: pointer; background: var(--panel); }
 .drop.over { border-color: var(--accent); }
+.drop-plus { font-size: 72px; line-height: 0.9; font-weight: 800; color: var(--accent); margin-bottom: 12px; }
 .drop small { display: block; margin-top: 8px; color: var(--muted); }
 .err { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--enemy); color: var(--enemy); }
 .banner { margin: 12px 0; padding: 8px 12px; border: 1px solid var(--line); color: var(--muted); }
