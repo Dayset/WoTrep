@@ -2,11 +2,12 @@
 export interface MapBounds { x0: number; x1: number; z0: number; z1: number }
 export interface StoredMap { name: string; image: Blob; bounds: MapBounds }
 
-/** One database for the user's game files: "maps" (minimap image + bounds) and "heights" (real-height ZIPs).
- *  Version 2 adds the heights store; the upgrade creates whichever store is missing, so existing maps survive. */
+/** One database for the user's game files: "maps" (minimap image + bounds), "heights" (real-height ZIPs)
+ *  and "obstacles" (obstacles JSONs). Version 3 adds the obstacles store; the upgrade creates whichever
+ *  store is missing, so existing maps and heights survive. */
 export const openDb = () => new Promise<IDBDatabase>((res, rej) => {
-  const r = indexedDB.open("wotrep", 2);
-  r.onupgradeneeded = () => { const db = r.result; if (!db.objectStoreNames.contains("maps")) db.createObjectStore("maps", { keyPath: "name" }); if (!db.objectStoreNames.contains("heights")) db.createObjectStore("heights", { keyPath: "name" }); };
+  const r = indexedDB.open("wotrep", 3);
+  r.onupgradeneeded = () => { const db = r.result; if (!db.objectStoreNames.contains("maps")) db.createObjectStore("maps", { keyPath: "name" }); if (!db.objectStoreNames.contains("heights")) db.createObjectStore("heights", { keyPath: "name" }); if (!db.objectStoreNames.contains("obstacles")) db.createObjectStore("obstacles", { keyPath: "name" }); };
   r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
 });
 const open = openDb;

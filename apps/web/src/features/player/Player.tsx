@@ -9,18 +9,26 @@ import type { Finding } from "@wotrep/coach";
 import { t } from "../../i18n";
 import { loadMap, type MapBounds } from "../../lib/mapStore";
 import { loadHeights } from "../../lib/heightsStore";
+import { loadObstacles } from "../../lib/obstaclesStore";
 import { MapLoader } from "./MapLoader";
 import { MiniMap } from "./MiniMap";
 import { heightImage } from "../../lib/heightImage";
 const PovView = lazy(() => import("./PovView"));
 import { DamageLog } from "./DamageLog";
 import { ChatLog } from "./ChatLog";
-import { flankModel, flankState, seriesFor, aimAt, heightField, estimateReload, reloadProgress, shotTimes, REAL_HEIGHT_CELL_M, type RealHeights, type RealSource, type ReloadEstimate } from "@wotrep/analysis";
+import { flankModel, flankState, seriesFor, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, REAL_HEIGHT_CELL_M, filterOutland, sightBlockers, buildBlockerIndex, segmentBlocked, EYE_HEIGHT_M, TREE_CANOPY_R_M, type RealHeights, type RealSource, type ReloadEstimate, type Obstacles, type ObstacleKind } from "@wotrep/analysis";
 import { goodPlaysAll, dangerSpots, detectors, rank, runDetectors, type GoodPlay, type DangerSpot } from "@wotrep/coach";
 import { FindingCard } from "../report/Findings";
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
 const GHOST_FADE_S = 30, TRAIL_S = 10, GRID_M = 100;
+/** Rays per trainer cone for the line-of-sight fan (15 rays over 65° ≈ 4.3° apart). A blocker
+ *  narrower than the ray spacing can slip between two rays — the solid fan is an approximation,
+ *  and the dashed radials mark where each ray stops. */
+const CONE_RAYS = 15;
+/** 2D obstacle colours: filled quads under the tanks, above the map image and heights overlay. */
+const OBSTACLE_COLORS: Record<ObstacleKind, string> = { building: "rgba(160,120,80,0.5)", rock: "rgba(140,140,140,0.5)", fence: "rgba(180,160,110,0.45)", tree: "rgba(60,140,70,0.4)", prop: "rgba(150,150,150,0.45)", other: "rgba(150,150,150,0.45)" };
+const OBSTACLE_WATER = "rgba(70,130,180,0.3)";
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const now = () => performance.now() / 1000;
 const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -80,6 +88,38 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
   useEffect(() => { let on = true; void loadHeights(tl.arena.map).then((h) => { if (on) setRealHeights(h); }); return () => { on = false; }; }, [tl.arena.map, mapTick]);
   const real: RealSource | null = useMemo(() => { if (!realHeights) return null; const p = terrainPlacement(tl.arena.map); return p ? { heights: realHeights, offset: p.offset } : null; }, [realHeights, tl.arena.map]);
   const [heights, setHeights] = useState(false), hmap = useMemo(() => (heights ? heightImage(heightField(tl, bounds, real ? REAL_HEIGHT_CELL_M : 25, real ?? undefined)) : null), [tl, bounds, heights, real]);
+  // Obstacles for this map, if the player loaded them (an obstacles .json from their own game files, stored on-device).
+  // Outland scenery (ring mountains, barrage balloons) is filtered against the map bounds before drawing.
+  const [obstacles, setObstacles] = useState<Obstacles | null>(null);
+  useEffect(() => { let on = true; void loadObstacles(tl.arena.map).then((o) => { if (on) setObstacles(o); }); return () => { on = false; }; }, [tl.arena.map, mapTick]);
+  const filtered = useMemo(() => (obstacles ? filterOutland(obstacles, bounds) : null), [obstacles, bounds]);
+  // Line of sight for the trainer cones: the same HeightField the heights overlay draws (real heights
+  // when loaded, estimated from tracks otherwise) plus the sight blockers, indexed for ray tests.
+  const los = useMemo(() => {
+    if (!filtered) return null;
+    const field = heightField(tl, bounds, real ? REAL_HEIGHT_CELL_M : 25, real ?? undefined);
+    const blockers = sightBlockers(filtered);
+    return { field, blockers, index: buildBlockerIndex(blockers) };
+  }, [filtered, tl, bounds, real]);
+  // 2D obstacle paths, precomputed once per obstacles/bounds change (not per frame): footprint quads
+  // in world coords, tree canopy circles, water rectangles.
+  const obstaclePaths = useMemo(() => {
+    if (!filtered) return null;
+    const quads: { d: Path2D; color: string }[] = [];
+    for (const p of filtered.placements) {
+      if (!p.footprint) continue;
+      const d = new Path2D(), fp = p.footprint;
+      d.moveTo(fp[0]![0], fp[0]![1]);
+      for (let i = 1; i < 4; i++) d.lineTo(fp[i]![0], fp[i]![1]);
+      d.closePath();
+      quads.push({ d, color: OBSTACLE_COLORS[p.kind] });
+    }
+    return {
+      quads,
+      trees: filtered.trees.map((tr) => ({ x: tr.pos[0], z: tr.pos[2], r: TREE_CANOPY_R_M * Math.max(0.2, tr.scale) })),
+      water: filtered.water.map((w) => ({ x0: w.rect[0][0], z0: w.rect[0][1], x1: w.rect[1][0], z1: w.rect[1][1] })),
+    };
+  }, [filtered]);
   const wp = useMemo(() => wpSeries(tl, tl.recorder.team, 1), [tl]);
   const kills = useMemo(() => tl.events.flatMap((e) => (e.k === "kill" && e.t >= 0 ? [e] : [])), [tl]);
   const vehicle = useMemo(() => new Map(tl.vehicles.map((v) => [v.vid, v])), [tl]);
@@ -124,6 +164,17 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
     if (hmap) { g.imageSmoothingEnabled = true; g.globalAlpha = mapInfo ? 0.55 : 0.9; g.drawImage(hmap.canvas, sx(hmap.x0), sy(hmap.z0 + hmap.h), hmap.w * cm.s, hmap.h * cm.s); g.globalAlpha = 1; }
     if (mapInfo) { g.globalAlpha = hmap ? 0.45 : 0.9; g.drawImage(mapInfo.img, sx(mapInfo.b.x0), sy(mapInfo.b.z1), (mapInfo.b.x1 - mapInfo.b.x0) * cm.s, (mapInfo.b.z1 - mapInfo.b.z0) * cm.s); g.globalAlpha = 1; }
+    // obstacles: footprints as filled quads under the tanks, trees as canopy circles, water as its
+    // rectangle. The paths are precomputed in world coords (obstaclePaths); only the world→screen
+    // transform is applied here (y flips, as in sy).
+    if (obstaclePaths) {
+      g.save();
+      g.setTransform(dpr * cm.s, 0, 0, -dpr * cm.s, dpr * (W / 2 - cm.cx * cm.s), dpr * (H / 2 + cm.cz * cm.s));
+      for (const q of obstaclePaths.quads) { g.fillStyle = q.color; g.fill(q.d); }
+      for (const tr of obstaclePaths.trees) { g.fillStyle = OBSTACLE_COLORS.tree; g.beginPath(); g.arc(tr.x, tr.z, tr.r, 0, 7); g.fill(); }
+      for (const w of obstaclePaths.water) { g.fillStyle = OBSTACLE_WATER; g.fillRect(w.x0, w.z0, w.x1 - w.x0, w.z1 - w.z0); }
+      g.restore();
+    }
     // grid every 100 m, labels A.. / 1.. like the in-game minimap squares
     g.lineWidth = 1; g.strokeStyle = grid; g.font = "10px system-ui"; g.fillStyle = muted; g.textBaseline = "top";
     const gx0 = Math.floor(bounds.x0 / GRID_M) * GRID_M, gz0 = Math.floor(bounds.z0 / GRID_M) * GRID_M;
@@ -145,12 +196,33 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
       g.moveTo(X + dx * r * 1.3, Y + dy * r * 1.3); g.lineTo(X - dx * r * 0.9 - dy * r * 0.8, Y - dy * r * 0.9 + dx * r * 0.8); g.lineTo(X - dx * r * 0.9 + dy * r * 0.8, Y - dy * r * 0.9 - dx * r * 0.8); g.closePath();
       g.lineWidth = 2; g.strokeStyle = col(u.team); if (fill) { g.fillStyle = col(u.team); g.fill(); } g.stroke(); g.globalAlpha = 1;
     };
-    // trainer: view range circle and field-of-view cone for every known live tank, friend or foe, at 20% opacity
+    // trainer: view range circle and field-of-view cone for every known live tank, friend or foe, at 20% opacity.
+    // With obstacles loaded, the cone is a fan of rays: each ray runs from the tank's eye to the first thing
+    // that blocks sight (terrain or a footprint) and stops there. The solid fan is what the tank can see;
+    // the dashed radials past the blockers are the unknown part of its view range. Without obstacles the
+    // whole cone is visible, as before.
     if (o.trainer !== null) for (const u of snap.units) {
       if (u.known !== "live" || !u.alive || !trainerMatch(o.trainer, u.vid, u.team, tl.recorder.team)) continue;
       const ay = aimAt(tl, u.vid, T)?.yaw ?? u.yaw, X = sx(u.x), Y = sy(u.z), R = VIEW_RANGE_M.value * cm.s, half = (VIEW_FOV_DEG.value * Math.PI) / 360, mid = ay - Math.PI / 2;
       g.globalAlpha = VIEW_ALPHA.value; g.fillStyle = col(u.team); g.strokeStyle = col(u.team); g.lineWidth = 1;
-      g.beginPath(); g.moveTo(X, Y); g.arc(X, Y, R, mid - half, mid + half); g.closePath(); g.fill();
+      if (!los) {
+        g.beginPath(); g.moveTo(X, Y); g.arc(X, Y, R, mid - half, mid + half); g.closePath(); g.fill();
+      } else {
+        const eyeY = heightAt(los.field, u.x, u.z) + EYE_HEIGHT_M, D = VIEW_RANGE_M.value;
+        const rays: { a: number; d: number }[] = [];
+        for (let i = 0; i <= CONE_RAYS; i++) {
+          const a = mid - half + (2 * half * i) / CONE_RAYS;
+          const tx = u.x + Math.cos(a) * D, tz = u.z - Math.sin(a) * D;
+          const hit = segmentBlocked([u.x, eyeY, u.z], [tx, heightAt(los.field, tx, tz) + EYE_HEIGHT_M, tz], los.field, los.blockers, los.index);
+          rays.push({ a, d: hit ? hit.t * D : D });
+        }
+        g.beginPath(); g.moveTo(X, Y);
+        for (const r of rays) g.lineTo(sx(u.x + Math.cos(r.a) * r.d), sy(u.z - Math.sin(r.a) * r.d));
+        g.closePath(); g.fill();
+        g.setLineDash([4, 4]);
+        for (const r of rays) if (r.d < D - 1) { g.beginPath(); g.moveTo(sx(u.x + Math.cos(r.a) * r.d), sy(u.z - Math.sin(r.a) * r.d)); g.lineTo(sx(u.x + Math.cos(r.a) * D), sy(u.z - Math.sin(r.a) * D)); g.stroke(); }
+        g.setLineDash([]);
+      }
       g.setLineDash([4, 4]); g.beginPath(); g.arc(X, Y, R, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
       g.globalAlpha = 1;
       g.strokeStyle = col(u.team); g.lineWidth = 2; g.beginPath(); g.moveTo(X, Y); g.lineTo(X + Math.sin(ay) * 14, Y - Math.cos(ay) * 14); g.stroke();
@@ -251,7 +323,7 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
       const i = Math.min(end, Math.floor(T)), cur = ys[i]; q.fillStyle = ink; q.font = "bold 11px system-ui"; q.textBaseline = "top";
       if (cur != null) q.fillText(kind === "wp" || kind === "hit" ? `${Math.round(cur * 100)}%` : Math.round(cur).toLocaleString(), Math.min(cw - 50, X2(T) + 4), 2);
     }
-  }, [tl, bounds, wp, kills, vehicle, end, fit, mapInfo, crew, dot, dangers, dg, hmap]);
+  }, [tl, bounds, wp, kills, vehicle, end, fit, mapInfo, crew, dot, dangers, dg, hmap, obstaclePaths, los]);
 
   // ---- clock loop ----
   useEffect(() => {
@@ -376,7 +448,7 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
       <div className="pmap" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} onClick={dismissCard} onDoubleClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); setFollow(false); }}>
         <div className="pstage"><canvas ref={canvas} aria-label={t("player.aria")} role="img" />
           <div ref={outroRef} className={`outro ${outcome}`} aria-hidden="true" style={{ opacity: 0 }}><b>{t(`outro.${outcome}`)}</b></div></div>
-        {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={dismissCard}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView reload={reloadOn} trainer={{ on: trainer, sel: trainerSel }} tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} real={real ?? undefined} /></Suspense>{<div ref={outro3dRef} className={`outro ${outcome}`} aria-hidden="true" style={{ opacity: 0, zIndex: 4 }}><b>{t(`outro.${outcome}`)}</b></div>}{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
+        {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={dismissCard}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView reload={reloadOn} trainer={{ on: trainer, sel: trainerSel }} tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} real={real ?? undefined} obstacles={filtered ?? undefined} /></Suspense>{<div ref={outro3dRef} className={`outro ${outcome}`} aria-hidden="true" style={{ opacity: 0, zIndex: 4 }}><b>{t(`outro.${outcome}`)}</b></div>}{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
         <div className="pviewsw" role="group" aria-label={t("pov.view")} onPointerDown={(e) => e.stopPropagation()}>{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)} title={t(`pov.${m}`)} data-testid={`v3d-${m}`}>{t(`ui.v.${m}`)}</button>)}</div>
         {view3dCtl}
         {sv && su && <div className="pinfo"><b>{sv.name}</b> · {vehicleLabel(sv.vehicleType).label}<div>{su.alive ? `${Math.round(su.hp)} / ${sv.maxHealth} HP` : "✕"}{su.known === "ghost" ? ` · ${t("player.lastseen", { s: Math.round(su.ageS ?? 0) })}` : ""}</div></div>}

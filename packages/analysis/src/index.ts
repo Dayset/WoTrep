@@ -20,6 +20,7 @@ export * from "./vanish";
 export * from "./aim";
 export * from "./terrain";
 export * from "./realHeights";
+export * from "./obstacles";
 export * from "./percentile";
 export * from "./trades";
 export * from "./shooting";

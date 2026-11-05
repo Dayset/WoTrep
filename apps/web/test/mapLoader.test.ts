@@ -14,3 +14,13 @@ describe("MapLoader heights section", () => {
     expect(html).toContain(">Close<");
   });
 });
+
+describe("MapLoader obstacles section", () => {
+  it("shows the obstacles block with a .json file input and a Save button", () => {
+    const html = renderToString(createElement(MapLoader, { mapName: "101_dday", onSaved: () => {}, onClose: () => {} }));
+    expect(html).toContain("Obstacles");
+    expect(html).toContain("Obstacles .json");
+    expect(html).toContain("Save obstacles");
+    expect(html).toContain("No obstacles saved");
+  });
+});

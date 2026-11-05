@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
-import { tracerLines, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, REAL_HEIGHT_CELL_M, type RealSource, type ReloadEstimate } from "@wotrep/analysis";
+import { tracerLines, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, REAL_HEIGHT_CELL_M, solidFootprints, type RealSource, type ReloadEstimate, type Obstacles } from "@wotrep/analysis";
 import type { MapBounds } from "../../lib/mapStore";
 import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, ghostThreats, trainerMatch, type TrainerSel } from "./viewConfig";
 
@@ -16,9 +16,10 @@ function noiseTexture(size: number, base: [number, number, number], spread: numb
 
 /** Low-poly 3D view of the replay over the terrain (docs/UX.md §4, simple mode). First person sits at the followed tank, chase view behind it.
  *  Ground follows the height field (estimated from tank tracks, or real game heights when the player loaded them for this map);
- *  cover is not modelled, so nothing blocks the view. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
-export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync, trails, trainer, reload, real }: {
-  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number; trails: boolean; trainer: { on: boolean; sel: TrainerSel }; reload: boolean; real?: RealSource;
+ *  buildings and rocks are extruded from the map's obstacles file when loaded, trees use real SpTr positions (seeded decoration
+ *  only as the fallback). The sight fans still do not check cover in 3D — the 2D trainer cones do. Hull direction is used for the camera (gun aim is not decoded). Shell traces from tracer start to end point show for 1.2 s; names float above tanks. */
+export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock, resync, trails, trainer, reload, real, obstacles }: {
+  tl: BattleTimeline; clock: { current: { t: number } }; vid: number; mode: "fp" | "chase"; img: HTMLImageElement | null; bounds: MapBounds; zoom: number; lock: boolean; resync: number; trails: boolean; trainer: { on: boolean; sel: TrainerSel }; reload: boolean; real?: RealSource; obstacles?: Obstacles;
 }) {
   const host = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0, pitch: 0.28, dist: 16 }), live = useRef({ vid, mode, zoom, lock, trails, trainer, reload }); live.current = { vid, mode, zoom, lock, trails, trainer, reload };
   useEffect(() => { look.current = { yaw: 0, pitch: 0.28, dist: look.current.dist }; }, [resync, lock]);
@@ -136,7 +137,11 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     tgeo.setAttribute("position", new THREE.BufferAttribute(tpos, 3)); tgeo.setAttribute("color", new THREE.BufferAttribute(tcolT, 3)); tgeo.setDrawRange(0, 0);
     const tlines = new THREE.Mesh(tgeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide, fog: false }));
     tlines.frustumCulled = false; tlines.renderOrder = 10; scene.add(tlines);
-    // decoration only (no map data yet): seeded trees, bushes, clouds and far mountains
+    // trees and bushes: real SpTr positions when the player loaded obstacles for this map, seeded
+    // decoration only as the fallback (the seeded trees stood where the game has no trees — that was
+    // the "bumps in the middle" Dayset saw). Bushes and shrubs are the srt names with bush/shrub in
+    // them; everything else in trees[] is a tree. The y is the game's own placement height, which
+    // sits on the real terrain to a median -0.02 m (verified 2026-11-05).
     let seed = 12345; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     const deco: THREE.BufferGeometry[] = [], decoMat: THREE.Material[] = [];
     const place = (g: THREE.BufferGeometry, m: THREE.Material, n: number, fn: (o: THREE.Object3D) => void) => { deco.push(g); decoMat.push(m); const im = new THREE.InstancedMesh(g, m, n), o = new THREE.Object3D(); for (let i = 0; i < n; i++) { fn(o); o.updateMatrix(); im.setMatrixAt(i, o.matrix); } scene.add(im); };
@@ -144,8 +149,10 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     const trunk = new THREE.CylinderGeometry(0.4, 0.5, 3, 5); trunk.translate(0, 1.5, 0); const crown = new THREE.ConeGeometry(2.6, 7, 6); crown.translate(0, 6, 0);
     // trees and bushes: a solid copy and a 70% transparent copy of every instance; the ones close in front of the camera use the transparent copy (they are not real cover)
     type Item = { x: number; y: number; z: number; sx: number; sy: number; sz: number };
-    const trees: Item[] = Array.from({ length: 220 }, () => { const x = rx(), z = rz(), k = 0.8 + rnd() * 0.7; return { x, y: gh(x, -z), z, sx: k, sy: k, sz: k }; });
-    const BUSHES_N = 9000, bushes: Item[] = Array.from({ length: BUSHES_N }, () => { const x = rx(), z = rz(); return { x, y: gh(x, -z), z, sx: 0.8 + rnd(), sy: 0.6 + rnd() * 0.6, sz: 0.8 + rnd() }; });
+    const isBush = (srt: string) => /bush|shrub/i.test(srt);
+    const realItem = (tr: { pos: [number, number, number]; scale: number }): Item => ({ x: tr.pos[0], y: tr.pos[1], z: -tr.pos[2], sx: tr.scale, sy: tr.scale, sz: tr.scale });
+    const trees: Item[] = obstacles ? obstacles.trees.filter((tr) => !isBush(tr.srt)).map(realItem) : Array.from({ length: 220 }, () => { const x = rx(), z = rz(), k = 0.8 + rnd() * 0.7; return { x, y: gh(x, -z), z, sx: k, sy: k, sz: k }; });
+    const bushes: Item[] = obstacles ? obstacles.trees.filter((tr) => isBush(tr.srt)).map(realItem) : Array.from({ length: 9000 }, () => { const x = rx(), z = rz(); return { x, y: gh(x, -z), z, sx: 0.8 + rnd(), sy: 0.6 + rnd() * 0.6, sz: 0.8 + rnd() }; });
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
     const dual: { items: Item[]; solid: THREE.InstancedMesh; ghost: THREE.InstancedMesh; faded: Map<Item, boolean> }[] = [];
     const addDual = (g: THREE.BufferGeometry, color: number, items: Item[]) => {
@@ -159,9 +166,48 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       const g = new THREE.BufferGeometry(), pa = a.attributes.position!.array as Float32Array, pb = b.attributes.position!.array as Float32Array, ia = a.index!.array, ib = b.index!.array, n = pa.length / 3;
       g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([...pa, ...pb]), 3)); g.setIndex([...Array.from(ia), ...Array.from(ib, (i) => i + n)]); return g; })();
     const bushMat = new THREE.MeshBasicMaterial({ color: 0x9ccc6e, transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthWrite: false });
-    const bushIm = new THREE.InstancedMesh(cross, bushMat, BUSHES_N), bo = new THREE.Object3D();
+    const bushIm = new THREE.InstancedMesh(cross, bushMat, bushes.length), bo = new THREE.Object3D();
     bushes.forEach((b, i) => { bo.position.set(b.x, b.y, b.z); bo.rotation.set(0, rnd() * Math.PI, 0); bo.scale.set(b.sx * 1.4, b.sy * 0.7, b.sz * 1.4); bo.updateMatrix(); bushIm.setMatrixAt(i, bo.matrix); });
     bushIm.frustumCulled = false; scene.add(bushIm); deco.push(cross); decoMat.push(bushMat);
+    // obstacles: solid footprints (static, hull > 1 m) extruded to boxes, one InstancedMesh, coloured
+    // by kind. The box is the collision AABB — an upper bound on the solid object, so a rock cluster's
+    // box covers the gaps between the rocks and a cliff face's box covers the air in front of the
+    // slope (verified 2026-11-05). Base is the footprint's lowest corner, top is height_m (the highest
+    // transformed AABB corner, absolute world y). Tall fragile models (a 30 m basilica) block sight
+    // but are NOT extruded here — that is the solid-footprints set, not the sight set.
+    const solids = obstacles ? solidFootprints(obstacles) : [];
+    if (solids.length) {
+      const boxGeo = new THREE.BoxGeometry(1, 1, 1); boxGeo.translate(0, 0.5, 0);
+      const boxMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
+      const boxes = new THREE.InstancedMesh(boxGeo, boxMat, solids.length);
+      const boxColors: Record<string, number> = { building: 0xa07850, rock: 0x8c8c8c, fence: 0xb4a06e, tree: 0x2f6b34, prop: 0x9a9a9a, other: 0x9a9a9a };
+      const bq = new THREE.Quaternion(), beu = new THREE.Euler(), bpos = new THREE.Vector3(), bsc = new THREE.Vector3(), bm = new THREE.Matrix4(), bcol = new THREE.Color();
+      let bi = 0;
+      for (const p of solids) {
+        const fp = p.footprint!, baseY = p.baseY ?? p.pos[1], top = p.heightM ?? p.pos[1] + 5, h = top - baseY;
+        if (h <= 0) continue;
+        const cx = (fp[0][0] + fp[1][0] + fp[2][0] + fp[3][0]) / 4, cz = (fp[0][1] + fp[1][1] + fp[2][1] + fp[3][1]) / 4;
+        const e1x = fp[1][0] - fp[0][0], e1z = fp[1][1] - fp[0][1], e2x = fp[3][0] - fp[0][0], e2z = fp[3][1] - fp[0][1];
+        const w = Math.hypot(e1x, e1z), d = Math.hypot(e2x, e2z);
+        if (w <= 0 || d <= 0) continue;
+        beu.set(0, Math.atan2(e1z, e1x), 0); bq.setFromEuler(beu);
+        bm.compose(bpos.set(cx, baseY, -cz), bq, bsc.set(w, h, d));
+        boxes.setMatrixAt(bi, bm);
+        boxes.setColorAt(bi, bcol.setHex(boxColors[p.kind] ?? 0x9a9a9a));
+        bi++;
+      }
+      boxes.count = bi;
+      boxes.frustumCulled = false; scene.add(boxes); deco.push(boxGeo); decoMat.push(boxMat);
+    }
+    // water: one flat translucent plane per body at its surface height over its rectangle
+    for (const w of obstacles?.water ?? []) {
+      const wgeo = new THREE.PlaneGeometry(w.rect[1][0] - w.rect[0][0], w.rect[1][1] - w.rect[0][1]);
+      const wmat = new THREE.MeshBasicMaterial({ color: 0x4682b4, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false });
+      const wmesh = new THREE.Mesh(wgeo, wmat);
+      wmesh.rotation.x = -Math.PI / 2;
+      wmesh.position.set((w.rect[0][0] + w.rect[1][0]) / 2, w.surfaceY, -(w.rect[0][1] + w.rect[1][1]) / 2);
+      scene.add(wmesh); deco.push(wgeo); decoMat.push(wmat);
+    }
     const updateFade = (camPos: THREE.Vector3, fwd: THREE.Vector3, halfFovH: number) => {
       const fl = Math.hypot(fwd.x, fwd.z) || 1, fx = fwd.x / fl, fz = fwd.z / fl, cosMax = Math.cos(halfFovH + 0.17);
       for (const d of dual) { let changed = false;
@@ -302,6 +348,6 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       renderer.render(scene, cam);
     }; loop();
     return () => { cancelAnimationFrame(raf); ro.disconnect(); rgeo.dispose(); (ribbon.material as THREE.Material).dispose(); dom.removeEventListener("pointerdown", down); dom.removeEventListener("pointermove", move); dom.removeEventListener("pointerup", up); dom.removeEventListener("pointercancel", up); dom.removeEventListener("wheel", wheel); dom.removeEventListener("dblclick", reset); for (const g of deco) g.dispose(); for (const m of decoMat) m.dispose(); renderer.dispose(); tgeo.dispose(); for (const l of labels) { (l.material as THREE.SpriteMaterial).map?.dispose(); l.material.dispose(); } geo.dispose(); hull.dispose(); tur.dispose(); gun.dispose(); sphereGeo.dispose(); for (const s of spheres.values()) s.mat.dispose(); ringGeo.dispose(); for (const r of rings.values()) r.mat.dispose(); tex?.dispose(); for (const k of tanks.values()) k.mat.dispose(); el.removeChild(renderer.domElement); };
-  }, [tl, img, bounds, clock]);
+  }, [tl, img, bounds, clock, obstacles]);
   return <div ref={host} className="povhost" data-testid="pov" data-mode={mode} />;
 }

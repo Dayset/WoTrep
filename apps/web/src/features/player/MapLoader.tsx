@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { deleteMap, loadMap, parseBounds, saveMap, type MapBounds } from "../../lib/mapStore";
 import { deleteHeights, loadHeights, parseHeightsZip, saveHeights } from "../../lib/heightsStore";
-import type { RealHeights } from "@wotrep/analysis";
+import { deleteObstacles, loadObstacles, saveObstacles } from "../../lib/obstaclesStore";
+import type { Obstacles, RealHeights } from "@wotrep/analysis";
+import { parseObstacles } from "@wotrep/analysis";
 import { t } from "../../i18n";
 
 /** "Bring your own map": the minimap image from the player's own game files plus the playable-area box (from the arena XML, or typed). Stored locally only. */
@@ -9,8 +11,10 @@ export function MapLoader({ mapName, onSaved, onClose }: { mapName: string; onSa
   const [img, setImg] = useState<File | null>(null), [b, setB] = useState<Record<keyof MapBounds, string>>({ x0: "", x1: "", z0: "", z1: "" }), [msg, setMsg] = useState("");
   const [stored, setStored] = useState(false);
   const [hFile, setHFile] = useState<File | null>(null), [hMsg, setHMsg] = useState(""), [hStored, setHStored] = useState<RealHeights | null>(null);
+  const [oFile, setOFile] = useState<File | null>(null), [oMsg, setOMsg] = useState(""), [oStored, setOStored] = useState<Obstacles | null>(null);
   useEffect(() => { let on = true; void loadMap(mapName).then((m) => { if (on) setStored(!!m); }); return () => { on = false; }; }, [mapName]);
   useEffect(() => { let on = true; void loadHeights(mapName).then((h) => { if (on) setHStored(h); }); return () => { on = false; }; }, [mapName]);
+  useEffect(() => { let on = true; void loadObstacles(mapName).then((o) => { if (on) setOStored(o); }); return () => { on = false; }; }, [mapName]);
   const readXml = async (f: File) => { const p = parseBounds(await f.text()); if (p) { setB({ x0: String(p.x0), x1: String(p.x1), z0: String(p.z0), z1: String(p.z1) }); setMsg(t("map.parsed")); } else setMsg(t("map.noxml")); };
   const saveHeightsFile = async () => {
     if (!hFile) { setHMsg(t("heights.invalid")); return; }
@@ -20,6 +24,16 @@ export function MapLoader({ mapName, onSaved, onClose }: { mapName: string; onSa
   };
   const removeHeightsFile = async () => {
     if (await deleteHeights(mapName)) { setHStored(null); setHMsg(""); onSaved(); } else setHMsg(t("map.removefail"));
+  };
+  const saveObstaclesFile = async () => {
+    if (!oFile) { setOMsg(t("obstacles.savedNoFile")); return; }
+    let parsed: Obstacles;
+    try { parsed = parseObstacles(JSON.parse(await oFile.text())); } catch (e) { setOMsg(t("obstacles.bad", { error: e instanceof Error ? e.message : String(e) })); return; }
+    if (parsed.map !== mapName) { setOMsg(t("obstacles.bad", { error: `map is ${parsed.map}` })); return; }
+    if (await saveObstacles({ name: mapName, data: parsed })) { setOStored(parsed); setOMsg(t("obstacles.saved", { models: parsed.models.length, placements: parsed.placements.length, trees: parsed.trees.length })); onSaved(); } else setOMsg(t("map.savefail"));
+  };
+  const removeObstaclesFile = async () => {
+    if (await deleteObstacles(mapName)) { setOStored(null); setOMsg(t("obstacles.removed")); onSaved(); } else setOMsg(t("map.removefail"));
   };
   const save = async () => {
     const n = { x0: Number(b.x0), x1: Number(b.x1), z0: Number(b.z0), z1: Number(b.z1) };
@@ -45,6 +59,12 @@ export function MapLoader({ mapName, onSaved, onClose }: { mapName: string; onSa
       <label>{t("heights.file")} <input type="file" accept=".zip,application/zip" onChange={(e) => setHFile(e.target.files?.[0] ?? null)} /></label>
       {hMsg && <p className="muted">{hMsg}</p>}
       <div className="factions"><button type="button" onClick={() => void saveHeightsFile()}>{t("heights.save")}</button>{hStored && <button type="button" onClick={() => void removeHeightsFile()}>{t("heights.remove")}</button>}<button type="button" onClick={onClose}>{t("heights.close")}</button></div>
+      <b>{t("obstacles.title")}</b>
+      <p className="muted">{t("obstacles.note")}</p>
+      <p className="muted">{oStored ? t("obstacles.saved", { models: oStored.models.length, placements: oStored.placements.length, trees: oStored.trees.length }) : t("obstacles.none")}</p>
+      <label>{t("obstacles.file")} <input type="file" accept=".json,application/json" onChange={(e) => setOFile(e.target.files?.[0] ?? null)} /></label>
+      {oMsg && <p className="muted">{oMsg}</p>}
+      <div className="factions"><button type="button" onClick={() => void saveObstaclesFile()}>{t("obstacles.save")}</button>{oStored && <button type="button" onClick={() => void removeObstaclesFile()}>{t("obstacles.remove")}</button>}<button type="button" onClick={onClose}>{t("heights.close")}</button></div>
     </div>
   );
 }
