@@ -87,7 +87,7 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true })); sp.scale.set(16, 4, 1); sp.position.y = 6; sp.renderOrder = 5; tanks.get(v.vid)!.g.add(sp); labels.push(sp);
     }
     // shot tracers: a thin flat ribbon per shot (not a 1 px line), bright and fading over TRACER_S
-    const TRACER_S = 1.2, TRACER_HALF = 0.35, TRACER_NEAR_M = 5;
+    const TRACER_S = 1.2, TRACER_HALF = 0.35, TRACER_NEAR_M = 5, GUN_LEN_M = 4;
     const tgeo = new THREE.BufferGeometry(), tpos = new Float32Array(MAXS * 18), tcolT = new Float32Array(MAXS * 18);
     tgeo.setAttribute("position", new THREE.BufferAttribute(tpos, 3)); tgeo.setAttribute("color", new THREE.BufferAttribute(tcolT, 3)); tgeo.setDrawRange(0, 0);
     const tlines = new THREE.Mesh(tgeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide, fog: false }));
@@ -184,12 +184,13 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
             (sp.geo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true; } }
         k.g.scale.y = u.alive ? 1 : 0.5; k.g.children[2]!.visible = u.vid !== L.vid; const aim = aim0; (k.g.children[1] as THREE.Group).rotation.y = aim ? sm.h - sm.g : 0; if (u.vid === L.vid) { turretYaw = sm.g; hullYawS = sm.h; onTarget = !!aim?.onTarget; turretPitch = aim ? aim.pitch : 0; }
       }
-      let n = 0; const T = clock.current.t; const fpO: [number, number, number] | null = L.mode === "fp" && me && me.known !== "never" ? [me.x, gh(me.x, me.z) + 2.9, -me.z] : null; // first person: the followed tank's own tracers start at the camera
+      let n = 0; const T = clock.current.t; // first person: the followed tank's own tracers start at the gun, lower and ahead of the camera, so the streak is visible leaving the gun instead of starting at the eye (where it is on-axis and invisible)
+      const gunO: [number, number, number] | null = L.mode === "fp" && me && me.known !== "never" ? [me.x + Math.sin(turretYaw) * GUN_LEN_M, gh(me.x, me.z) + 2.6, -me.z - Math.cos(turretYaw) * GUN_LEN_M] : null;
       for (const sh of shots) { if (sh.t > T) break; const age = T - sh.t; if (age > TRACER_S || n >= MAXS) continue;
-        // the camera start is only for the followed tank's own shots: everyone else's tracers keep their recorded
+        // the gun start is only for the followed tank's own shots: everyone else's tracers keep their recorded
         // direction (enemy -> player), instead of all being drawn backwards out of the camera
         const own = sh.shooter === L.vid;
-        let x0 = fpO && own ? fpO[0] : sh.x0, y0 = fpO && own ? fpO[1] : (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, z0 = fpO && own ? fpO[2] : -sh.z0;
+        let x0 = gunO && own ? gunO[0] : sh.x0, y0 = gunO && own ? gunO[1] : (sh.y0 ?? gh(sh.x0, sh.z0)) + 2.6, z0 = gunO && own ? gunO[2] : -sh.z0;
         let x1 = sh.x1, y1 = (sh.y1 ?? gh(sh.x1, sh.z1)) + 0.6, z1 = -sh.z1;
         // endpoints on the camera blow up on screen (a vertex at the camera projects to infinity): push any endpoint
         // closer than TRACER_NEAR_M out along the shot. A segment clipped to nothing keeps a 0.5 m stub at its end.
@@ -205,8 +206,8 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
         const toCam = new THREE.Vector3().subVectors(cam.position, mid);
         let side = new THREE.Vector3().crossVectors(dvec, toCam);
         if (side.lengthSq() < 0.0025 * dvec.lengthSq() * toCam.lengthSq()) {
-          // camera on (or near) the tracer line: first-person own shots start at the camera, so the cross product
-          // degenerates and the old absolute fallback made the ribbon vertical. Take the width from the camera's
+          // camera on (or near) the tracer line: first-person own shots start at the gun, close to the camera
+          // line, so the cross product degenerates and the old absolute fallback made the ribbon vertical. Take the width from the camera's
           // up instead, so it stays across the view; straight up/down shots fall back to the camera's right.
           side = new THREE.Vector3().crossVectors(dvec, new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion));
           if (side.lengthSq() < 1e-9) side = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
