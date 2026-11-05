@@ -172,10 +172,15 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     // obstacles: solid footprints (static, hull > 1 m) extruded to boxes, one InstancedMesh, coloured
     // by kind. The box is the collision AABB — an upper bound on the solid object, so a rock cluster's
     // box covers the gaps between the rocks and a cliff face's box covers the air in front of the
-    // slope (verified 2026-11-05). Base is the footprint's lowest corner, top is height_m (the highest
-    // transformed AABB corner, absolute world y). Tall fragile models (a 30 m basilica) block sight
-    // but are NOT extruded here — that is the solid-footprints set, not the sight set.
-    const solids = obstacles ? solidFootprints(obstacles) : [];
+    // slope (verified 2026-11-05). Rocks are NOT extruded: their AABBs are enormous (cliff faces
+    // up to ~30 m tall) and cover drivable ground at the cliff base, so a tank driving there
+    // renders inside the slab (seen 2026-11-05 at 4:26, RockCliffs boxes y 21-59 over a tank at
+    // y 27.8). The cliffs are already in the terrain mesh, and rocks still draw as footprints on
+    // the 2D map and still block sight — this is rendering only, not the LOS model. Base is the
+    // footprint's lowest corner, top is height_m (the highest transformed AABB corner, absolute
+    // world y). Tall fragile models (a 30 m basilica) block sight but are NOT extruded here — that
+    // is the solid-footprints set, not the sight set.
+    const solids = obstacles ? solidFootprints(obstacles).filter((p) => p.kind !== "rock") : [];
     if (solids.length) {
       const boxGeo = new THREE.BoxGeometry(1, 1, 1); boxGeo.translate(0, 0.5, 0);
       const boxMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
