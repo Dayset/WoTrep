@@ -1,6 +1,7 @@
 /** Trainer view cones. Values are game-wide, not per tank, so a tank with a shorter view range is drawn too far out.
  *  Thresholds live here with provenance, per AGENTS.md §8. */
 import type { Unit } from "@wotrep/model";
+import { heightAt, segmentBlocked, segmentTankBlocked, tankBlockers, EYE_HEIGHT_M, type BlockerIndex, type HeightField, type SightBlocker, type TankBlocker, type Vec3 } from "@wotrep/analysis";
 
 export const VIEW_RANGE_M = { value: 445, why: "game maximum view range, same as packages/analysis maxSpotterM", n: 0, date: "2026-11-04" } as const;
 export const VIEW_FOV_DEG = { value: 65, why: "horizontal field of view used by the POV camera and minimap", n: 0, date: "2026-11-04" } as const;
@@ -63,20 +64,81 @@ export function shadowPolygon(vx: number, vz: number, R: number, fx: number, fz:
   return pts;
 }
 
+/** Line-of-sight context for threat checks: the HeightField plus the sight blockers.
+ *  The same shape as the Player's `los` memo. Null means no LOS data (obstacles not
+ *  loaded) — threats then fall back to the old range-only rule, exactly as before. */
+export interface LosContext { field: HeightField; blockers: SightBlocker[]; index: BlockerIndex }
+
 /** Threat markers: for each living friendly, the soonest an enemy ghost could be in firing range.
  *  Firing range is the game max view range (445 m) — the actual tank's view range may be shorter,
- *  so this is an upper bound, and it ignores line of sight (bushes, terrain) entirely. `secs` is the
- *  earliest the ghost could shoot the friendly, driving straight at it at its fastest seen speed:
- *  positive counts down, zero or less means it may already be in range. The marker shows only while
- *  the ghost is still tracked (the caller's ghost list) and the arrival falls inside that 30 s window.
- *  `edge` is the nearest point of the ghost's reach disc toward the friendly — the line to draw —
- *  null when the friendly is already inside the disc, or the direct approach is shadowed. */
+ *  so this is an upper bound. With a LosContext, the ghost must also have a clear line of sight
+ *  from where it would shoot: terrain (heightmap), buildings/footprints, trees, and other tanks
+ *  all block. No reachable firing position with LOS = no marker at all (no ring, no countdown).
+ *  `secs` is the earliest the ghost could shoot the friendly: the time to drive from the vanish
+ *  point to the nearest firing position with LOS, at its fastest seen speed — positive counts
+ *  down, zero or less means it may already be there. The marker shows only while the ghost is
+ *  still tracked (the caller's ghost list) and the arrival falls inside that 30 s window.
+ *  `edge` is the firing position — the line to draw — null when the ghost may already be in
+ *  a firing position (inside its current reach disc). Without a LosContext the old rule applies:
+ *  range only, and `edge` is the nearest point of the reach disc toward the friendly, null when
+ *  the friendly is already inside the disc or the direct approach is shadowed. */
 export interface GhostThreat { ghostVid: number; secs: number; alpha: number; edge: { x: number; z: number } | null }
 const THREAT_WINDOW_S = 30; // the ghost's tracked life: the reach disc stops being drawn after this
+/** Firing-position rings around the friendly (m), far to near, sampled at 45° steps when the
+ *  direct approach has no LOS. Three rings bound the search: the 445 m ring is the farthest
+ *  firing position, 250 m and 100 m cover ground closer in (a dip or a hill the ghost drives
+ *  past). A position closer than 100 m is never sampled — the ghost would have to drive past
+ *  the sampled rings to get there, so it cannot be the earliest arrival. 2026-11-05. */
+const LOS_RING_R_M = [VIEW_RANGE_M.value, 250, 100];
+const LOS_RING_STEPS = 8;
 
-export function ghostThreats(ghosts: Unit[], units: Unit[], recorderTeam: number): Map<number, GhostThreat> {
+interface FiringPosition { x: number; z: number; arrival: number }
+
+/** True when the eye-to-eye line from `from` to `to` is clear of terrain, footprints, trees
+ *  and tanks. `exclude` holds the target's vid — a tank never blocks a shot aimed at itself. */
+function losClear(from: { x: number; z: number }, to: { x: number; z: number }, los: LosContext, tanks: TankBlocker[], exclude: ReadonlySet<number>): boolean {
+  const eye = (p: { x: number; z: number }): Vec3 => [p.x, heightAt(los.field, p.x, p.z) + EYE_HEIGHT_M, p.z];
+  const a = eye(from), b = eye(to);
+  if (segmentBlocked(a, b, los.field, los.blockers, los.index) !== null) return false;
+  return segmentTankBlocked(a, b, tanks, exclude) === null;
+}
+
+/** The earliest firing position the ghost could reach with a clear line to the friendly, or
+ *  null when there is none. Candidates are tested cheapest-first and in order of increasing
+ *  arrival: the direct point (the closest firing position to the vanish point), then the
+ *  rings around the friendly, nearest first. A candidate must be reachable inside the 30 s
+ *  window, outside every friendly's 50 m proximity bubble, not in a proximity shadow, and
+ *  have a clear line. A stationary ghost can only shoot from where it vanished. */
+function findFiringPosition(g: Unit, f: Unit, friends: Unit[], blockers: Unit[], los: LosContext, tanks: TankBlocker[]): FiringPosition | null {
+  const vx = g.x, vz = g.z, speed = g.reachSpeedMps ?? 0;
+  const d = Math.hypot(f.x - vx, f.z - vz);
+  const candidates: { x: number; z: number }[] = [];
+  if (d <= VIEW_RANGE_M.value) candidates.push({ x: vx, z: vz });
+  else { const s = (d - VIEW_RANGE_M.value) / d; candidates.push({ x: vx + (f.x - vx) * s, z: vz + (f.z - vz) * s }); }
+  const base = Math.atan2(vz - f.z, vx - f.x); // direction from the friendly toward the vanish point
+  for (const rr of LOS_RING_R_M) for (let k = 0; k < LOS_RING_STEPS; k++) {
+    if (rr === VIEW_RANGE_M.value && k === 0) continue; // the direct point, already a candidate
+    const a = base + (k * 2 * Math.PI) / LOS_RING_STEPS;
+    candidates.push({ x: f.x + rr * Math.cos(a), z: f.z + rr * Math.sin(a) });
+  }
+  candidates.sort((p, q) => Math.hypot(p.x - vx, p.z - vz) - Math.hypot(q.x - vx, q.z - vz));
+  const exclude = new Set([f.vid]);
+  for (const p of candidates) {
+    const dist = Math.hypot(p.x - vx, p.z - vz);
+    const arrival = speed > 0 ? dist / speed : dist === 0 ? 0 : Infinity;
+    if (arrival > THREAT_WINDOW_S) continue;
+    if (friends.some((o) => Math.hypot(o.x - p.x, o.z - p.z) < PROXIMITY_SPOT_M.value)) continue;
+    if (blockers.some((b) => isShadowed(vx, vz, p.x, p.z, b.x, b.z))) continue;
+    if (!losClear(p, f, los, tanks, exclude)) continue;
+    return { x: p.x, z: p.z, arrival };
+  }
+  return null;
+}
+
+export function ghostThreats(ghosts: Unit[], units: Unit[], recorderTeam: number, los?: LosContext | null): Map<number, GhostThreat> {
   const out = new Map<number, GhostThreat>();
   const friends = units.filter((f) => f.team === recorderTeam && f.alive && f.known === "live");
+  const tanks = los ? tankBlockers(units, los.field) : [];
   for (const g of ghosts) {
     if (!g.alive || g.known !== "ghost" || g.team === recorderTeam || g.reachSpeedMps == null) continue;
     const age = g.ageS ?? 0, alpha = Math.max(0, 1 - age / THREAT_WINDOW_S);
@@ -84,20 +146,31 @@ export function ghostThreats(ghosts: Unit[], units: Unit[], recorderTeam: number
     const R = g.reachM ?? 0, blockers = reachBlockers(units, g, recorderTeam);
     for (const f of friends) {
       const d = Math.hypot(f.x - g.x, f.z - g.z);
-      // A stationary ghost threatens only what is already in firing range; a moving one counts down.
-      let arrival: number;
-      if (g.reachSpeedMps > 0) arrival = (d - VIEW_RANGE_M.value) / g.reachSpeedMps;
-      else if (d <= VIEW_RANGE_M.value) arrival = 0;
-      else continue;
-      if (arrival > THREAT_WINDOW_S) continue;
+      let arrival: number, edge: { x: number; z: number } | null;
+      if (!los) {
+        // Range-only rule, as before: no line-of-sight data (obstacles not loaded).
+        // A stationary ghost threatens only what is already in firing range; a moving one counts down.
+        if (g.reachSpeedMps > 0) arrival = (d - VIEW_RANGE_M.value) / g.reachSpeedMps;
+        else if (d <= VIEW_RANGE_M.value) arrival = 0;
+        else continue;
+        if (arrival > THREAT_WINDOW_S) continue;
+        edge = null;
+        if (d > R) {
+          const ex = g.x + (R / d) * (f.x - g.x), ez = g.z + (R / d) * (f.z - g.z);
+          if (!blockers.some((b) => isShadowed(g.x, g.z, ex, ez, b.x, b.z))) edge = { x: ex, z: ez };
+        }
+      } else {
+        // Line-of-sight rule: the ghost must reach a firing position with a clear line.
+        const fp = findFiringPosition(g, f, friends, blockers, los, tanks);
+        if (!fp) continue;
+        arrival = fp.arrival;
+        if (arrival > THREAT_WINDOW_S) continue;
+        const pd = Math.hypot(fp.x - g.x, fp.z - g.z);
+        edge = pd > R ? { x: fp.x, z: fp.z } : null;
+      }
       const secs = arrival - age;
       const prev = out.get(f.vid);
       if (prev && prev.secs <= secs) continue;
-      let edge: { x: number; z: number } | null = null;
-      if (d > R) {
-        const ex = g.x + (R / d) * (f.x - g.x), ez = g.z + (R / d) * (f.z - g.z);
-        if (!blockers.some((b) => isShadowed(g.x, g.z, ex, ez, b.x, b.z))) edge = { x: ex, z: ez };
-      }
       out.set(f.vid, { ghostVid: g.vid, secs, alpha, edge });
     }
   }

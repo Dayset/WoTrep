@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { stateAt, type BattleTimeline } from "@wotrep/model";
 import { aimAt } from "@wotrep/analysis";
-import { PROXIMITY_SPOT_M, ghostThreats, reachBlockers, shadowPolygon } from "./viewConfig";
+import { PROXIMITY_SPOT_M, ghostThreats, reachBlockers, shadowPolygon, type LosContext } from "./viewConfig";
 import { drawReachDisc } from "./reachDraw";
 import type { MapBounds } from "../../lib/mapStore";
 import { t } from "../../i18n";
@@ -9,7 +9,7 @@ import { t } from "../../i18n";
 /** Small top-down map for the 3D views: the followed tank with its view wedge, everyone else as dots. Size S/M/L; "Near" zooms to ~350 m around the tank. */
 // Ghosts older than this stop carrying a reach circle, same as the 2D player's ghost fade (GHOST_FADE_S there).
 const GHOST_FADE_S = 30;
-export function MiniMap({ tl, clock, vid, img, bounds, fp }: { tl: BattleTimeline; clock: { current: { t: number } }; vid: number; img: HTMLImageElement | null; bounds: MapBounds; fp: boolean }) {
+export function MiniMap({ tl, clock, vid, img, bounds, fp, los }: { tl: BattleTimeline; clock: { current: { t: number } }; vid: number; img: HTMLImageElement | null; bounds: MapBounds; fp: boolean; los?: LosContext | null }) {
   const cv = useRef<HTMLCanvasElement>(null), [size, setSize] = useState<"s" | "m" | "l" | "x">(() => (window.matchMedia?.("(max-width: 600px)").matches ? "s" : "m")), [near, setNear] = useState(false), live = useRef({ vid, near, fp }); live.current = { vid, near, fp };
   useEffect(() => {
     const c = cv.current; if (!c) return; let raf = 0;
@@ -42,7 +42,7 @@ export function MiniMap({ tl, clock, vid, img, bounds, fp }: { tl: BattleTimelin
       }
       // threat rings: living friendlies an enemy ghost could shoot, now or within its 30 s window.
       // No labels at this size — the ring is the warning; the 2D player carries the seconds.
-      const threats = ghostThreats(s.units.filter((u) => u.known === "ghost"), s.units, tl.recorder.team);
+      const threats = ghostThreats(s.units.filter((u) => u.known === "ghost"), s.units, tl.recorder.team, los ?? null);
       for (const [vid, th] of threats) { const f = s.units.find((u) => u.vid === vid); if (!f || f.known !== "live") continue; const X = sx(f.x), Y = sy(f.z); if (X < -5 || Y < -5 || X > W + 5 || Y > H + 5) continue;
         g.strokeStyle = foe; g.globalAlpha = 0.8 * th.alpha; g.lineWidth = 1.5; g.beginPath(); g.arc(X, Y, 6, 0, 7); g.stroke(); g.globalAlpha = 1; }
       if (me && me.known !== "never" && me.alive) {
@@ -52,7 +52,7 @@ export function MiniMap({ tl, clock, vid, img, bounds, fp }: { tl: BattleTimelin
         g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(X, Y, 6, 0, 7); g.stroke();
       }
     }; draw(); return () => cancelAnimationFrame(raf);
-  }, [tl, clock, img, bounds]);
+  }, [tl, clock, img, bounds, los]);
   const px = { s: 110, m: 190, l: 280, x: 0 }[size];
   return (
     <div className="minimap" onPointerDown={(e) => e.stopPropagation()} data-testid="minimap">

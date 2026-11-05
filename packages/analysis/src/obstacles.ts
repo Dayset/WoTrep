@@ -15,6 +15,7 @@
  *  usable as-is for SIGHT (a rock cluster blocks sight across its whole box) but too crude
  *  for hard drive-blocking (exact .havok meshes would fix that). */
 
+import type { Unit } from "@wotrep/model";
 import { heightAt, type HeightField } from "./terrain";
 
 export type Vec3 = [number, number, number];
@@ -64,6 +65,16 @@ export const BUSH_HEIGHT_M = 1.5;
 /** Blocker grid cell (m) for the line-of-sight index. 50 m cells keep a 445 m sight line to a
  *  handful of candidate footprints instead of all ~1,800. 2026-11-05. */
 export const BLOCKER_CELL_M = 50;
+/** Tank hull radius (m) for line-of-sight: a tank is a cylinder the sight line must clear.
+ *  A hull is ~3 m wide and ~6-7 m long; a circle cannot match both, so 3 m splits the
+ *  difference and errs toward blocking — claiming a shot is blocked when it might squeeze
+ *  past is the safer side for a trainer (and for a threat marker: fewer false alarms).
+ *  Initial guess. 2026-11-05. */
+export const TANK_BLOCK_R_M = 3;
+/** Tank top height above the ground (m): hull ~1.8 m + turret ~0.9 m. The sight line runs
+ *  eye to eye at EYE_HEIGHT_M, so on flat ground a tank in the way blocks it; an elevated
+ *  shooter can clear it. Per-vehicle heights are not decoded — initial guess. 2026-11-05. */
+export const TANK_HEIGHT_M = 2.7;
 
 // ---- parsing (strict: the JSON is user-supplied, replay data is untrusted) ----
 const isRec = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -291,6 +302,45 @@ export function segmentBlocked(from: Vec3, to: Vec3, field: HeightField, blocker
   if (best) return best;
   if (terrainT !== null) return { kind: "terrain", at: [from[0] + dx * terrainT, from[1] + dy * terrainT, from[2] + dz * terrainT], t: terrainT };
   return null;
+}
+
+/** One tank as a sight blocker: position, top height, and id (so the shooter and the
+ *  target can be excluded — a tank never blocks its own shot or a shot aimed at itself). */
+export interface TankBlocker { x: number; z: number; top: number; vid: number }
+
+/** Alive, live-known tanks as sight blockers. Dead tanks are wrecks and do not block
+ *  (a wreck's turret is gone and the hull sits low); ghosts are not here at all — their
+ *  position is unknown, so the last-known spot is not a blocker, the tank may have moved. */
+export function tankBlockers(units: Unit[], field: HeightField): TankBlocker[] {
+  return units.filter((u) => u.alive && u.known === "live").map((u) => ({ x: u.x, z: u.z, top: heightAt(field, u.x, u.z) + TANK_HEIGHT_M, vid: u.vid }));
+}
+
+/** First parameter t in [0, 1] where the sight line from `from` to `to` enters a tank's
+ *  cylinder, or null. The same shape as segmentBlocked's footprint test but for a circle:
+ *  the line is blocked only when it is below the tank's top at the crossing. `exclude`
+ *  holds the vids that never block (the shooter and the target). `from`/`to` are eye
+ *  positions (ground + EYE_HEIGHT_M), as in segmentBlocked. */
+export function segmentTankBlocked(from: Vec3, to: Vec3, tanks: TankBlocker[], exclude: ReadonlySet<number>): number | null {
+  const dx = to[0] - from[0], dz = to[2] - from[2], dy = to[1] - from[1];
+  const len2 = dx * dx + dz * dz;
+  if (len2 < 1e-12) return null;
+  const r = TANK_BLOCK_R_M;
+  let best: number | null = null;
+  for (const t of tanks) {
+    if (exclude.has(t.vid)) continue;
+    const fx = from[0] - t.x, fz = from[2] - t.z;
+    const c = fx * fx + fz * fz - r * r;
+    if (c <= 0) { // starts inside the tank's circle: blocked at t = 0 unless the line is above it
+      if (from[1] < t.top) return 0;
+      continue;
+    }
+    const b = 2 * (fx * dx + fz * dz), disc = b * b - 4 * len2 * c;
+    if (disc < 0) continue;
+    const tt = (-b - Math.sqrt(disc)) / (2 * len2);
+    if (tt < 0 || tt > 1) continue;
+    if (from[1] + dy * tt < t.top && (best === null || tt < best)) best = tt;
+  }
+  return best;
 }
 
 /** First parameter t in [0, 1] where the 2D segment crosses the quad, or null. An endpoint

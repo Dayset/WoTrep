@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
-import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, ghostThreats, reachBlockers, shadowPolygon, trainerMatch, type TrainerSel } from "./viewConfig";
+import { VIEW_ALPHA, VIEW_FOV_DEG, VIEW_RANGE_M, PROXIMITY_SPOT_M, ghostThreats, reachBlockers, shadowPolygon, trainerMatch, type LosContext, type TrainerSel } from "./viewConfig";
 import { drawReachDisc } from "./reachDraw";
 import { sfxStart, sfxShot, type ShotKind } from "./sfx";
 import { stateAt, type BattleTimeline, type Unit } from "@wotrep/model";
@@ -16,7 +16,7 @@ import { heightImage } from "../../lib/heightImage";
 const PovView = lazy(() => import("./PovView"));
 import { DamageLog } from "./DamageLog";
 import { ChatLog } from "./ChatLog";
-import { flankModel, flankState, seriesFor, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, REAL_HEIGHT_CELL_M, filterOutland, sightBlockers, buildBlockerIndex, segmentBlocked, EYE_HEIGHT_M, TREE_CANOPY_R_M, type RealHeights, type RealSource, type ReloadEstimate, type Obstacles, type ObstacleKind } from "@wotrep/analysis";
+import { flankModel, flankState, seriesFor, aimAt, heightField, heightAt, estimateReload, reloadProgress, shotTimes, REAL_HEIGHT_CELL_M, filterOutland, sightBlockers, buildBlockerIndex, segmentBlocked, segmentTankBlocked, tankBlockers, EYE_HEIGHT_M, TREE_CANOPY_R_M, type RealHeights, type RealSource, type ReloadEstimate, type Obstacles, type ObstacleKind } from "@wotrep/analysis";
 import { goodPlaysAll, dangerSpots, detectors, rank, runDetectors, type GoodPlay, type DangerSpot } from "@wotrep/coach";
 import { FindingCard } from "../report/Findings";
 
@@ -93,9 +93,10 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
   const [obstacles, setObstacles] = useState<Obstacles | null>(null);
   useEffect(() => { let on = true; void loadObstacles(tl.arena.map).then((o) => { if (on) setObstacles(o); }); return () => { on = false; }; }, [tl.arena.map, mapTick]);
   const filtered = useMemo(() => (obstacles ? filterOutland(obstacles, bounds) : null), [obstacles, bounds]);
-  // Line of sight for the trainer cones: the same HeightField the heights overlay draws (real heights
+  // Line of sight for the trainer cones and the threat markers: the same HeightField the heights overlay draws (real heights
   // when loaded, estimated from tracks otherwise) plus the sight blockers, indexed for ray tests.
-  const los = useMemo(() => {
+  // Null when no obstacles are loaded — the cones stay full fans and the threats stay range-only, as before.
+  const los: LosContext | null = useMemo(() => {
     if (!filtered) return null;
     const field = heightField(tl, bounds, real ? REAL_HEIGHT_CELL_M : 25, real ?? undefined);
     const blockers = sightBlockers(filtered);
@@ -182,7 +183,7 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
     for (let z = gz0; z <= bounds.z1; z += GRID_M) { g.beginPath(); g.moveTo(sx(bounds.x0), sy(z)); g.lineTo(sx(bounds.x1), sy(z)); g.stroke(); g.fillText(String(Math.round((z - gz0) / GRID_M) + 1), sx(bounds.x0) + 3, sy(z) + 2); }
     const col = (team: number) => (team === tl.recorder.team ? you : foe);
     // threat markers: living friendlies an enemy ghost could shoot, now or within its 30 s window.
-    const threats = ghostThreats(snap.units.filter((u) => u.known === "ghost"), snap.units, tl.recorder.team);
+    const threats = ghostThreats(snap.units.filter((u) => u.known === "ghost"), snap.units, tl.recorder.team, los);
     // trails: only through real samples, broken at gaps (never interpolated across fog)
     if (o.trails) for (const u of snap.units) {
       const tr = tl.tracks[u.vid]; if (!tr || !u.alive) continue;
@@ -198,9 +199,11 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
     };
     // trainer: view range circle and field-of-view cone for every known live tank, friend or foe, at 20% opacity.
     // With obstacles loaded, the cone is a fan of rays: each ray runs from the tank's eye to the first thing
-    // that blocks sight (terrain or a footprint) and stops there. The solid fan is what the tank can see;
+    // that blocks sight (terrain, a footprint, or another tank) and stops there. The solid fan is what the tank can see;
     // the dashed radials past the blockers are the unknown part of its view range. Without obstacles the
     // whole cone is visible, as before.
+    // Tanks as sight blockers for the cones: alive live tanks, built once per frame (the threats reuse the same list inside ghostThreats).
+    const tanks = los ? tankBlockers(snap.units, los.field) : null;
     if (o.trainer !== null) for (const u of snap.units) {
       if (u.known !== "live" || !u.alive || !trainerMatch(o.trainer, u.vid, u.team, tl.recorder.team)) continue;
       const ay = aimAt(tl, u.vid, T)?.yaw ?? u.yaw, X = sx(u.x), Y = sy(u.z), R = VIEW_RANGE_M.value * cm.s, half = (VIEW_FOV_DEG.value * Math.PI) / 360, mid = ay - Math.PI / 2;
@@ -209,12 +212,16 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
         g.beginPath(); g.moveTo(X, Y); g.arc(X, Y, R, mid - half, mid + half); g.closePath(); g.fill();
       } else {
         const eyeY = heightAt(los.field, u.x, u.z) + EYE_HEIGHT_M, D = VIEW_RANGE_M.value;
+        const excludeSelf = new Set([u.vid]);
         const rays: { a: number; d: number }[] = [];
         for (let i = 0; i <= CONE_RAYS; i++) {
           const a = mid - half + (2 * half * i) / CONE_RAYS;
           const tx = u.x + Math.cos(a) * D, tz = u.z - Math.sin(a) * D;
-          const hit = segmentBlocked([u.x, eyeY, u.z], [tx, heightAt(los.field, tx, tz) + EYE_HEIGHT_M, tz], los.field, los.blockers, los.index);
-          rays.push({ a, d: hit ? hit.t * D : D });
+          const to: [number, number, number] = [tx, heightAt(los.field, tx, tz) + EYE_HEIGHT_M, tz];
+          const hit = segmentBlocked([u.x, eyeY, u.z], to, los.field, los.blockers, los.index);
+          // a tank in the way stops the ray too — a cone must not claim a shot through a tank.
+          const tankT = tanks ? segmentTankBlocked([u.x, eyeY, u.z], to, tanks, excludeSelf) : null;
+          rays.push({ a, d: Math.min(hit ? hit.t * D : D, tankT !== null ? tankT * D : D) });
         }
         g.beginPath(); g.moveTo(X, Y);
         for (const r of rays) g.lineTo(sx(u.x + Math.cos(r.a) * r.d), sy(u.z - Math.sin(r.a) * r.d));
@@ -448,7 +455,7 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
       <div className="pmap" ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} onClick={dismissCard} onDoubleClick={() => { const b = box.current; if (b) fit(b.clientWidth, b.clientHeight); setFollow(false); }}>
         <div className="pstage"><canvas ref={canvas} aria-label={t("player.aria")} role="img" />
           <div ref={outroRef} className={`outro ${outcome}`} aria-hidden="true" style={{ opacity: 0 }}><b>{t(`outro.${outcome}`)}</b></div></div>
-        {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={dismissCard}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} /><Suspense fallback={<p className="muted">…</p>}><PovView reload={reloadOn} trainer={{ on: trainer, sel: trainerSel }} tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} real={real ?? undefined} obstacles={filtered ?? undefined} /></Suspense>{<div ref={outro3dRef} className={`outro ${outcome}`} aria-hidden="true" style={{ opacity: 0, zIndex: 4 }}><b>{t(`outro.${outcome}`)}</b></div>}{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
+        {view3d !== "off" && <div className="povwrap" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={dismissCard}><MiniMap tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} img={mapInfo?.img ?? null} bounds={bounds} fp={view3d === "fp"} los={los} /><Suspense fallback={<p className="muted">…</p>}><PovView reload={reloadOn} trainer={{ on: trainer, sel: trainerSel }} tl={tl} clock={clock} vid={sel ?? tl.recorder.vid} mode={view3d} img={mapInfo?.img ?? null} bounds={bounds} zoom={scope} lock={lockView} resync={resync} trails={trails} real={real ?? undefined} obstacles={filtered ?? undefined} /></Suspense>{<div ref={outro3dRef} className={`outro ${outcome}`} aria-hidden="true" style={{ opacity: 0, zIndex: 4 }}><b>{t(`outro.${outcome}`)}</b></div>}{(() => { const a = aimAt(tl, sel ?? tl.recorder.vid, uiT); return a ? <><b className="scope" aria-hidden="true" hidden={!(view3d === "fp" && scope > 1 && a.onTarget)} /><div className="aimhud" aria-live="off"><i style={{ width: `${Math.round(70 - 54 * a.aimProgress)}px`, height: `${Math.round(70 - 54 * a.aimProgress)}px` }} data-done={a.aimProgress >= 1} /><span>{a.aimS.toFixed(1)} / 2.3 s{a.moving ? ` · ${t("pov.turning")}` : ""}</span></div></> : null; })()}</div>}
         <div className="pviewsw" role="group" aria-label={t("pov.view")} onPointerDown={(e) => e.stopPropagation()}>{(["off", "fp", "chase"] as const).map((m) => <button type="button" key={m} aria-pressed={view3d === m} onClick={() => setView3d(m)} title={t(`pov.${m}`)} data-testid={`v3d-${m}`}>{t(`ui.v.${m}`)}</button>)}</div>
         {view3dCtl}
         {sv && su && <div className="pinfo"><b>{sv.name}</b> · {vehicleLabel(sv.vehicleType).label}<div>{su.alive ? `${Math.round(su.hp)} / ${sv.maxHealth} HP` : "✕"}{su.known === "ghost" ? ` · ${t("player.lastseen", { s: Math.round(su.ageS ?? 0) })}` : ""}</div></div>}
