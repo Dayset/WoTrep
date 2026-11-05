@@ -6,6 +6,7 @@
   "upload.error": "Не удалось прочитать файл ({stage}): {message}",
   "upload.stageParse": "Разбор",
   "upload.sendDiagnostics": "Отправить диагностику",
+  "upload.workerLoadFailed": "Модуль чтения реплеев не запустился — перезагрузите страницу и попробуйте снова.",
   "report.win": "Победа",
   "report.loss": "Поражение",
   "report.draw": "Ничья",

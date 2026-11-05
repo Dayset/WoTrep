@@ -13,7 +13,8 @@ export function Upload({ onDone }: { onDone: (tl: BattleTimeline) => void }) {
     if (!f) return;
     setBusy(true); setErr(null); setStage(null); setPct(null);
     parseFile(f, (s, p) => { if (s !== "done") { setStage(s); setPct(p); } }).promise.then(onDone)
-      .catch((e: Error & { stage?: string; code?: string }) => setErr({ stage: e.stage ?? "?", code: e.code, message: e.message }))
+      .catch((e: Error & { stage?: string; code?: string; fileName?: string; fileSize?: number; workerStarted?: boolean; lastProgressStage?: string; workerUrl?: string }) =>
+        setErr({ stage: e.stage ?? "?", code: e.code, message: e.message, fileName: e.fileName, fileSize: e.fileSize, workerStarted: e.workerStarted, lastProgressStage: e.lastProgressStage, workerUrl: e.workerUrl }))
       .finally(() => setBusy(false));
   };
   const sendDiagnostics = () => {
@@ -33,10 +34,10 @@ export function Upload({ onDone }: { onDone: (tl: BattleTimeline) => void }) {
         <div className="drop-plus" aria-hidden="true">+</div>
         {busy ? t("upload.parsing") : t("upload.drop")}
         <small>{t("upload.local")}</small>
-        <input ref={input} type="file" accept=".wotreplay,.mtreplay" hidden data-testid="file" onChange={(e) => run(e.target.files?.[0])} />
+        <input ref={input} type="file" accept=".wotreplay,.mtreplay" hidden data-testid="file" onChange={(e) => { run(e.target.files?.[0]); e.target.value = ""; }} />
       </div>
       {busy && stage !== null && pct !== null && <div role="status">{stageLabel(stage, t("upload.stageParse"))} {pct}%</div>}
-      {err && <div className="err" role="alert">{t("upload.error", { stage: err.stage, message: err.message })} <button type="button" onClick={sendDiagnostics}>{t("upload.sendDiagnostics")}</button></div>}
+      {err && <div className="err" role="alert">{t("upload.error", { stage: err.stage, message: err.code === "WorkerLoadFailed" ? t("upload.workerLoadFailed") : err.message })} <button type="button" onClick={sendDiagnostics}>{t("upload.sendDiagnostics")}</button></div>}
     </div>
   );
 }

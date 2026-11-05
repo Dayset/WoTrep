@@ -6,6 +6,7 @@
   "upload.error": "Could not read this file ({stage}): {message}",
   "upload.stageParse": "Parsing",
   "upload.sendDiagnostics": "Send diagnostics",
+  "upload.workerLoadFailed": "The replay reader failed to start — reload the page and try again.",
   "report.win": "Victory",
   "report.loss": "Defeat",
   "report.draw": "Draw",
