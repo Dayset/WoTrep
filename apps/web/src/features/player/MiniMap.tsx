@@ -41,10 +41,12 @@ export function MiniMap({ tl, clock, vid, img, bounds, fp, los }: { tl: BattleTi
         g.globalAlpha = 1;
       }
       // threat rings: living friendlies an enemy ghost could shoot, now or within its 30 s window.
-      // No labels at this size — the ring is the warning; the 2D player carries the seconds.
+      // No labels at this size — the ring is the warning; the 2D player carries the seconds. No
+      // sight line either: at minimap scale it would cross the whole map and clutter the reach
+      // circles and the view wedge. The ring is thickened to match the 2D highlight.
       const threats = ghostThreats(s.units.filter((u) => u.known === "ghost"), s.units, tl.recorder.team, los ?? null);
       for (const [vid, th] of threats) { const f = s.units.find((u) => u.vid === vid); if (!f || f.known !== "live") continue; const X = sx(f.x), Y = sy(f.z); if (X < -5 || Y < -5 || X > W + 5 || Y > H + 5) continue;
-        g.strokeStyle = foe; g.globalAlpha = 0.8 * th.alpha; g.lineWidth = 1.5; g.beginPath(); g.arc(X, Y, 6, 0, 7); g.stroke(); g.globalAlpha = 1; }
+        g.strokeStyle = foe; g.globalAlpha = 0.9 * th.alpha; g.lineWidth = 2; g.beginPath(); g.arc(X, Y, 6, 0, 7); g.stroke(); g.globalAlpha = 1; }
       if (me && me.known !== "never" && me.alive) {
         const a = aimAt(tl, L.vid, T), yaw = a ? a.yaw : me.yaw, X = sx(me.x), Y = sy(me.z), R = Math.min(W, H) * 0.45, fov = (L.fp ? (a?.onTarget ? 20 : 65) : 65) * Math.PI / 180;
         g.fillStyle = "rgba(255,255,255,0.18)"; g.strokeStyle = "#fff"; g.lineWidth = 1; g.beginPath(); g.moveTo(X, Y);

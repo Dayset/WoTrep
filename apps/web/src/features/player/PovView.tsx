@@ -107,12 +107,30 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
     // threat rings: a flat red ring on the ground under every living friendly an enemy ghost could
     // shoot, now or within its 30 s window. One shared geometry, one material per tank (opacity
     // varies per frame with the ghost's fade). No seconds label in 3D — the 2D player carries it.
-    const ringGeo = new THREE.RingGeometry(6, 8, 32);
+    const ringGeo = new THREE.RingGeometry(5, 9, 32);
     const rings = new Map<number, { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial }>();
     for (const v of tl.vehicles) {
       const mat = new THREE.MeshBasicMaterial({ color: foe, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
       const mesh = new THREE.Mesh(ringGeo, mat); mesh.rotation.x = -Math.PI / 2; mesh.visible = false; mesh.frustumCulled = false; mesh.renderOrder = 2; scene.add(mesh);
       rings.set(v.vid, { mesh, mat });
+    }
+    // threat sight lines: a flat red ribbon on the ground from the friendly to the ghost's firing
+    // position, reshaped each frame so it follows the terrain (same preallocated-array pattern as
+    // the trainer-cone fans), plus a disc marking the firing position — "the ghost will shoot from
+    // here". No line when the ghost may already be in a firing position (edge null). One ribbon +
+    // one disc per vehicle; the ribbon is 2 m wide, 24 stations along the line.
+    const TL_N = 24, threatLines = new Map<number, { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; pos: Float32Array }>();
+    const threatLineIdx: number[] = []; for (let i = 0; i < TL_N; i++) { const a = i * 2; threatLineIdx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    const tmarkGeo = new THREE.CircleGeometry(3, 24);
+    const tmarks = new Map<number, { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial }>();
+    for (const v of tl.vehicles) {
+      const lpos = new Float32Array((TL_N + 1) * 2 * 3), lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(lpos, 3)); lg.setIndex(threatLineIdx);
+      const lmat = new THREE.MeshBasicMaterial({ color: foe, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+      const lmesh = new THREE.Mesh(lg, lmat); lmesh.visible = false; lmesh.frustumCulled = false; lmesh.renderOrder = 2; scene.add(lmesh);
+      threatLines.set(v.vid, { mesh: lmesh, mat: lmat, pos: lpos });
+      const mmat = new THREE.MeshBasicMaterial({ color: foe, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+      const mmesh = new THREE.Mesh(tmarkGeo, mmat); mmesh.rotation.x = -Math.PI / 2; mmesh.visible = false; mmesh.frustumCulled = false; mmesh.renderOrder = 2; scene.add(mmesh);
+      tmarks.set(v.vid, { mesh: mmesh, mat: mmat });
     }
     // smoke over destroyed tanks: a few low-poly puffs per tank, rising high and staying visible from far away
     const puffGeo = new THREE.IcosahedronGeometry(1, 0), SMOKE_END_S = 120;
@@ -261,7 +279,16 @@ export default function PovView({ tl, clock, vid, mode, img, bounds, zoom, lock,
           if (show) { sp.mesh.position.set(u.x, gh(u.x, u.z) + 1.5, -u.z); sp.mesh.scale.setScalar(u.reachM!); sp.mat.uniforms.uCount!.value = u.team === tl.recorder.team ? 0 : nFriends; sp.mat.uniforms.uCenter!.value.set(u.x, -u.z); sp.mat.uniforms.uOpacity!.value = 0.3 * (1 - (u.ageS ?? 0) / SPHERE_FADE_S); } }
         { const rg = rings.get(u.vid)!, th = threats.get(u.vid);
           rg.mesh.visible = !!th && u.alive && u.known === "live";
-          if (th) { rg.mesh.position.set(u.x, gh(u.x, u.z) + 0.3, -u.z); rg.mat.opacity = 0.6 * th.alpha; } }
+          if (th) { rg.mesh.position.set(u.x, gh(u.x, u.z) + 0.3, -u.z); rg.mat.opacity = 0.85 * th.alpha; } }
+        { const ln = threatLines.get(u.vid)!, mk = tmarks.get(u.vid)!, th = threats.get(u.vid);
+          const show = !!th && !!th.edge && u.alive && u.known === "live";
+          ln.mesh.visible = mk.mesh.visible = show;
+          if (show) { const e = th.edge!, dx = e.x - u.x, dz = e.z - u.z, len = Math.hypot(dx, dz) || 1, nx = dx / len, nz = dz / len, px = -nz, pz = nx;
+            for (let i = 0; i <= TL_N; i++) { const t = i / TL_N, x = u.x + dx * t, z = u.z + dz * t, y = gh(x, z) + 0.5, o = i * 6;
+              ln.pos[o] = x + px; ln.pos[o + 1] = y; ln.pos[o + 2] = -(z + pz); ln.pos[o + 3] = x - px; ln.pos[o + 4] = y; ln.pos[o + 5] = -(z - pz); }
+            (ln.mesh.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+            ln.mat.opacity = 0.85 * th.alpha;
+            mk.mesh.position.set(e.x, gh(e.x, e.z) + 0.5, -e.z); mk.mat.opacity = 0.9 * th.alpha; } }
         k.mat.color.copy(!u.alive ? new THREE.Color(0x444444) : hit.has(u.vid) ? new THREE.Color(0xffd23f) : u.team === tl.recorder.team ? ally : foe);
         { const cn = vcones.get(u.vid)!, show = L.trainer.on && u.known === "live" && u.alive && trainerMatch(L.trainer.sel, u.vid, u.team, tl.recorder.team);
           cn.fan.visible = cn.ring.visible = show;

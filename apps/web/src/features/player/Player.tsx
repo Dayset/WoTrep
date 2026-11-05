@@ -264,15 +264,17 @@ export function Player({ tl, findings, subject, startAt, seekTo }: { tl: BattleT
       g.fillStyle = grid; g.fillRect(X - 10, Y + 11, 20, 3); g.fillStyle = frac > 0.3 ? col(u.team) : ink; g.fillRect(X - 10, Y + 11, 20 * frac, 3);
       if (o.names) { g.fillStyle = ink; g.textBaseline = "bottom"; g.fillText(vehicle.get(u.vid)?.name.slice(0, 12) ?? "", X - 10, Y - 11); }
     }
-    // threat markers: a ring around every living friendly an enemy ghost could shoot, with the seconds
-    // until the ghost could first be in firing range (0s = it may already be there) and a faint line
-    // to the nearest point of the ghost's reach disc. The line is dropped when the direct approach is
-    // shadowed or the friendly is already inside the disc. No words — the number is language-neutral,
-    // the ring is the warning.
+    // threat markers: a thick ring around every living friendly an enemy ghost could shoot, with the
+    // seconds until the ghost could first be in firing range (0s = it may already be there) and a
+    // bold sight line to the ghost's firing position, marked with a cross — "the ghost will shoot
+    // from here". No line when the ghost may already be in a firing position (edge null). No words —
+    // the number is language-neutral, the ring is the warning. All of it fades with the ghost's age.
     for (const [vid, th] of threats) { const f = by.get(vid); if (!f || f.known !== "live") continue; const X = sx(f.x), Y = sy(f.z);
-      if (th.edge) { g.strokeStyle = foe; g.globalAlpha = 0.35 * th.alpha; g.lineWidth = 1; g.setLineDash([2, 4]); g.beginPath(); g.moveTo(X, Y); g.lineTo(sx(th.edge.x), sy(th.edge.z)); g.stroke(); g.setLineDash([]); }
-      g.strokeStyle = foe; g.globalAlpha = 0.8 * th.alpha; g.lineWidth = 2; g.beginPath(); g.arc(X, Y, 24, 0, 7); g.stroke();
-      g.fillStyle = foe; g.globalAlpha = 0.9 * th.alpha; g.font = "bold 11px system-ui"; g.textBaseline = "top"; g.fillText(`${Math.max(0, Math.round(th.secs))}s`, X + 10, Y + 14); g.font = "10px system-ui"; g.globalAlpha = 1; }
+      if (th.edge) { const EX = sx(th.edge.x), EY = sy(th.edge.z);
+        g.strokeStyle = foe; g.globalAlpha = 0.85 * th.alpha; g.lineWidth = 2; g.setLineDash([8, 5]); g.beginPath(); g.moveTo(X, Y); g.lineTo(EX, EY); g.stroke(); g.setLineDash([]);
+        g.lineWidth = 2.5; g.beginPath(); g.moveTo(EX - 6, EY - 6); g.lineTo(EX + 6, EY + 6); g.moveTo(EX + 6, EY - 6); g.lineTo(EX - 6, EY + 6); g.stroke(); }
+      g.strokeStyle = foe; g.globalAlpha = 0.9 * th.alpha; g.lineWidth = 4; g.beginPath(); g.arc(X, Y, 24, 0, 7); g.stroke();
+      g.fillStyle = foe; g.globalAlpha = 0.95 * th.alpha; g.font = "bold 13px system-ui"; g.textBaseline = "top"; g.fillText(`${Math.max(0, Math.round(th.secs))}s`, X + 11, Y + 15); g.font = "10px system-ui"; g.globalAlpha = 1; }
     // combat: fire lines (0.4 s), shot flashes (0.35 s), damage floaters (1.5 s), kill crosses (4 s)
     for (const e of tl.events) {
       if (e.t > T) break; const age = T - e.t;
