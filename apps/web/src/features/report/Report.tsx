@@ -10,6 +10,7 @@ import { MapPage } from "../map/MapPage";
 import { Ledger } from "./Ledger";
 import { Danger } from "./Danger";
 import { Movement } from "./Movement";
+import { Exposure } from "./Exposure";
 import { CoverageBadge } from "./CoverageBadge";
 import { FindingsPanel } from "./Findings";
 import { Scoreboard } from "./Scoreboard";
@@ -135,6 +136,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
           <Ledger tl={tl} team={tl.recorder.team} /><Ledger tl={tl} team={tl.recorder.team === 1 ? 2 : 1} />
           <Danger tl={tl} team={tl.recorder.team} /><Danger tl={tl} team={tl.recorder.team === 1 ? 2 : 1} />
           <Movement tl={tl} team={tl.recorder.team} /><Movement tl={tl} team={tl.recorder.team === 1 ? 2 : 1} />
+          <Exposure tl={tl} team={tl.recorder.team} /><Exposure tl={tl} team={tl.recorder.team === 1 ? 2 : 1} />
         </section>
         <section><h2>{t("ui.sec.battle")}</h2><WpChart tl={tl} /><ImpactChart tl={tl} /><TargetChart tl={tl} /><CompareChart tl={tl} /><AimChart tl={tl} /><MapPage tl={tl} /></section>
         <FeedbackExport />{debugOn() && <Debug tl={tl} />}</div>}
