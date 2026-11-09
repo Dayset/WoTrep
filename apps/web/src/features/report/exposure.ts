@@ -30,6 +30,8 @@ export interface ExposurePlayer {
 }
 export interface ExposureTeam {
   team: 1 | 2; players: ExposurePlayer[];
+  /** player-seconds alive added up across the team — the denominator for the footer average */
+  sumAlive: number;
   /** player-seconds of exposure added up across the team (overlaps count twice) */
   sumExposed: number; sumNow: number;
   /** clock seconds with at least one teammate exposed (overlaps count once) */
@@ -121,7 +123,7 @@ export function exposure(tl: BattleTimeline, endS?: number): ExposureSummary {
       const a = acc.get(v.vid)!;
       return { vid: v.vid, team, aliveS: a.alive, ghostS: a.ghost, ghostReadyS: a.ghostReady, liveS: a.live, exposedS: a.exposed, nowS: a.now, soloS: a.solo, sharedS: a.shared };
     });
-    teams[team] = { team, players, sumExposed: players.reduce((x, p) => x + p.exposedS, 0), sumNow: players.reduce((x, p) => x + p.nowS, 0), unionExposed: union[team].exposed, unionNow: union[team].now };
+    teams[team] = { team, players, sumAlive: players.reduce((x, p) => x + p.aliveS, 0), sumExposed: players.reduce((x, p) => x + p.exposedS, 0), sumNow: players.reduce((x, p) => x + p.nowS, 0), unionExposed: union[team].exposed, unionNow: union[team].now };
   }
   return { teams };
 }

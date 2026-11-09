@@ -19,7 +19,7 @@ export function Exposure({ tl, team }: { tl: BattleTimeline; team: 1 | 2 }) {
       <h3>{t("ex.title")} · {side}</h3>
       <SortTable sortKey="exposed" cols={[{ key: "player", label: t("led.player"), name: true }, { key: "exposed", label: t("ex.exposed"), title: t("ex.exposed.tip") }, { key: "ghost", label: t("ex.ghost"), title: t("ex.ghost.tip") }, { key: "live", label: t("ex.live"), title: t("ex.live.tip") }, { key: "now", label: t("ex.now"), title: t("ex.now.tip") }, { key: "solo", label: t("ex.solo"), title: t("ex.solo.tip") }, { key: "shared", label: t("ex.shared"), title: t("ex.shared.tip") }]}
           rows={rows.map((p) => { const v = info.get(p.vid)!; return { id: p.vid, cls: v.isRecorder ? "me" : "", side: v.team === tl.recorder.team ? "ally" : "foe", cells: { player: { v: v.name, node: <span title={vehicleLabel(v.vehicleType).label}>{v.name}</span> }, exposed: { v: p.exposedS, node: `${p.exposedS} s (${pc(p.exposedS, p.aliveS)})` }, ghost: { v: p.ghostS, node: `${p.ghostS} s` }, live: { v: p.liveS, node: `${p.liveS} s` }, now: { v: p.nowS, node: `${p.nowS} s` }, solo: { v: p.soloS, node: `${p.soloS} s` }, shared: { v: p.sharedS, node: `${p.sharedS} s` } } }; })} />
-      <p className="muted">{t("ex.total")}: {tm.sumExposed} s · {t("ex.union")}: {tm.unionExposed} s · {t("ex.now")}: {tm.sumNow} s · {t("ex.union")}: {tm.unionNow} s</p>
+      <p className="muted">{t("ex.total")}: {tm.sumExposed} s · {t("ex.union")}: {tm.unionExposed} s · {t("ex.now")}: {tm.sumNow} s · {t("ex.union")}: {tm.unionNow} s · {t("ex.avg")}: {pc(tm.sumExposed, tm.sumAlive)}</p>
       <details className="how"><summary>{t("gl.how")} · {t("gl.mean")}</summary><p>{t("gl.exposure.how")}</p><p>{t("gl.exposure.mean")}</p></details>
     </div>
   );

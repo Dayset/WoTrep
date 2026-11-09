@@ -60,8 +60,12 @@ describe("exposure", () => {
     expect(byName.get("kravchikino")!.exposedS).toBe(124);
     expect(byName.get("77SVET77")!.exposedS).toBe(0);
     expect(ex.teams[1].sumExposed).toBe(924);
+    expect(ex.teams[1].sumAlive).toBe(1331);
+    expect(Math.round((ex.teams[1].sumExposed / ex.teams[1].sumAlive) * 100)).toBe(69);
     expect(ex.teams[1].unionExposed).toBe(276);
     expect(ex.teams[2].sumExposed).toBe(2702);
+    expect(ex.teams[2].sumAlive).toBe(3487);
+    expect(Math.round((ex.teams[2].sumExposed / ex.teams[2].sumAlive) * 100)).toBe(77);
     expect(ex.teams[2].unionExposed).toBe(287);
   });
   it("renders both teams' tables", () => {
