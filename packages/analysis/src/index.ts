@@ -28,3 +28,4 @@ export * from "./alignment";
 export * from "./style";
 export * from "./unseen";
 export * from "./spikes";
+export * from "./blocking";
