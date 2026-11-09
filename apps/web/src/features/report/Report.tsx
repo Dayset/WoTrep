@@ -18,31 +18,13 @@ import { alignment, detectors, goodPlaysAll, rank, runDetectors } from "@wotrep/
 import { Vote, FeedbackExport } from "./Feedback";
 import { StyleTable } from "./StyleTable";
 import { Swings } from "./Swings";
+import { SortTable } from "./SortTable";
 
 const tank = (v: VehicleInfo) => vehicleLabel(v.vehicleType).label;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
-/** Segmented control: one row of equal buttons, scrolls sideways on narrow screens instead of wrapping into a wall of buttons. */
-export function Seg<T extends string>({ value, set, items, label, testid }: { value: T; set: (v: T) => void; items: readonly (readonly [T, string])[]; label: string; testid?: string }) {
-  return (
-    <div className="segbar" role="tablist" aria-label={label} data-testid={testid}>
-      {items.map(([k, l]) => <button type="button" role="tab" key={k} aria-selected={value === k} onClick={() => set(k)}>{l}</button>)}
-    </div>
-  );
-}
-
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 type Card = [label: string, value: string, tip: string, id: string];
-
-/** Stat tile: label + number. "?" opens the explanation in place (the tile widens to the full row) so the grid stays short. */
-function Tile({ c: [k, v, tip, id] }: { c: Card }) {
-  return (
-    <div className="card" data-testid={`card-${id}`}>
-      <div className="k">{k} <Vote id={`card.${id}`} /></div><div className="v">{v}</div>
-      <details className="how"><summary aria-label={t("ui.more")} title={t("ui.more")}>?</summary>{tip && <p>{tip}</p>}<p><b>{t("gl.how")}.</b> {t(`gl.${id}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${id}.mean`)}</p></details>
-    </div>
-  );
-}
 
 function Stats({ tl, vid }: { tl: BattleTimeline; vid: number }) {
   const h = playerHeuristics(tl, vid); if (!h) return <p className="muted">—</p>;
@@ -83,18 +65,19 @@ function Stats({ tl, vid }: { tl: BattleTimeline; vid: number }) {
   return (
     <div className="adv" data-testid="advanced">
       {([["ui.grp.impact", impact], ["ui.grp.risk", risk], ["ui.grp.team", team]] as const).map(([g, cs]) => cs.length > 0 && (
-        <section key={g}><h3 className="grp">{t(g)}{g === "ui.grp.impact" && <span className="beta">{t("adv.beta")}</span>}</h3><div className="cards">{cs.map((c) => <Tile key={c[3]} c={c} />)}</div></section>
+        <section key={g}><h3 className="grp">{t(g)}{g === "ui.grp.impact" && <span className="beta">{t("adv.beta")}</span>}</h3>
+          <SortTable sortKey="metric" dir={1} cols={[{ key: "metric", label: t("ui.tbl.metric"), name: true }, { key: "value", label: t("ui.tbl.value") }]}
+            rows={cs.map((c) => ({ id: c[3], cells: { metric: { v: c[0], node: <>{c[0]} <Vote id={`card.${c[3]}`} /> <details className="how"><summary aria-label={t("ui.more")} title={t("ui.more")}>?</summary>{c[2] && <p>{c[2]}</p>}<p><b>{t("gl.how")}.</b> {t(`gl.${c[3]}.how`)}</p><p><b>{t("gl.mean")}.</b> {t(`gl.${c[3]}.mean`)}</p></details></> }, value: { v: c[1], node: c[1] } } }))} />
+        </section>
       ))}
     </div>
   );
 }
 
-type Tab = "replay" | "stats" | "coach" | "teams" | "charts";
+type Tab = "replay" | "stats" | "coach";
 
 export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void }) {
   const [tab, setTab] = useState<Tab>("replay");
-  const [tsub, setTsub] = useState<"score" | "ledger" | "danger" | "move">("score"), [side, setSide] = useState<"own" | "enemy">("own");
-  const [csub, setCsub] = useState<"wp" | "impact" | "targets" | "compare" | "aim" | "dist" | "heat">("wp");
   const [seekTo, setSeekTo] = useState<{ t: number; n: number }>({ t: 0, n: 0 });
   const [subject, setSubject] = useState(tl.recorder.vid);
   /** The player the Stats and Coach tabs are about. Falls back to the recorder when the stored vid is not in this battle. */
@@ -130,7 +113,7 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
       </div>
       <Economy tl={tl} />
       <nav className="tabs" role="tablist" aria-label={t("ui.tabs")}>
-        {(["replay", "stats", "coach", "teams", "charts"] as const).map((k) => <button type="button" role="tab" key={k} aria-selected={tab === k} onClick={() => go(k)} data-testid={`tab-${k}`}>{t(`ui.tab.${k}`)}{k === "coach" && nCoach > 0 && <span className="badge">{nCoach}</span>}</button>)}
+        {(["replay", "stats", "coach"] as const).map((k) => <button type="button" role="tab" key={k} aria-selected={tab === k} onClick={() => go(k)} data-testid={`tab-${k}`}>{t(`ui.tab.${k}`)}{k === "coach" && nCoach > 0 && <span className="badge">{nCoach}</span>}</button>)}
       </nav>
       {/* the player stays mounted so 3D, map and time survive tab switches */}
       <div hidden={tab !== "replay"}><Player tl={tl} findings={findings} subject={subjectVid} seekTo={seekTo} /></div>
@@ -145,17 +128,18 @@ export function Report({ tl, onBack }: { tl: BattleTimeline; onBack: () => void 
           {subjectVid !== tl.recorder.vid && <p className="muted">{t("report.subjectPartial")}</p>}
         </div>
       )}
-      {tab === "stats" && <><Swings tl={tl} /><StyleTable tl={tl} /><Stats tl={tl} vid={subjectVid} /><FeedbackExport />{debugOn() && <Debug tl={tl} />}</>}
+      {tab === "stats" && <div className="pane">
+        <section><h2>{t("ui.sec.player")}</h2><Swings tl={tl} /><StyleTable tl={tl} /><Stats tl={tl} vid={subjectVid} /><DistChart tl={tl} /></section>
+        <section><h2>{t("ui.sec.team")}</h2>
+          <Scoreboard tl={tl} team={tl.recorder.team} /><Scoreboard tl={tl} team={tl.recorder.team === 1 ? 2 : 1} />
+          <Ledger tl={tl} team={tl.recorder.team} /><Ledger tl={tl} team={tl.recorder.team === 1 ? 2 : 1} />
+          <Danger tl={tl} team={tl.recorder.team} /><Danger tl={tl} team={tl.recorder.team === 1 ? 2 : 1} />
+          <Movement tl={tl} team={tl.recorder.team} /><Movement tl={tl} team={tl.recorder.team === 1 ? 2 : 1} />
+        </section>
+        <section><h2>{t("ui.sec.battle")}</h2><WpChart tl={tl} /><ImpactChart tl={tl} /><TargetChart tl={tl} /><CompareChart tl={tl} /><AimChart tl={tl} /><MapPage tl={tl} /></section>
+        <FeedbackExport />{debugOn() && <Debug tl={tl} />}</div>}
       {tab === "coach" && <FindingsPanel findings={findings} checks={detectors.length} onShow={(f) => { setSeekTo((s) => ({ t: Math.max(0, f.tStart - f.leadS), n: s.n + 1 })); go("replay"); }} />}
-      {tab === "teams" && <div className="pane">
-        <Seg value={tsub} set={setTsub} label={t("ui.tab.teams")} items={[["score", t("ui.t.score")], ["ledger", t("ui.t.ledger")], ["danger", t("ui.t.danger")], ["move", t("ui.t.move")]]} />
-        {tsub === "score" && <><Seg value={side} set={setSide} label={t("ui.t.score")} items={[["own", t("report.allies")], ["enemy", t("report.enemies")]]} /><Scoreboard key={side} tl={tl} team={side === "own" ? tl.recorder.team : tl.recorder.team === 1 ? 2 : 1} /></>}
-        {tsub === "ledger" && <Ledger tl={tl} />}{tsub === "danger" && <Danger tl={tl} />}{tsub === "move" && <Movement tl={tl} />}
-      </div>}
-      {tab === "charts" && <div className="pane">
-        <Seg value={csub} set={setCsub} label={t("ui.tab.charts")} testid="charts" items={[["wp", t("ui.c.wp")], ["impact", t("ui.c.impact")], ["targets", t("ui.c.targets")], ["compare", t("ui.c.compare")], ["aim", t("ui.c.aim")], ["dist", t("ui.c.dist")], ["heat", t("ui.c.heat")]]} />
-        <div className="charts">{csub === "wp" && <WpChart tl={tl} />}{csub === "impact" && <ImpactChart tl={tl} />}{csub === "targets" && <TargetChart tl={tl} />}{csub === "compare" && <CompareChart tl={tl} />}{csub === "aim" && <AimChart tl={tl} />}{csub === "dist" && <DistChart tl={tl} />}{csub === "heat" && <MapPage tl={tl} />}</div>
-      </div>}
+      {tab !== "replay" && <button type="button" className="replay-fab" onClick={() => go("replay")}>▶ {t("ui.tab.replay")}</button>}
     </div>
   );
 }

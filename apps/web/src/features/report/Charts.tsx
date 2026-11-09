@@ -340,7 +340,7 @@ export function DistChart({ tl }: { tl: BattleTimeline }) {
   });
   return (
     <Frame id="chart.dist" title={t("viz.dist")} sub={t("viz.dist.sub")}
-      table={<table><thead><tr><th>{t("viz.player")}</th><th>{t(m.label)}</th><th>{t("viz.dist.pct")}</th><th>{t("viz.cmp.seen")}</th></tr></thead><tbody>{picked.map((r) => <tr key={r.v.vid}><td className="nm">{r.v.name}</td><td>{m.fmt(r.val)}</td><td>{r.pct}%</td><td>{Math.round(r.cov * 100)}%</td></tr>)}</tbody></table>}>
+      table={<SortTable sortKey="pct" cols={[{ key: "player", label: t("viz.player"), name: true }, { key: "val", label: t(m.label) }, { key: "pct", label: t("viz.dist.pct") }, { key: "seen", label: t("viz.cmp.seen") }]} rows={picked.map((r) => ({ id: r.v.vid, side: r.v.team === tl.recorder.team ? "ally" : "foe", cells: { player: { v: r.v.name, node: r.v.name }, val: { v: r.val, node: m.fmt(r.val) }, pct: { v: r.pct, node: `${r.pct}%` }, seen: { v: r.cov, node: `${Math.round(r.cov * 100)}%` } } }))} />}>
       <div className="seg" role="tablist">{METRICS.map((y) => <button key={y.key} role="tab" aria-selected={mk === y.key} onClick={() => setMk(y.key)}>{t(y.label)}</button>)}</div>
       <div><b>{t("viz.dist.pick")}</b> <span className="seg" role="group">
         <button type="button" aria-selected={showAllies} onClick={() => setShowAllies((v) => !v)}>{t("viz.cmp.allies")} · {allies.length}</button>
